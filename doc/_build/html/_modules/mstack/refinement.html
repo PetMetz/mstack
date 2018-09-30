@@ -1,0 +1,1112 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>mstack.refinement &#8212; MStack 0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body role="document">
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for mstack.refinement</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Created on Thu Dec 03 09:24:07 2015</span>
+
+<span class="sd">Designed to integrate lmfit/scipy differential evolution, existing structure</span>
+<span class="sd">tools, and DIFFaX I(Q) generator for global minimization of complex stacking</span>
+<span class="sd">disorered powder diffraction data</span>
+
+<span class="sd">@author: Peter C Metz</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="c1"># import block</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">utilities</span> <span class="k">as</span> <span class="nn">u</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">lmfit</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="c1"># import string</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">cPickle</span>
+<span class="kn">from</span> <span class="nn">copy</span> <span class="k">import</span> <span class="n">copy</span><span class="p">,</span> <span class="n">deepcopy</span>
+<span class="kn">from</span> <span class="nn">matplotlib</span> <span class="k">import</span> <span class="n">pyplot</span> <span class="k">as</span> <span class="n">plt</span>
+<span class="kn">from</span> <span class="nn">subprocess</span> <span class="k">import</span> <span class="n">call</span>
+<span class="kn">from</span> <span class="nn">operator</span> <span class="k">import</span> <span class="n">itemgetter</span>
+<span class="kn">from</span> <span class="nn">glob</span> <span class="k">import</span> <span class="n">glob</span>
+<span class="kn">from</span> <span class="nn">utilities</span> <span class="k">import</span> <span class="n">MergeParams</span><span class="p">,</span> <span class="n">UpdateMethods</span>
+<span class="kn">from</span> <span class="nn">background</span> <span class="k">import</span> <span class="n">inv_x_plus_poly3</span>
+
+
+<span class="c1"># &#39;globals&#39;</span>
+<span class="n">cwd</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">()</span>
+
+<span class="c1"># ##################################### main ################################# #</span>
+
+
+<div class="viewcode-block" id="load"><a class="viewcode-back" href="../../rst/refinement.html#mstack.refinement.load">[docs]</a><span class="k">def</span> <span class="nf">load</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">subdir</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    load a pickled .dat file</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        filename (str): file to load</span>
+<span class="sd">        subdir (str | None): directory</span>
+
+<span class="sd">    Note:</span>
+<span class="sd">        !!!!!!! EXTREMELY IMPORTANT !!!!!!!!!</span>
+<span class="sd">        cPickle saves dependencies by reference. If the source code changes between</span>
+<span class="sd">        execution, save state, and loading, the save state WILL NOT LOAD. THIS WILL</span>
+<span class="sd">        MAKE YOU VERY SAD.</span>
+
+<span class="sd">        The next step is to switch from pickle to dill, which saves dependencies by</span>
+<span class="sd">        definition. This should make save files compatible across development.</span>
+
+<span class="sd">        If all modules needed by the refinement object are note imported at time of</span>
+<span class="sd">        unpickling, there will likely be AttributeErrors thrown.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span><span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">(),</span> <span class="n">subdir</span><span class="p">,</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">.dat&#39;</span> <span class="o">%</span> <span class="n">filename</span><span class="p">]</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">])</span>
+
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">obj</span> <span class="o">=</span> <span class="n">cPickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">obj</span></div>
+
+
+<div class="viewcode-block" id="Refinement"><a class="viewcode-back" href="../../rst/refinement.html#mstack.refinement.Refinement">[docs]</a><span class="k">class</span> <span class="nc">Refinement</span><span class="p">(</span><span class="n">MergeParams</span><span class="p">,</span> <span class="n">UpdateMethods</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    hierarchy of refinement objects:</span>
+<span class="sd">        * refinement: contains experiment (data, parameters) + phase(s) + weights (normalized to 100%)</span>
+<span class="sd">        * phase: described by a structure + transitions</span>
+<span class="sd">        * transitions: holds stacking disorder parameters</span>
+<span class="sd">        * structure: holds asymmetric unit and cell parameters</span>
+<span class="sd">        * atoms: holds coordinates and isotropic thermal displacement parameters</span>
+
+<span class="sd">    Note:</span>
+<span class="sd">        Specific ref_to_phase and phase_to_ref methods are depricated by the UpdateMethods</span>
+<span class="sd">        in the utilities module.</span>
+
+<span class="sd">        I haven&#39;t tested the code since replacing the depricated method here.</span>
+
+<span class="sd">        If this is problematic replace refinement_to_phase and phase_to_refinement</span>
+<span class="sd">        methods before __init__ and uncomment the appropriate lines (indicated</span>
+<span class="sd">        with in line comments).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1">###########################################################################</span>
+    <span class="c1">#        functions for managing initialization/updating                   #</span>
+    <span class="c1">###########################################################################</span>
+<div class="viewcode-block" id="Refinement.update_phase"><a class="viewcode-back" href="../../rst/refinement.html#mstack.refinement.Refinement.update_phase">[docs]</a>    <span class="k">def</span> <span class="nf">update_phase</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">phases</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; add phases to refinement.Phase(s) dict &quot;&quot;&quot;</span>
+        <span class="c1"># initialize</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;phases&#39;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">phases</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="c1"># add/update</span>
+        <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">u</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="n">phases</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">phases</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">p</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="n">p</span><span class="p">})</span>     <span class="c1"># deepcopy(p)})</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">p</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">p</span><span class="p">)</span>   <span class="c1"># deepcopy(p))</span></div>
+
+<div class="viewcode-block" id="Refinement.update_weights"><a class="viewcode-back" href="../../rst/refinement.html#mstack.refinement.Refinement.update_weights">[docs]</a>    <span class="k">def</span> <span class="nf">update_weights</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">weights</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Update weights.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            weights (dict): {phase name: weight}</span>
+
+<span class="sd">        Note:</span>
+<span class="sd">            weights are automatically normalized to 1</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># initialize</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;weights&#39;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">weights</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">phases</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">_weight&#39;</span> <span class="o">%</span> <span class="n">p</span> <span class="o">==</span> <span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">_weight&#39;</span> <span class="o">%</span> <span class="n">p</span><span class="p">,</span> <span class="n">vary</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">weights</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">p</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">_weight&#39;</span> <span class="o">%</span> <span class="n">p</span><span class="p">]})</span>
+
+        <span class="c1"># add/update</span>
+        <span class="n">N</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="n">weights</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">d</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">w</span><span class="p">:</span> <span class="n">weights</span><span class="p">[</span><span class="n">w</span><span class="p">]})</span>
+            <span class="n">N</span> <span class="o">+=</span> <span class="n">weights</span><span class="p">[</span><span class="n">w</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="n">d</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">_weight&#39;</span> <span class="o">%</span> <span class="n">w</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="p">(</span><span class="n">weights</span><span class="p">[</span><span class="n">w</span><span class="p">]</span> <span class="o">/</span> <span class="n">N</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">weights</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;w&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">_weight&#39;</span> <span class="o">%</span> <span class="n">w</span><span class="p">]})</span></div>
+
+<div class="viewcode-block" id="Refinement.update_background"><a class="viewcode-back" href="../../rst/refinement.html#mstack.refinement.Refinement.update_background">[docs]</a>    <span class="k">def</span> <span class="nf">update_background</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">background_coefficients</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        update background from list of coefficients or parameters instances</span>
+<span class="sd">        assumes a functional form ybg = A/x + B + C * x + D * x **2 + E * x ** 3</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            background_coefficients (list | None)</span>
+<span class="sd">            params (lmfit.Parameters | None)</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">order</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;a&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;d&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span> <span class="s1">&#39;e&#39;</span><span class="p">:</span> <span class="mi">5</span><span class="p">}</span>
+
+        <span class="k">if</span> <span class="n">background_coefficients</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># initialize</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;bg_coefficients&#39;</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">bg_coefficients</span> <span class="o">=</span> <span class="p">{}</span>
+                <span class="c1"># self.params.add_many((&#39;a&#39;), (&#39;b&#39;), (&#39;c&#39;), (&#39;d&#39;), (&#39;e&#39;))</span>
+
+            <span class="n">background</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="n">background_coefficients</span><span class="p">)</span>
+            <span class="n">order</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;a&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;d&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span> <span class="s1">&#39;e&#39;</span><span class="p">:</span> <span class="mi">5</span><span class="p">}</span>
+            <span class="c1"># add</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">order</span><span class="p">)):</span>
+                <span class="n">k</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">order</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="n">order</span><span class="o">.</span><span class="n">__getitem__</span><span class="p">)[</span><span class="n">i</span><span class="p">]</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">(</span><span class="n">k</span> <span class="o">==</span> <span class="n">s</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">background</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">vary</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">bg_coefficients</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">k</span><span class="p">]})</span>
+                    <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">vary</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">bg_coefficients</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">k</span><span class="p">]})</span>
+
+            <span class="c1"># update</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">background</span><span class="p">)):</span>
+                <span class="n">k</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">order</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="n">order</span><span class="o">.</span><span class="n">__getitem__</span><span class="p">)[</span><span class="n">i</span><span class="p">]</span>  <span class="c1"># returns key for the ith positional argument</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="n">background</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>  <span class="c1"># issue with voiding bounds on update</span>
+
+        <span class="k">elif</span> <span class="n">params</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">order</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">,</span> <span class="s1">&#39;vary&#39;</span><span class="p">,</span> <span class="s1">&#39;min&#39;</span><span class="p">,</span> <span class="s1">&#39;max&#39;</span><span class="p">,</span> <span class="s1">&#39;expr&#39;</span><span class="p">]:</span>
+                        <span class="c1"># ~! print &#39;updating from params&#39;</span>
+                        <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">k</span><span class="p">],</span> <span class="n">attr</span><span class="p">,</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="n">k</span><span class="p">],</span> <span class="n">attr</span><span class="p">))</span>
+                <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                    <span class="c1"># ~! print &#39;%s not updated in background coefficients&#39; % k</span>
+                    <span class="k">pass</span>
+
+        <span class="c1"># (re)calculate background array</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ybg</span> <span class="o">=</span> <span class="n">inv_x_plus_poly3</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">xo</span><span class="p">,</span>
+                                    <span class="o">*</span><span class="n">itemgetter</span><span class="p">(</span><span class="o">*</span><span class="nb">sorted</span><span class="p">(</span><span class="n">order</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="n">order</span><span class="o">.</span><span class="n">__getitem__</span><span class="p">))</span>
+                                    <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bg_coefficients</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">background</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">xo</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ybg</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Refinement.update_broadening"><a class="viewcode-back" href="../../rst/refinement.html#mstack.refinement.Refinement.update_broadening">[docs]</a>    <span class="k">def</span> <span class="nf">update_broadening</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">broadening</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        update empirical instrumental broadening parameters from list</span>
+<span class="sd">        gaussian broadening: [FWHM] length 1 argument</span>
+<span class="sd">        pseudo-voight: [u, v, w, sigma] length 4 argument</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            broadening (list)</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># initialize</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;gau&#39;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s1">&#39;gau&#39;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="mf">0.0001</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">gau</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;gau&#39;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;pv_coefficients&#39;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pv_coefficients</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">add_many</span><span class="p">((</span><span class="s1">&#39;u&#39;</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span> <span class="p">),</span> <span class="p">(</span><span class="s1">&#39;v&#39;</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
+                                 <span class="p">(</span><span class="s1">&#39;w&#39;</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;sigma&#39;</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">))</span>
+            <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;u&#39;</span><span class="p">,</span> <span class="s1">&#39;v&#39;</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">,</span> <span class="s1">&#39;sigma&#39;</span><span class="p">]:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">pv_coefficients</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">k</span><span class="p">]})</span>
+
+        <span class="c1"># add/update</span>
+        <span class="n">broadening</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="n">broadening</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">broadening</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;gau&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">broadening</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">broadening</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">order</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;u&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;v&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;sigma&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">}</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">order</span><span class="p">)):</span>
+                <span class="n">k</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">order</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="n">order</span><span class="o">.</span><span class="n">__getitem__</span><span class="p">)[</span><span class="n">i</span><span class="p">]</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">broadening</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+                <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
+                    <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="Refinement.update_theta_range"><a class="viewcode-back" href="../../rst/refinement.html#mstack.refinement.Refinement.update_theta_range">[docs]</a>    <span class="k">def</span> <span class="nf">update_theta_range</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">theta_range</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Update the refined data range</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            theta_range (list): [min, max, stride] in units of 2 theta</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">t_min</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">t_max</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">t_step</span> <span class="o">=</span> <span class="n">theta_range</span><span class="p">[:]</span>
+        <span class="c1"># reset y-observed</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exp_data</span> <span class="o">=</span> <span class="n">copy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">exp_back</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">xo</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">yo</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">exp_back</span><span class="p">)[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">exp_back</span><span class="p">)[:,</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="c1"># reset background</span>
+        <span class="n">order</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;a&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;d&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span> <span class="s1">&#39;e&#39;</span><span class="p">:</span> <span class="mi">5</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ybg</span> <span class="o">=</span> <span class="n">inv_x_plus_poly3</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">xo</span><span class="p">,</span>
+                                    <span class="o">*</span><span class="n">itemgetter</span><span class="p">(</span><span class="o">*</span><span class="nb">sorted</span><span class="p">(</span><span class="n">order</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="n">order</span><span class="o">.</span><span class="n">__getitem__</span><span class="p">))</span>
+                                    <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bg_coefficients</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">background</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">xo</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ybg</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Refinement.update_phase_params"><a class="viewcode-back" href="../../rst/refinement.html#mstack.refinement.Refinement.update_phase_params">[docs]</a>    <span class="k">def</span> <span class="nf">update_phase_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">phase_params</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        update|initialize phase_params</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            phase_params (dict): {&#39;phase_name&#39;: &lt;lmfit.Parameters&gt;}</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># initialize</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;phase_params&#39;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">phase_params</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">phase_params</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">(</span><span class="n">p</span> <span class="o">==</span> <span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">phase_params</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">phase_params</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">p</span><span class="p">:</span> <span class="n">phase_params</span><span class="p">[</span><span class="n">p</span><span class="p">]})</span>
+
+        <span class="c1"># update</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">phase_params</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">phase_params</span><span class="p">[</span><span class="n">p</span><span class="p">]:</span>
+                    <span class="c1"># if phase_params[p][k].vary is True:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">phase_params</span><span class="p">[</span><span class="n">p</span><span class="p">][</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span>
+                                    <span class="n">value</span><span class="o">=</span><span class="n">phase_params</span><span class="p">[</span><span class="n">p</span><span class="p">][</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+                                    <span class="n">vary</span><span class="o">=</span><span class="n">phase_params</span><span class="p">[</span><span class="n">p</span><span class="p">][</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">vary</span><span class="p">,</span>
+                                    <span class="nb">min</span><span class="o">=</span><span class="n">phase_params</span><span class="p">[</span><span class="n">p</span><span class="p">][</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">min</span><span class="p">,</span>
+                                    <span class="nb">max</span><span class="o">=</span><span class="n">phase_params</span><span class="p">[</span><span class="n">p</span><span class="p">][</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">,</span>
+                                    <span class="n">expr</span><span class="o">=</span><span class="n">phase_params</span><span class="p">[</span><span class="n">p</span><span class="p">][</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">expr</span><span class="p">)</span></div>
+
+    <span class="c1">###########################################################################</span>
+    <span class="c1">#                               __init__                                  #</span>
+    <span class="c1">###########################################################################</span>
+
+<div class="viewcode-block" id="Refinement.__init__"><a class="viewcode-back" href="../../rst/refinement.html#mstack.refinement.Refinement.__init__">[docs]</a>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">wavelength</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">exp_data</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">t_range</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">broadening</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">background</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">phases</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">weights</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">global_scale</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">lateral_broadening</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">phase_params</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Args:</span>
+<span class="sd">            * wavelength: experimental radiation in angstrom</span>
+<span class="sd">            * exp_data: array like [(x1, y1), ..., (xn, yn)]</span>
+<span class="sd">            * t_range: 2-theta range like [2T_min, 2T_max, 2T_step]</span>
+<span class="sd">            * broadening: [gau] gaussian FWHM or [u, v, w, sigma] pseudo-voight parameters</span>
+<span class="sd">            * background: list of coefficients to yb = A/x + B + C*x + D*x**2 + E*x**2</span>
+<span class="sd">            * phases: list of phase instance(s) like [&lt;phase_1&gt;, ... &lt;phase_N&gt;]</span>
+<span class="sd">            * weights: dictionary of weight percents like {phase_1.name: weight_1, ..., phase_N.name, weight_N}</span>
+<span class="sd">            * global_scale: global scale factor (float)</span>
+<span class="sd">            * lateral_broadening: lateral dimension in Angstroms, per DIFFaX Manual (float)</span>
+<span class="sd">            * phase_params: dict of {&#39;phase_name&#39;: &lt;lmfit.Parameters&gt;}</span>
+<span class="sd">            * name: a string to identify the refinement instance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># refinement parameters instance</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">lmfit</span><span class="o">.</span><span class="n">Parameters</span><span class="p">()</span>
+
+        <span class="c1"># Experiment ######################################################## #</span>
+        <span class="c1"># refinement name</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+
+        <span class="c1"># λ(Å), and experimental data</span>
+        <span class="k">if</span> <span class="n">wavelength</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">wvl</span> <span class="o">=</span> <span class="n">wavelength</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">wvl</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">if</span> <span class="n">exp_data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">exp_data</span> <span class="o">=</span> <span class="n">exp_data</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">exp_back</span> <span class="o">=</span> <span class="n">exp_data</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">exp_data</span> <span class="o">=</span> <span class="p">[(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">exp_back</span> <span class="o">=</span> <span class="p">[(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">xo</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">yo</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">exp_data</span><span class="p">)[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">exp_data</span><span class="p">)[:,</span> <span class="mi">1</span><span class="p">]</span>
+
+        <span class="c1"># experimental 2θ range</span>
+        <span class="k">if</span> <span class="n">t_range</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">t_min</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">t_max</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">t_step</span> <span class="o">=</span> <span class="n">t_range</span><span class="p">[:]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">t_min</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">t_max</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">xo</span><span class="p">),</span> <span class="nb">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">xo</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">t_step</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">xo</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">xo</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="c1"># empirical broadening</span>
+        <span class="k">if</span> <span class="n">broadening</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">update_broadening</span><span class="p">(</span><span class="n">broadening</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">update_broadening</span><span class="p">(</span><span class="mf">0.025</span><span class="p">)</span>
+
+        <span class="c1"># lateral size broadening (None or cylinderical assumption)</span>
+        <span class="k">if</span> <span class="n">lateral_broadening</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s1">&#39;lat&#39;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">lateral_broadening</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">vary</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s1">&#39;lat&#39;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">vary</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lat</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;lat&#39;</span><span class="p">]</span>
+
+        <span class="c1"># global scale factor</span>
+        <span class="k">if</span> <span class="n">global_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s1">&#39;global_scale&#39;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">global_scale</span><span class="p">,</span> <span class="nb">min</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s1">&#39;global_scale&#39;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="nb">min</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">global_scale</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;global_scale&#39;</span><span class="p">]</span>
+
+        <span class="c1"># Background ######################################################## #</span>
+
+        <span class="k">if</span> <span class="n">background</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">update_background</span><span class="p">(</span><span class="n">background</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">update_background</span><span class="p">(</span><span class="n">background_coefficients</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">params</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+
+        <span class="c1"># Phases ############################################################ #</span>
+        <span class="c1"># phase instances in refinement</span>
+        <span class="k">if</span> <span class="n">phases</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># create phases dictionary</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">update_phase</span><span class="p">(</span><span class="n">phases</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">update_phase</span><span class="p">([])</span>
+
+        <span class="c1"># associated normalized weight fractions</span>
+        <span class="k">if</span> <span class="n">weights</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># create weights dicionary</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">update_weights</span><span class="p">(</span><span class="n">weights</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># weight evenly if none supplied</span>
+            <span class="n">weights</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">phases</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="n">weights</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">p</span><span class="p">:</span> <span class="mf">1.</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">phases</span><span class="p">)})</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">update_weights</span><span class="p">(</span><span class="n">weights</span><span class="p">)</span>
+
+        <span class="c1"># phase parameters</span>
+        <span class="k">if</span> <span class="n">phase_params</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">update_phase_params</span><span class="p">(</span><span class="n">phase_params</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">d</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">phases</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="n">d</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">p</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">phases</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">params</span><span class="p">})</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">update_phase_params</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+
+        <span class="c1"># merge to refinement params</span>
+        <span class="c1"># self.phase_to_refinement() # &lt;-- depricated method moved to scrap</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lower_to_upper</span><span class="p">(</span><span class="s1">&#39;phases&#39;</span><span class="p">,</span> <span class="s1">&#39;params&#39;</span><span class="p">)</span>  <span class="c1"># &lt;--- this might be problematic</span>
+
+        <span class="c1"># miscellany ######################################################## #</span>
+        <span class="c1"># history</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hist</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># list of tuples (iter, R)</span>
+
+        <span class="c1"># dynamic plot insance for tracking refinement</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">DynamicPlot</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">DynamicPlot</span><span class="p">()</span>
+
+        <span class="c1"># hold last calculated pattern</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">calc_data</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([])</span>
+
+        <span class="c1"># minimizer result object</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">final</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">original</span> <span class="o">=</span> <span class="kc">None</span></div>
+
+    <span class="c1">###########################################################################</span>
+    <span class="c1">#                     additional refinement methods                       #</span>
+    <span class="c1">###########################################################################</span>
+
+<div class="viewcode-block" id="Refinement.save"><a class="viewcode-back" href="../../rst/refinement.html#mstack.refinement.Refinement.save">[docs]</a>    <span class="k">def</span> <span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">subdir</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create a pickled save state of the refinement.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            filename (str): filename.pkl or some such</span>
+<span class="sd">            subdir (str): directory</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">filename</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">filename</span> <span class="o">=</span> <span class="s1">&#39;_&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">re</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;[\ :]+&#39;</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">ctime</span><span class="p">()))</span>
+
+        <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span><span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">(),</span> <span class="n">subdir</span><span class="p">,</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">.dat&#39;</span> <span class="o">%</span> <span class="n">filename</span><span class="p">]</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">])</span>
+
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;w+b&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">cPickle</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Refinement.reset"><a class="viewcode-back" href="../../rst/refinement.html#mstack.refinement.Refinement.reset">[docs]</a>    <span class="k">def</span> <span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; use self.original to reset refined parameters to previous values &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">original</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">original</span><span class="p">[</span><span class="n">k</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="Refinement.revert"><a class="viewcode-back" href="../../rst/refinement.html#mstack.refinement.Refinement.revert">[docs]</a>    <span class="k">def</span> <span class="nf">revert</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; use self.backup to revert Parameters instance to last minimizer call &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">backup</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Refinement.flag"><a class="viewcode-back" href="../../rst/refinement.html#mstack.refinement.Refinement.flag">[docs]</a>    <span class="k">def</span> <span class="nf">flag</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">true</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">false</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Toggle elements of each list True|False respectively</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            true (list): parameter name strings</span>
+<span class="sd">            false (list): parameter name strings</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">true</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">t</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="n">true</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">t</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="n">false</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">f</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="n">false</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">f</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="p">[</span><span class="n">t</span><span class="p">,</span> <span class="n">f</span><span class="p">]:</span>
+            <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">l</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">e</span><span class="p">]</span><span class="o">.</span><span class="n">vary</span> <span class="o">=</span> <span class="p">(</span><span class="n">l</span> <span class="o">==</span> <span class="n">t</span><span class="p">)</span>  <span class="c1"># flag True if in [true] else False</span>
+                <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39; key </span><span class="si">%s</span><span class="s1"> does not appear to exist &#39;</span> <span class="o">%</span> <span class="n">e</span><span class="p">)</span>
+
+        <span class="c1"># update phase objects</span>
+        <span class="c1"># self.refinement_to_phase()  # &lt;-- ~! depricated by upper_to_lower</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">upper_to_lower</span><span class="p">(</span><span class="s1">&#39;phases&#39;</span><span class="p">,</span> <span class="s1">&#39;params&#39;</span><span class="p">)</span>  <span class="c1"># &lt;-- ~! this may be incorrect</span></div>
+
+<div class="viewcode-block" id="Refinement.weighted_composite"><a class="viewcode-back" href="../../rst/refinement.html#mstack.refinement.Refinement.weighted_composite">[docs]</a>    <span class="k">def</span> <span class="nf">weighted_composite</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subdir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">individual</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">column</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="n">cwd</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return composite of patterns generated by phases &amp; associated weighting factors.</span>
+<span class="sd">        looks for phase_name.spc in path\\subdir\\</span>
+
+<span class="sd">        Args:</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            individual is True (dict): all weighted components</span>
+<span class="sd">            individual is False (list | default): [(x1, y1), ... ]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">calc_data</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([])</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([])</span>
+        <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">phases</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">pathfile</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span><span class="n">path</span><span class="p">,</span> <span class="n">subdir</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">phases</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">])</span>
+            <span class="n">calc_data</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="bp">self</span><span class="o">.</span><span class="n">phases</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="n">u</span><span class="o">.</span><span class="n">read_data</span><span class="p">(</span><span class="s1">r&#39;</span><span class="si">%s</span><span class="s1">.spc&#39;</span> <span class="o">%</span> <span class="n">pathfile</span><span class="p">,</span> <span class="n">column</span><span class="o">=</span><span class="n">column</span><span class="p">)})</span>
+
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">A</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">calc_data</span><span class="p">[</span><span class="n">p</span><span class="p">])</span>
+                <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">A</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">A</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">calc_data</span><span class="p">):</span>
+                    <span class="c1"># coerce correct dim</span>
+                    <span class="n">calc_data</span><span class="p">[</span><span class="n">p</span><span class="p">]</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">interpolate_data</span><span class="p">(</span><span class="n">calc_data</span><span class="p">[</span><span class="n">p</span><span class="p">],</span> <span class="nb">zip</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">))</span>
+
+                <span class="n">y</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">calc_data</span><span class="p">[</span><span class="n">p</span><span class="p">])[:,</span> <span class="mi">1</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+
+        <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">global_scale</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">individual</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">zip</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">individual</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">calc_data</span></div>
+
+<div class="viewcode-block" id="Refinement.map_calc_exp_background"><a class="viewcode-back" href="../../rst/refinement.html#mstack.refinement.Refinement.map_calc_exp_background">[docs]</a>    <span class="k">def</span> <span class="nf">map_calc_exp_background</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">calc_data</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Map calc, exp, background data onto same array dim and stride</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            calc_data (list): [(x1, y1), ..., ]</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            list: [(x1, y1), ...]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">calc_data</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">interpolate_data</span><span class="p">(</span><span class="n">calc_data</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">background</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">background</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">interpolate_data</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">background</span><span class="p">,</span> <span class="n">calc_data</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ybg</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">background</span><span class="p">)[:,</span> <span class="mi">1</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">yo</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">calc_data</span><span class="p">):</span>
+            <span class="c1"># trim to calc_data length</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">exp_data</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">interpolate_data</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">exp_data</span><span class="p">,</span> <span class="n">calc_data</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">yo</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">exp_data</span><span class="p">)[:,</span> <span class="mi">1</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">xo</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">exp_data</span><span class="p">)[:,</span> <span class="mi">0</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">calc_data</span></div>
+
+<div class="viewcode-block" id="Refinement.pub_control"><a class="viewcode-back" href="../../rst/refinement.html#mstack.refinement.Refinement.pub_control">[docs]</a>    <span class="k">def</span> <span class="nf">pub_control</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subdir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="n">cwd</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Publish control file for all structures in self.phases</span>
+<span class="sd">        Control.dif written in working directory</span>
+<span class="sd">        Path as os.path.join(*[k for k in [subdir, phase] if k is not None])</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            subdir (str): directory in which to write</span>
+<span class="sd">            path (str): directory in which to write</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># write control</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s1">r&#39;</span><span class="si">%s</span><span class="s1">\control.dif&#39;</span> <span class="o">%</span> <span class="n">path</span><span class="p">,</span> <span class="s1">&#39;w+&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">phase</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">phases</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">joined_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span><span class="n">subdir</span><span class="p">,</span> <span class="n">phase</span><span class="p">]</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">])</span>
+                    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">r&#39;</span><span class="si">%s</span><span class="s1">.dat&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">joined_path</span><span class="p">))</span>
+                    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+                    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;0 {data dump}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+                    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;0 {atom pos dump}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+                    <span class="c1"># f.write(&#39;0 {sym eval dump}\n&#39;) ~! not required if prior is 0</span>
+                    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;3 {powder diffraction}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+                    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%6.4F</span><span class="s1"> </span><span class="si">%6.4F</span><span class="s1"> </span><span class="si">%6.4F</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">t_min</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">t_max</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">t_step</span><span class="p">))</span>
+                    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;1 {adaptive quadrature on diffuse}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+                    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;1 {adaptive quadrature on sharp}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+                <span class="k">except</span><span class="p">:</span>
+                    <span class="k">raise</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;end</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Refinement.pub_input"><a class="viewcode-back" href="../../rst/refinement.html#mstack.refinement.Refinement.pub_input">[docs]</a>    <span class="k">def</span> <span class="nf">pub_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subdir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="n">cwd</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Raises method of phase to refinement level</span>
+<span class="sd">        Passes dictionary of ancillary information (info) to phase.pub_input to</span>
+<span class="sd">        maintain backwards compatibility with DIFFEV/old input methods</span>
+<span class="sd">        Default behavior is to publish control file for all structures in self.phase</span>
+<span class="sd">        Path as os.path.join(*[k for k in [subdir, phase] if k is not None])</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            subdir (str): directory in which to write</span>
+<span class="sd">            path (str): directory in which to write</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># write input files for phases</span>
+        <span class="c1"># ~! include Pseudo-Voight</span>
+        <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">phases</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">d</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;wvl&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">wvl</span><span class="p">,</span>
+                 <span class="s1">&#39;gau&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">gau</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+                 <span class="s1">&#39;lat&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">lat</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+                 <span class="s1">&#39;MCL&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">phases</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">mcl</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+                 <span class="s1">&#39;pv_coefficients&#39;</span><span class="p">:</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pv_coefficients</span><span class="p">[</span><span class="s1">&#39;u&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+                                     <span class="bp">self</span><span class="o">.</span><span class="n">pv_coefficients</span><span class="p">[</span><span class="s1">&#39;v&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+                                     <span class="bp">self</span><span class="o">.</span><span class="n">pv_coefficients</span><span class="p">[</span><span class="s1">&#39;w&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+                                     <span class="bp">self</span><span class="o">.</span><span class="n">pv_coefficients</span><span class="p">[</span><span class="s1">&#39;sigma&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">)}</span>
+            <span class="k">if</span> <span class="n">d</span><span class="p">[</span><span class="s1">&#39;lat&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">d</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;lat&#39;</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">d</span><span class="p">[</span><span class="s1">&#39;lat&#39;</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="mf">1000000.0</span><span class="p">:</span>
+                <span class="n">d</span><span class="p">[</span><span class="s1">&#39;lat&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;infinite&#39;</span>
+            <span class="k">if</span> <span class="n">d</span><span class="p">[</span><span class="s1">&#39;gau&#39;</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mf">0.0001</span><span class="p">:</span>
+                <span class="n">d</span><span class="p">[</span><span class="s1">&#39;gau&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">phases</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">pub_input</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">inputname</span><span class="o">=</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">phases</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">subdir</span><span class="o">=</span><span class="n">subdir</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Refinement.plot_min_result"><a class="viewcode-back" href="../../rst/refinement.html#mstack.refinement.Refinement.plot_min_result">[docs]</a>    <span class="k">def</span> <span class="nf">plot_min_result</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sqrt_filter</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">12</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Plot the calculated, observed, background and difference curves</span>
+<span class="sd">        of the last computation. Executed at end of every minimization.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            sqrt_filter (bool): plot data scaled by (Yobs) ** 1/2</span>
+<span class="sd">            fontsize (float): font size</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            matplotlib.Figure</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># map calc_data onto exp_data, get arrays</span>
+        <span class="n">diff</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">yo</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">yc</span>
+        <span class="n">baseline</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.25</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">yo</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">yo</span><span class="o">.</span><span class="n">min</span><span class="p">())</span>
+
+        <span class="c1"># get yer plot goin&#39;</span>
+        <span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+        <span class="n">ax</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">sqrt_filter</span><span class="p">:</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">xo</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">yo</span><span class="p">,</span> <span class="s1">&#39;kx&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">r&#39;$Y_</span><span class="si">{obs}</span><span class="s1">$&#39;</span><span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">xo</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">yc</span><span class="p">,</span> <span class="s1">&#39;b-&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">r&#39;$Y_</span><span class="si">{calc}</span><span class="s1">$&#39;</span><span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">xo</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ybg</span><span class="p">,</span> <span class="s1">&#39;r-&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">r&#39;$Y_</span><span class="si">{bkg}</span><span class="s1">$&#39;</span><span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">xo</span><span class="p">,</span> <span class="n">diff</span> <span class="o">+</span> <span class="n">baseline</span><span class="p">,</span> <span class="s1">&#39;g-&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;$difference$&#39;</span><span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">xo</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">xo</span><span class="p">)</span> <span class="o">+</span> <span class="n">baseline</span><span class="p">,</span> <span class="s1">&#39;k:&#39;</span><span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">r&#39;$2\theta \/ [\lambda\/=\/0.2114\/ \AA]$&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;fontsize&#39;</span><span class="p">:</span> <span class="n">fontsize</span><span class="p">})</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">r&#39;$I\/[arb.]$&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;fontsize&#39;</span><span class="p">:</span> <span class="n">fontsize</span><span class="p">})</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="n">xmin</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">xo</span><span class="o">.</span><span class="n">min</span><span class="p">()</span> <span class="o">*</span> <span class="mf">0.9</span><span class="p">),</span> <span class="n">xmax</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">xo</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">*</span> <span class="mf">1.1</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># difference curve needs special treatment to handle negatives</span>
+            <span class="n">baseline</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.25</span> <span class="o">*</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">yo</span><span class="o">.</span><span class="n">max</span><span class="p">())</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">yo</span><span class="o">.</span><span class="n">min</span><span class="p">()))</span>
+            <span class="n">diff</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">yo</span><span class="p">)</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">yc</span><span class="p">)</span>
+            <span class="c1"># the rest proceeds much the same</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">xo</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">yo</span><span class="p">)),</span> <span class="s1">&#39;kx&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">r&#39;$Y_</span><span class="si">{obs}</span><span class="s1">^{1/2}$&#39;</span><span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">xo</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">yc</span><span class="p">)),</span> <span class="s1">&#39;b-&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">r&#39;$Y_</span><span class="si">{calc}</span><span class="s1">^{1/2}$&#39;</span><span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">xo</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ybg</span><span class="p">)),</span> <span class="s1">&#39;r-&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">r&#39;$Y_</span><span class="si">{bkg}</span><span class="s1">^{1/2}$&#39;</span><span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">xo</span><span class="p">,</span> <span class="n">diff</span> <span class="o">+</span> <span class="n">baseline</span><span class="p">,</span> <span class="s1">&#39;g-&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;$difference$&#39;</span><span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">xo</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">xo</span><span class="p">)</span> <span class="o">+</span> <span class="n">baseline</span><span class="p">,</span> <span class="s1">&#39;k:&#39;</span><span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">r&#39;$2\theta \/ [\lambda\/=\/0.2114\/ \AA]$&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;fontsize&#39;</span><span class="p">:</span> <span class="n">fontsize</span><span class="p">})</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">r&#39;$I^{1/2}\/[arb.]$&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;fontsize&#39;</span><span class="p">:</span> <span class="n">fontsize</span><span class="p">})</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="n">xmin</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">xo</span><span class="o">.</span><span class="n">min</span><span class="p">()</span> <span class="o">*</span> <span class="mf">0.9</span><span class="p">),</span> <span class="n">xmax</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">xo</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">*</span> <span class="mf">1.1</span><span class="p">))</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">fontsize</span><span class="o">=</span><span class="n">fontsize</span><span class="p">)</span>
+
+        <span class="c1"># set more font sizes</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">xticks</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="n">fontsize</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">yticks</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="n">fontsize</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">fig</span></div>
+
+<div class="viewcode-block" id="Refinement.report_constrained"><a class="viewcode-back" href="../../rst/refinement.html#mstack.refinement.Refinement.report_constrained">[docs]</a>    <span class="k">def</span> <span class="nf">report_constrained</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tabulate</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; report parameters with attribute expr != None &quot;&quot;&quot;</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">expr</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">d</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">expr</span><span class="p">)})</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">tabulate</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">d</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">print</span> <span class="n">u</span><span class="o">.</span><span class="n">print_table</span><span class="p">(</span><span class="n">d</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Refinement.report_refined"><a class="viewcode-back" href="../../rst/refinement.html#mstack.refinement.Refinement.report_refined">[docs]</a>    <span class="k">def</span> <span class="nf">report_refined</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tabulate</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        report parameters with attribute vary == True</span>
+<span class="sd">        ~! moved to utilities</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">rv</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">report_refined</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">,</span> <span class="n">tabulate</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">rv</span></div>
+
+<div class="viewcode-block" id="Refinement.filter_report"><a class="viewcode-back" href="../../rst/refinement.html#mstack.refinement.Refinement.filter_report">[docs]</a>    <span class="k">def</span> <span class="nf">filter_report</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">variable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">constrained</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        print a limited portion of the lmfit minimizer fit report</span>
+<span class="sd">        ~! moved to utilities</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">u</span><span class="o">.</span><span class="n">filter_report</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">variable</span><span class="p">,</span> <span class="n">constrained</span><span class="p">)</span></div>
+
+    <span class="c1">###########################################################################</span>
+    <span class="c1">#                            Minimizer methods                            #</span>
+    <span class="c1">###########################################################################</span>
+
+<div class="viewcode-block" id="Refinement.callback"><a class="viewcode-back" href="../../rst/refinement.html#mstack.refinement.Refinement.callback">[docs]</a>    <span class="k">def</span> <span class="nf">callback</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="nb">iter</span><span class="p">,</span> <span class="n">resid</span><span class="p">,</span> <span class="o">**</span><span class="n">kws</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Add residual point to dynamic plot, model history</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            params (lmfit.Parameters):</span>
+<span class="sd">            iter (int): iteration number</span>
+<span class="sd">            resid (array): residual array</span>
+<span class="sd">            kws (dict): mostly ignored. use &quot;plot_resid&quot;(bool) to initiate</span>
+<span class="sd">                dynamic plot of residual vs. iteration</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            None</span>
+
+<span class="sd">        Note:</span>
+<span class="sd">            Return type is important in this case. I believe a return type of</span>
+<span class="sd">            True causes the minimization to abort.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># add R-value to refinement.hist</span>
+        <span class="n">redchi</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">resid</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">/</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">exp_data</span><span class="p">)</span> <span class="o">-</span>
+                     <span class="nb">len</span><span class="p">([</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">vary</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">])))</span>
+
+        <span class="c1"># append history</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">hist</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">hist</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">redchi</span><span class="p">))</span>
+        <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">hist</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="nb">iter</span><span class="p">,</span> <span class="n">redchi</span><span class="p">))</span>
+        <span class="c1"># ocassionally plot redchi</span>
+        <span class="k">if</span> <span class="nb">iter</span> <span class="o">%</span> <span class="mi">10</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="nb">print</span> <span class="s1">&#39;redchi(</span><span class="si">%0d</span><span class="s1">): </span><span class="si">%.4E</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="nb">iter</span><span class="p">,</span> <span class="n">redchi</span><span class="p">)</span>
+
+        <span class="c1"># acccept kwarg to toggle residual plotting on (expensive, timewise)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">kws</span><span class="p">[</span><span class="s1">&#39;plot_resid&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">iter</span> <span class="o">%</span> <span class="mi">10</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="c1"># dynamic plot iter, R-value</span>
+                    <span class="n">A</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hist</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">DynamicPlot</span><span class="p">(</span><span class="n">A</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">A</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">])</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="c1"># not required</span>
+            <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="Refinement.generic_update"><a class="viewcode-back" href="../../rst/refinement.html#mstack.refinement.Refinement.generic_update">[docs]</a>    <span class="k">def</span> <span class="nf">generic_update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>   <span class="c1"># , incomplete=False):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        generic update method passes parameters to subordinate objects</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            params (lmfit.Parameters)</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            bool: True</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># allow merging of incomplete parameters set onto Refinement params</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">params</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">deepcompare</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">k</span><span class="p">])</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">,</span> <span class="s1">&#39;vary&#39;</span><span class="p">,</span> <span class="s1">&#39;min&#39;</span><span class="p">,</span> <span class="s1">&#39;max&#39;</span><span class="p">,</span> <span class="s1">&#39;expr&#39;</span><span class="p">]:</span>
+                    <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">k</span><span class="p">],</span> <span class="n">attr</span><span class="p">,</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">attr</span><span class="p">))</span>
+
+        <span class="c1"># update background, weights, global scale, broadening with updated parameter instance</span>
+        <span class="c1"># ~! why is this necessary?</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update_background</span><span class="p">(</span><span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">global_scale</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;global_scale&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">value</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">phases</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">d</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">p</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">_weight&#39;</span> <span class="o">%</span> <span class="n">p</span><span class="p">]})</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update_weights</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+
+        <span class="c1"># ~! include Pseudo-Voight</span>
+
+        <span class="c1"># update phase parameters</span>
+        <span class="c1"># self.refinement_to_phase()  #&lt;-- ~! depricated by upper_to_lower</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">upper_to_lower</span><span class="p">(</span><span class="s1">&#39;phases&#39;</span><span class="p">,</span> <span class="s1">&#39;params&#39;</span><span class="p">)</span>  <span class="c1"># &lt;--- ~! this may be broken</span>
+
+        <span class="k">return</span> <span class="kc">True</span></div>
+
+<div class="viewcode-block" id="Refinement.residual_method"><a class="viewcode-back" href="../../rst/refinement.html#mstack.refinement.Refinement.residual_method">[docs]</a>    <span class="k">def</span> <span class="nf">residual_method</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="o">**</span><span class="n">kws</span><span class="p">):</span>  <span class="c1"># subdir=None, path=cwd):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        For each phase in refinement, get DIFFaX pattern and calculate residual</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            params (lmfit.Parameters)</span>
+<span class="sd">            kws: see below</span>
+
+<span class="sd">        kws:</span>
+<span class="sd">            subdir: subdirectory</span>
+<span class="sd">            plot_resid: real-time residual plotting (pass thru to callback)</span>
+<span class="sd">            sqrt_filter: sounds silly, actually just compare sqrt intensities</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            np.array: residual with length of data</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># update refinement parameters</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">generic_update</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+
+        <span class="c1"># get kws subdir</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">subdir</span> <span class="o">=</span> <span class="n">kws</span><span class="p">[</span><span class="s1">&#39;subdir&#39;</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="n">subdir</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="c1"># cleanup .spc*</span>
+        <span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="n">glob</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span><span class="n">path</span><span class="p">,</span> <span class="n">subdir</span><span class="p">,</span> <span class="s1">&#39;*.spc*&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">])):</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+
+        <span class="c1"># for each phase, make a DIFFaX call</span>
+        <span class="k">for</span> <span class="n">phase</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">phases</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pub_control</span><span class="p">(</span><span class="n">subdir</span><span class="o">=</span><span class="s1">&#39;LSQ&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pub_input</span><span class="p">(</span><span class="n">subdir</span><span class="o">=</span><span class="s1">&#39;LSQ&#39;</span><span class="p">)</span>
+        <span class="n">call</span><span class="p">(</span><span class="s1">r&#39;DIFFaX.exe&#39;</span><span class="p">,</span> <span class="n">cwd</span><span class="o">=</span><span class="n">cwd</span><span class="p">)</span>
+
+        <span class="c1"># check instrumental broadening</span>
+        <span class="n">column</span> <span class="o">=</span> <span class="mi">2</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;gau&#39;</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mf">0.0001</span><span class="p">:</span>
+            <span class="n">column</span> <span class="o">=</span> <span class="mi">1</span>
+
+        <span class="c1"># I/O and cast calc onto xo</span>
+        <span class="n">calc_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">map_calc_exp_background</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">weighted_composite</span><span class="p">(</span><span class="n">subdir</span><span class="o">=</span><span class="n">subdir</span><span class="p">,</span> <span class="n">column</span><span class="o">=</span><span class="n">column</span><span class="p">))</span>
+        <span class="n">A</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">calc_data</span><span class="p">)</span>
+        <span class="n">ywp</span> <span class="o">=</span> <span class="n">A</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">A</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
+
+        <span class="c1"># calculate Yc = global_scale * (Ywp + Ybg)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">yc</span> <span class="o">=</span> <span class="p">(</span><span class="n">ywp</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">ybg</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">calc_data</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">yc</span><span class="p">)</span>
+
+        <span class="c1"># return residual array</span>
+        <span class="k">if</span> <span class="n">kws</span><span class="p">[</span><span class="s1">&#39;sqrt_filter&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">yo</span><span class="p">)</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">yc</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">yo</span><span class="p">)</span> <span class="o">**</span> <span class="o">-</span><span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">yo</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">yc</span><span class="p">)</span>  <span class="c1"># -1</span></div>
+
+<div class="viewcode-block" id="Refinement.preview"><a class="viewcode-back" href="../../rst/refinement.html#mstack.refinement.Refinement.preview">[docs]</a>    <span class="k">def</span> <span class="nf">preview</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subdir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">sqrt_filter</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; get peak at first calculated state &quot;&quot;&quot;</span>
+        <span class="n">kws</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;subdir&#39;</span><span class="p">:</span> <span class="n">subdir</span><span class="p">,</span> <span class="s1">&#39;sqrt_filter&#39;</span><span class="p">:</span> <span class="n">sqrt_filter</span><span class="p">}</span>
+        <span class="n">resid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">residual_method</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">,</span> <span class="o">**</span><span class="n">kws</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">plot_min_result</span><span class="p">()</span>
+        <span class="nb">print</span> <span class="nb">sum</span><span class="p">(</span><span class="n">resid</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Refinement.lsq_minimize"><a class="viewcode-back" href="../../rst/refinement.html#mstack.refinement.Refinement.lsq_minimize">[docs]</a>    <span class="k">def</span> <span class="nf">lsq_minimize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subdir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">plot_resid</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                     <span class="n">epsfcn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">xtol</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">sqrt_filter</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                     <span class="n">method</span><span class="o">=</span><span class="s1">&#39;leastsq&#39;</span><span class="p">,</span> <span class="n">minkws</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Wrapper for lmfit least_squares method (Levenberg-Marquardt)</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            subdir (str): directory to put the DIFFaX input/output into.</span>
+<span class="sd">            plot_resid (bool): toggle dynamic plotting of R vs. iter.</span>
+<span class="sd">            epsfcn (float): \(default = 1e-02\) if step-length is too small the</span>
+<span class="sd">                mininimizer may not progress as no Jacobian is calculated.</span>
+<span class="sd">            xtol (float): \(default = 1e-04\) convergence criterion for the approximate solution.</span>
+<span class="sd">            method (str): \(default = leastsq\) optimizer method (i.e. leastsq, nelder, lbfgsb)</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            np.array([(yo-yc)])</span>
+
+<span class="sd">        Note:</span>
+<span class="sd">            See the SciPy minimizer documentation for full list of minimizer methods.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># kws to pass</span>
+        <span class="n">kws</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;subdir&#39;</span><span class="p">:</span> <span class="n">subdir</span><span class="p">,</span> <span class="s1">&#39;plot_resid&#39;</span><span class="p">:</span> <span class="n">plot_resid</span><span class="p">,</span> <span class="s1">&#39;sqrt_filter&#39;</span><span class="p">:</span> <span class="n">sqrt_filter</span><span class="p">}</span>
+        <span class="n">minkws</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="k">if</span> <span class="n">method</span> <span class="o">==</span> <span class="s1">&#39;leastsq&#39;</span><span class="p">:</span>
+            <span class="c1"># set step-length</span>
+            <span class="k">if</span> <span class="n">epsfcn</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">epsfcn</span> <span class="o">=</span> <span class="n">epsfcn</span>
+            <span class="k">elif</span> <span class="n">epsfcn</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">epsfcn</span> <span class="o">=</span> <span class="mi">1</span><span class="n">e</span><span class="o">-</span><span class="mi">02</span>
+
+            <span class="c1"># set convergence criterion</span>
+            <span class="k">if</span> <span class="n">xtol</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">xtol</span> <span class="o">=</span> <span class="n">xtol</span>
+            <span class="k">elif</span> <span class="n">xtol</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">xtol</span> <span class="o">=</span> <span class="mi">1</span><span class="n">e</span><span class="o">-</span><span class="mi">04</span>
+
+            <span class="n">minkws</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;epsfcn&#39;</span><span class="p">:</span> <span class="n">epsfcn</span><span class="p">,</span> <span class="s1">&#39;xtol&#39;</span><span class="p">:</span> <span class="n">xtol</span><span class="p">})</span>
+        <span class="c1"># minimizer kws</span>
+        <span class="n">minkws</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">minkws</span><span class="p">)</span>
+
+        <span class="c1"># beginning of iteration</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%c</span><span class="s1">&#39;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">original</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">report_refined</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">backup</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">result</span> <span class="o">=</span> <span class="n">lmfit</span><span class="o">.</span><span class="n">minimize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">residual_method</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">,</span>
+                                     <span class="n">kws</span><span class="o">=</span><span class="n">kws</span><span class="p">,</span> <span class="n">iter_cb</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">callback</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="n">method</span><span class="p">,</span>
+                                     <span class="o">**</span><span class="n">minkws</span><span class="p">)</span>
+
+        <span class="c1"># end time</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">end</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%c</span><span class="s1">&#39;</span><span class="p">)</span>
+
+        <span class="c1"># final values</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">final</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">report_refined</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">result</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>
+
+        <span class="c1"># plot of result</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">plot_min_result</span><span class="p">(</span><span class="n">sqrt_filter</span><span class="o">=</span><span class="n">sqrt_filter</span><span class="p">)</span>
+
+        <span class="c1"># lmfit report with correlations</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">report</span> <span class="o">=</span> <span class="n">lmfit</span><span class="o">.</span><span class="n">fit_report</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">result</span><span class="p">,</span> <span class="n">min_correl</span><span class="o">=</span><span class="mf">0.8</span><span class="p">)</span>
+
+        <span class="c1"># filter, report only refined variables</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">filter_report</span><span class="p">(</span><span class="n">variable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">constrained</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="c1"># output cif file for inspection (overwritten each minimization call)</span>
+        <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">phases</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">phases</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">structures</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">phases</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">pub_cif</span><span class="p">(</span><span class="n">s</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Refinement.validate_diffev"><a class="viewcode-back" href="../../rst/refinement.html#mstack.refinement.Refinement.validate_diffev">[docs]</a>    <span class="k">def</span> <span class="nf">validate_diffev</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Differential evolution requires min/max values to be supplied for all</span>
+<span class="sd">        variables, not just those that are refined.</span>
+
+<span class="sd">        This function coerces min/max values from supplied information if none</span>
+<span class="sd">        are given by the user.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            True</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># set min/max arbitrarily at +/- 25% if values not supplied</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">value</span>
+            <span class="n">m</span> <span class="o">=</span> <span class="p">[</span><span class="n">value</span> <span class="o">*</span> <span class="mf">0.75</span><span class="p">,</span> <span class="n">value</span> <span class="o">*</span> <span class="mf">1.25</span><span class="p">]</span>
+            <span class="n">expr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">expr</span>
+
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">min</span> <span class="o">==</span> <span class="n">s</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="s1">&#39;-inf&#39;</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="s1">&#39;inf&#39;</span><span class="p">),</span> <span class="kc">None</span><span class="p">]):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="nb">min</span><span class="p">(</span><span class="n">m</span><span class="p">),</span> <span class="n">expr</span><span class="o">=</span><span class="n">expr</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">max</span> <span class="o">==</span> <span class="n">s</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="s1">&#39;-inf&#39;</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="s1">&#39;inf&#39;</span><span class="p">),</span> <span class="kc">None</span><span class="p">]):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="nb">max</span><span class="o">=</span><span class="nb">max</span><span class="p">(</span><span class="n">m</span><span class="p">),</span> <span class="n">expr</span><span class="o">=</span><span class="n">expr</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                <span class="c1"># if self.params[k].min == self.params[k].max:</span>
+                <span class="c1"># as in the case of value = 0</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="nb">max</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">min</span> <span class="o">+</span> <span class="mf">0.0001</span><span class="p">),</span> <span class="n">expr</span><span class="o">=</span><span class="n">expr</span><span class="p">)</span>
+
+        <span class="c1"># screen for infinities</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">u</span><span class="o">.</span><span class="n">report_refined</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">min</span> <span class="o">==</span> <span class="n">s</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="s1">&#39;-inf&#39;</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="s1">&#39;inf&#39;</span><span class="p">),</span> <span class="kc">None</span><span class="p">]):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">dump_params</span><span class="p">(</span><span class="n">u</span><span class="o">.</span><span class="n">report_refined</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">))</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;variables must be bounded for differential evolution&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">max</span> <span class="o">==</span> <span class="n">s</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="s1">&#39;-inf&#39;</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="s1">&#39;inf&#39;</span><span class="p">),</span> <span class="kc">None</span><span class="p">]):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">dump_params</span><span class="p">(</span><span class="n">u</span><span class="o">.</span><span class="n">report_refined</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">))</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;variables must be bounded for differential evolution&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">min</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;refinement.validate_diffev still not correcting min == max&#39;</span><span class="p">)</span>
+
+        <span class="c1"># if everything passes, return True</span>
+        <span class="c1"># print &#39;\n\n\n\n\n\n\n end of validate diffev \n\n\n\n\n\n\n&#39;</span>
+        <span class="k">return</span> <span class="kc">True</span></div>
+
+<div class="viewcode-block" id="Refinement.diffev_minimize"><a class="viewcode-back" href="../../rst/refinement.html#mstack.refinement.Refinement.diffev_minimize">[docs]</a>    <span class="k">def</span> <span class="nf">diffev_minimize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subdir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">plot_resid</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">sqrt_filter</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                        <span class="n">disp</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">popsize</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">mutation</span><span class="o">=</span><span class="p">(</span><span class="mf">0.4</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">),</span>
+                        <span class="n">recombination</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">polish</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">u&quot;&quot;&quot;</span>
+<span class="sd">        Wrapper for lmfit differential_evolution method (global minimization).</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            subdir (str):  directory to stash output files</span>
+<span class="sd">            plot_resid (bool): plot residual vs. iteration</span>
+<span class="sd">            sqrt_filter (bool): plot data scaled by (Yobs) ** 1/2</span>
+<span class="sd">            disp (bool): I forget</span>
+<span class="sd">            popsize (int): see below</span>
+<span class="sd">            tol (float): see below</span>
+<span class="sd">            mutation (tuple): see below</span>
+<span class="sd">            recombination (float): see below</span>
+<span class="sd">            seed (lmfit.Parameter?): see below</span>
+<span class="sd">            polish (bool): follow DIFFEV opt by least squares</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            * np.array([sqrt(yo) - sqrt(yc)]) if sqrt_filter is True</span>
+<span class="sd">            * np.array([yo-yc]) if sqrt_filter is False</span>
+
+<span class="sd">        see scipy.optimize.differential_evolution for compete list of minimizer keys &amp; descriptions</span>
+
+<span class="sd">        Notes:</span>
+<span class="sd">            Differential evolution is a stochastic population based method that is useful for global optimization</span>
+<span class="sd">            problems. At each pass through the population the algorithm mutates each candidate solution by mixing</span>
+<span class="sd">            with other candidate solutions to create a trial candidate. There are several strategies [R141] for</span>
+<span class="sd">            creating trial candidates, which suit some problems more than others. The ‘best1bin’ strategy is a good</span>
+<span class="sd">            starting point for many systems. In this strategy two members of the population are randomly chosen.</span>
+<span class="sd">            Their difference is used to mutate the best member (the best in best1bin), b0, so far:</span>
+
+<span class="sd">            b’ = b0 + mutation \∗ (population[rand0] − population[rand1])</span>
+
+<span class="sd">            A trial vector is then constructed. Starting with a randomly chosen ‘i’th parameter the trial is</span>
+<span class="sd">            sequentially filled (in modulo) with parameters from b’ or the original candidate. The choice of</span>
+<span class="sd">            whether to use b’ or the original candidate is made with a binomial distribution</span>
+<span class="sd">            (the ‘bin’ in ‘best1bin’) - a random number in [0, 1) is generated. If this number is less than</span>
+<span class="sd">            the recombination constant then the parameter is loaded from b’, otherwise it is loaded from the</span>
+<span class="sd">            original candidate. The final parameter is always loaded from b’. Once the trial candidate is built</span>
+<span class="sd">            its fitness is assessed. If the trial is better than the original candidate then it takes its place.</span>
+<span class="sd">            If it is also better than the best overall candidate it also replaces that. To improve your chances of</span>
+<span class="sd">            finding a global minimum use higher popsize values, with higher mutation and (dithering), but lower</span>
+<span class="sd">            recombination values. This has the effect of widening the search radius, but slowing convergence.</span>
+
+<span class="sd">            [R140]: Storn, R and Price, K, \&quot;Differential Evolution - a Simple and Efficient Heuristic for Global \</span>
+<span class="sd">                    Optimization over Continuous Spaces,\&quot; *Journal of Global Optimization* 11, 341 - 359 (1997).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">kws</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;subdir&#39;</span><span class="p">:</span> <span class="n">subdir</span><span class="p">,</span> <span class="s1">&#39;plot_resid&#39;</span><span class="p">:</span> <span class="n">plot_resid</span><span class="p">,</span> <span class="s1">&#39;sqrt_filter&#39;</span><span class="p">:</span> <span class="n">sqrt_filter</span><span class="p">}</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">validate_diffev</span><span class="p">()</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="c1"># beginning of iteration</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%c</span><span class="s1">&#39;</span><span class="p">)</span>
+
+            <span class="c1"># keep copy of original value</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">original</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">report_refined</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>
+
+            <span class="c1"># (func, params [, args [, kws [, method [, scale_covar [, iter_cb [, **fit_kws]]]]]])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">result</span> <span class="o">=</span> <span class="n">lmfit</span><span class="o">.</span><span class="n">minimize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">residual_method</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">,</span>
+                                         <span class="n">kws</span><span class="o">=</span><span class="n">kws</span><span class="p">,</span> <span class="n">iter_cb</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">callback</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">&#39;differential_evolution&#39;</span><span class="p">,</span>
+                                         <span class="o">**</span><span class="p">{</span><span class="s1">&#39;disp&#39;</span><span class="p">:</span> <span class="n">disp</span><span class="p">,</span> <span class="s1">&#39;popsize&#39;</span><span class="p">:</span> <span class="n">popsize</span><span class="p">,</span> <span class="s1">&#39;tol&#39;</span><span class="p">:</span> <span class="n">tol</span><span class="p">,</span>
+                                            <span class="s1">&#39;mutation&#39;</span><span class="p">:</span> <span class="n">mutation</span><span class="p">,</span> <span class="s1">&#39;recombindation&#39;</span><span class="p">:</span> <span class="n">recombination</span><span class="p">,</span>
+                                            <span class="s1">&#39;seed&#39;</span><span class="p">:</span> <span class="n">seed</span><span class="p">,</span> <span class="s1">&#39;polish&#39;</span><span class="p">:</span> <span class="n">polish</span><span class="p">})</span>
+
+            <span class="c1"># ~! copy stderr from result object to report or save state</span>
+
+            <span class="c1"># end time</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">end</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%c</span><span class="s1">&#39;</span><span class="p">)</span>
+
+            <span class="c1"># final values</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">final</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">report_refined</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">result</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>
+
+            <span class="c1"># plot of result</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">plot_min_result</span><span class="p">(</span><span class="n">sqrt_filter</span><span class="o">=</span><span class="n">sqrt_filter</span><span class="p">)</span>
+
+            <span class="c1"># lmfit report with correlations</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">report</span> <span class="o">=</span> <span class="n">lmfit</span><span class="o">.</span><span class="n">fit_report</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">result</span><span class="p">,</span> <span class="n">min_correl</span><span class="o">=</span><span class="mf">0.8</span><span class="p">)</span>
+
+            <span class="c1"># filter, report only refined variables</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">filter_report</span><span class="p">(</span><span class="n">variable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">constrained</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+            <span class="c1"># output cif file for inspection (overwritten each minimization call)</span>
+            <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">phases</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">phases</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">structures</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">phases</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">pub_cif</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+
+            <span class="k">return</span></div>
+
+<div class="viewcode-block" id="Refinement.rwp"><a class="viewcode-back" href="../../rst/refinement.html#mstack.refinement.Refinement.rwp">[docs]</a>    <span class="k">def</span> <span class="nf">rwp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">weight</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        calculate rwp for the model:</span>
+<span class="sd">            Rwp = {sum_m(w_m * (Yo,m - Yc,m) ** 2) / sum_m(wm * Yo,m) ** 2} ** 1/2</span>
+<span class="sd">            wm = 1 / sigma ** 2</span>
+<span class="sd">        weight (length == data)</span>
+<span class="sd">        defalut weight: (Yo,m ** 1/2) ** -2</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">weight</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">weight</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">yo</span><span class="p">)</span> <span class="o">**</span> <span class="o">-</span><span class="mi">2</span>
+
+        <span class="n">resid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">yo</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">yc</span>
+
+        <span class="n">rv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">weight</span> <span class="o">*</span> <span class="n">resid</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">weight</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">yo</span> <span class="o">**</span> <span class="mi">2</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">rv</span></div></div>
+
+    <span class="c1"># End of class Refinement</span>
+
+<span class="c1"># EOF #</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Peter C Metz.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.5.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.9</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

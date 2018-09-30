@@ -1,0 +1,683 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>refinement &#8212; MStack 0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="structure" href="structure.html" />
+    <link rel="prev" title="pairdistributionfunction" href="pairdistributionfunction.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body role="document">
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="module-refinement">
+<span id="refinement"></span><h1>refinement<a class="headerlink" href="#module-refinement" title="Permalink to this headline">¶</a></h1>
+<p>Created on Thu Dec 03 09:24:07 2015</p>
+<p>Designed to integrate lmfit/scipy differential evolution, existing structure
+tools, and DIFFaX I(Q) generator for global minimization of complex stacking
+disorered powder diffraction data</p>
+<p>&#64;author: Peter C Metz</p>
+<dl class="function">
+<dt id="refinement.load">
+<code class="descclassname">refinement.</code><code class="descname">load</code><span class="sig-paren">(</span><em>filename</em>, <em>subdir=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/refinement.html#load"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#refinement.load" title="Permalink to this definition">¶</a></dt>
+<dd><p>load a pickled .dat file</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>filename</strong> (<em>str</em>) &#8211; file to load</li>
+<li><strong>subdir</strong> (<em>str | None</em>) &#8211; directory</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p>!!!!!!! EXTREMELY IMPORTANT !!!!!!!!!
+cPickle saves dependencies by reference. If the source code changes between
+execution, save state, and loading, the save state WILL NOT LOAD. THIS WILL
+MAKE YOU VERY SAD.</p>
+<p>The next step is to switch from pickle to dill, which saves dependencies by
+definition. This should make save files compatible across development.</p>
+<p class="last">If all modules needed by the refinement object are note imported at time of
+unpickling, there will likely be AttributeErrors thrown.</p>
+</div>
+</dd></dl>
+
+<div class="section" id="refinement-refinement">
+<h2>refinement.Refinement<a class="headerlink" href="#refinement-refinement" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="refinement.Refinement">
+<em class="property">class </em><code class="descclassname">refinement.</code><code class="descname">Refinement</code><span class="sig-paren">(</span><em>wavelength=None</em>, <em>exp_data=None</em>, <em>t_range=None</em>, <em>broadening=None</em>, <em>background=None</em>, <em>phases=None</em>, <em>weights=None</em>, <em>global_scale=None</em>, <em>lateral_broadening=None</em>, <em>phase_params=None</em>, <em>name=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/refinement.html#Refinement"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#refinement.Refinement" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="utilities.html#utilities.MergeParams" title="utilities.MergeParams"><code class="xref py py-class docutils literal"><span class="pre">utilities.MergeParams</span></code></a>, <a class="reference internal" href="utilities.html#utilities.UpdateMethods" title="utilities.UpdateMethods"><code class="xref py py-class docutils literal"><span class="pre">utilities.UpdateMethods</span></code></a></p>
+<dl class="docutils">
+<dt>hierarchy of refinement objects:</dt>
+<dd><ul class="first last simple">
+<li>refinement: contains experiment (data, parameters) + phase(s) + weights (normalized to 100%)</li>
+<li>phase: described by a structure + transitions</li>
+<li>transitions: holds stacking disorder parameters</li>
+<li>structure: holds asymmetric unit and cell parameters</li>
+<li>atoms: holds coordinates and isotropic thermal displacement parameters</li>
+</ul>
+</dd>
+</dl>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p>Specific ref_to_phase and phase_to_ref methods are depricated by the UpdateMethods
+in the utilities module.</p>
+<p>I haven&#8217;t tested the code since replacing the depricated method here.</p>
+<p class="last">If this is problematic replace refinement_to_phase and phase_to_refinement
+methods before __init__ and uncomment the appropriate lines (indicated
+with in line comments).</p>
+</div>
+<dl class="method">
+<dt id="refinement.Refinement.__init__">
+<code class="descname">__init__</code><span class="sig-paren">(</span><em>wavelength=None</em>, <em>exp_data=None</em>, <em>t_range=None</em>, <em>broadening=None</em>, <em>background=None</em>, <em>phases=None</em>, <em>weights=None</em>, <em>global_scale=None</em>, <em>lateral_broadening=None</em>, <em>phase_params=None</em>, <em>name=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/refinement.html#Refinement.__init__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#refinement.Refinement.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>wavelength</strong> (<em>*</em>) &#8211; experimental radiation in angstrom</li>
+<li><strong>exp_data</strong> (<em>*</em>) &#8211; array like [(x1, y1), ..., (xn, yn)]</li>
+<li><strong>t_range</strong> (<em>*</em>) &#8211; 2-theta range like [2T_min, 2T_max, 2T_step]</li>
+<li><strong>broadening</strong> (<em>*</em>) &#8211; [gau] gaussian FWHM or [u, v, w, sigma] pseudo-voight parameters</li>
+<li><strong>background</strong> (<em>*</em>) &#8211; list of coefficients to yb = A/x + B + C*x + D*x**2 + E*x**2</li>
+<li><strong>phases</strong> (<em>*</em>) &#8211; list of phase instance(s) like [&lt;phase_1&gt;, ... &lt;phase_N&gt;]</li>
+<li><strong>weights</strong> (<em>*</em>) &#8211; dictionary of weight percents like {phase_1.name: weight_1, ..., phase_N.name, weight_N}</li>
+<li><strong>global_scale</strong> (<em>*</em>) &#8211; global scale factor (float)</li>
+<li><strong>lateral_broadening</strong> (<em>*</em>) &#8211; lateral dimension in Angstroms, per DIFFaX Manual (float)</li>
+<li><strong>phase_params</strong> (<em>*</em>) &#8211; dict of {&#8216;phase_name&#8217;: &lt;lmfit.Parameters&gt;}</li>
+<li><strong>name</strong> (<em>*</em>) &#8211; a string to identify the refinement instance</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="refinement.Refinement.callback">
+<code class="descname">callback</code><span class="sig-paren">(</span><em>params</em>, <em>iter</em>, <em>resid</em>, <em>**kws</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/refinement.html#Refinement.callback"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#refinement.Refinement.callback" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add residual point to dynamic plot, model history</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>params</strong> (<em>lmfit.Parameters</em>) &#8211; </li>
+<li><strong>iter</strong> (<em>int</em>) &#8211; iteration number</li>
+<li><strong>resid</strong> (<em>array</em>) &#8211; residual array</li>
+<li><strong>kws</strong> (<em>dict</em>) &#8211; mostly ignored. use &#8220;plot_resid&#8221;(bool) to initiate
+dynamic plot of residual vs. iteration</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Return type is important in this case. I believe a return type of
+True causes the minimization to abort.</p>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="refinement.Refinement.diffev_minimize">
+<code class="descname">diffev_minimize</code><span class="sig-paren">(</span><em>subdir=None</em>, <em>plot_resid=False</em>, <em>sqrt_filter=False</em>, <em>disp=True</em>, <em>popsize=5</em>, <em>tol=0.1</em>, <em>mutation=(0.4</em>, <em>0.8)</em>, <em>recombination=0.8</em>, <em>seed=None</em>, <em>polish=False</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/refinement.html#Refinement.diffev_minimize"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#refinement.Refinement.diffev_minimize" title="Permalink to this definition">¶</a></dt>
+<dd><p>Wrapper for lmfit differential_evolution method (global minimization).</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>subdir</strong> (<em>str</em>) &#8211; directory to stash output files</li>
+<li><strong>plot_resid</strong> (<em>bool</em>) &#8211; plot residual vs. iteration</li>
+<li><strong>sqrt_filter</strong> (<em>bool</em>) &#8211; plot data scaled by (Yobs) ** 1/2</li>
+<li><strong>disp</strong> (<em>bool</em>) &#8211; I forget</li>
+<li><strong>popsize</strong> (<em>int</em>) &#8211; see below</li>
+<li><strong>tol</strong> (<em>float</em>) &#8211; see below</li>
+<li><strong>mutation</strong> (<em>tuple</em>) &#8211; see below</li>
+<li><strong>recombination</strong> (<em>float</em>) &#8211; see below</li>
+<li><strong>seed</strong> (<em>lmfit.Parameter?</em>) &#8211; see below</li>
+<li><strong>polish</strong> (<em>bool</em>) &#8211; follow DIFFEV opt by least squares</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"><ul class="simple">
+<li>np.array([sqrt(yo) - sqrt(yc)]) if sqrt_filter is True</li>
+<li>np.array([yo-yc]) if sqrt_filter is False</li>
+</ul>
+</p>
+</td>
+</tr>
+</tbody>
+</table>
+<p>see scipy.optimize.differential_evolution for compete list of minimizer keys &amp; descriptions</p>
+<p class="rubric">Notes</p>
+<p>Differential evolution is a stochastic population based method that is useful for global optimization
+problems. At each pass through the population the algorithm mutates each candidate solution by mixing
+with other candidate solutions to create a trial candidate. There are several strategies [R141] for
+creating trial candidates, which suit some problems more than others. The ‘best1bin’ strategy is a good
+starting point for many systems. In this strategy two members of the population are randomly chosen.
+Their difference is used to mutate the best member (the best in best1bin), b0, so far:</p>
+<p>b’ = b0 + mutation ∗ (population[rand0] − population[rand1])</p>
+<p>A trial vector is then constructed. Starting with a randomly chosen ‘i’th parameter the trial is
+sequentially filled (in modulo) with parameters from b’ or the original candidate. The choice of
+whether to use b’ or the original candidate is made with a binomial distribution
+(the ‘bin’ in ‘best1bin’) - a random number in [0, 1) is generated. If this number is less than
+the recombination constant then the parameter is loaded from b’, otherwise it is loaded from the
+original candidate. The final parameter is always loaded from b’. Once the trial candidate is built
+its fitness is assessed. If the trial is better than the original candidate then it takes its place.
+If it is also better than the best overall candidate it also replaces that. To improve your chances of
+finding a global minimum use higher popsize values, with higher mutation and (dithering), but lower
+recombination values. This has the effect of widening the search radius, but slowing convergence.</p>
+<p>[R140]: Storn, R and Price, K, &#8220;Differential Evolution - a Simple and Efficient Heuristic for Global                     Optimization over Continuous Spaces,&#8221; <em>Journal of Global Optimization</em> 11, 341 - 359 (1997).</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="refinement.Refinement.filter_report">
+<code class="descname">filter_report</code><span class="sig-paren">(</span><em>variable=True</em>, <em>constrained=False</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/refinement.html#Refinement.filter_report"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#refinement.Refinement.filter_report" title="Permalink to this definition">¶</a></dt>
+<dd><p>print a limited portion of the lmfit minimizer fit report
+~! moved to utilities</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="refinement.Refinement.flag">
+<code class="descname">flag</code><span class="sig-paren">(</span><em>true=None</em>, <em>false=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/refinement.html#Refinement.flag"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#refinement.Refinement.flag" title="Permalink to this definition">¶</a></dt>
+<dd><p>Toggle elements of each list True|False respectively</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>true</strong> (<em>list</em>) &#8211; parameter name strings</li>
+<li><strong>false</strong> (<em>list</em>) &#8211; parameter name strings</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="refinement.Refinement.generic_update">
+<code class="descname">generic_update</code><span class="sig-paren">(</span><em>params</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/refinement.html#Refinement.generic_update"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#refinement.Refinement.generic_update" title="Permalink to this definition">¶</a></dt>
+<dd><p>generic update method passes parameters to subordinate objects</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>params</strong> (<em>lmfit.Parameters</em>) &#8211; </td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">True</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">bool</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="refinement.Refinement.lsq_minimize">
+<code class="descname">lsq_minimize</code><span class="sig-paren">(</span><em>subdir=None</em>, <em>plot_resid=False</em>, <em>epsfcn=None</em>, <em>xtol=None</em>, <em>sqrt_filter=False</em>, <em>method='leastsq'</em>, <em>minkws=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/refinement.html#Refinement.lsq_minimize"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#refinement.Refinement.lsq_minimize" title="Permalink to this definition">¶</a></dt>
+<dd><p>Wrapper for lmfit least_squares method (Levenberg-Marquardt)</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>subdir</strong> (<em>str</em>) &#8211; directory to put the DIFFaX input/output into.</li>
+<li><strong>plot_resid</strong> (<em>bool</em>) &#8211; toggle dynamic plotting of R vs. iter.</li>
+<li><strong>epsfcn</strong> (<em>float</em>) &#8211; (default = 1e-02) if step-length is too small the
+mininimizer may not progress as no Jacobian is calculated.</li>
+<li><strong>xtol</strong> (<em>float</em>) &#8211; (default = 1e-04) convergence criterion for the approximate solution.</li>
+<li><strong>method</strong> (<em>str</em>) &#8211; (default = leastsq) optimizer method (i.e. leastsq, nelder, lbfgsb)</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">np.array([(yo-yc)])</p>
+</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">See the SciPy minimizer documentation for full list of minimizer methods.</p>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="refinement.Refinement.map_calc_exp_background">
+<code class="descname">map_calc_exp_background</code><span class="sig-paren">(</span><em>calc_data</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/refinement.html#Refinement.map_calc_exp_background"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#refinement.Refinement.map_calc_exp_background" title="Permalink to this definition">¶</a></dt>
+<dd><p>Map calc, exp, background data onto same array dim and stride</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>calc_data</strong> (<em>list</em>) &#8211; [(x1, y1), ..., ]</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">[(x1, y1), ...]</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">list</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="refinement.Refinement.plot_min_result">
+<code class="descname">plot_min_result</code><span class="sig-paren">(</span><em>sqrt_filter=False</em>, <em>fontsize=12</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/refinement.html#Refinement.plot_min_result"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#refinement.Refinement.plot_min_result" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot the calculated, observed, background and difference curves
+of the last computation. Executed at end of every minimization.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>sqrt_filter</strong> (<em>bool</em>) &#8211; plot data scaled by (Yobs) ** 1/2</li>
+<li><strong>fontsize</strong> (<em>float</em>) &#8211; font size</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">matplotlib.Figure</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="refinement.Refinement.preview">
+<code class="descname">preview</code><span class="sig-paren">(</span><em>subdir=None</em>, <em>sqrt_filter=False</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/refinement.html#Refinement.preview"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#refinement.Refinement.preview" title="Permalink to this definition">¶</a></dt>
+<dd><p>get peak at first calculated state</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="refinement.Refinement.pub_control">
+<code class="descname">pub_control</code><span class="sig-paren">(</span><em>path=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/refinement.html#Refinement.pub_control"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#refinement.Refinement.pub_control" title="Permalink to this definition">¶</a></dt>
+<dd><p>Publish control file for all structures in self.phases
+Control.dif written in working directory
+Path as os.path.join(<a href="#id1"><span class="problematic" id="id2">*</span></a>[k for k in [subdir, phase] if k is not None])</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>subdir</strong> (<em>str</em>) &#8211; directory in which to write</li>
+<li><strong>path</strong> (<em>str</em>) &#8211; directory in which to write</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="refinement.Refinement.pub_input">
+<code class="descname">pub_input</code><span class="sig-paren">(</span><em>path=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/refinement.html#Refinement.pub_input"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#refinement.Refinement.pub_input" title="Permalink to this definition">¶</a></dt>
+<dd><p>Raises method of phase to refinement level
+Passes dictionary of ancillary information (info) to phase.pub_input to
+maintain backwards compatibility with DIFFEV/old input methods
+Default behavior is to publish control file for all structures in self.phase
+Path as os.path.join(<a href="#id3"><span class="problematic" id="id4">*</span></a>[k for k in [subdir, phase] if k is not None])</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>subdir</strong> (<em>str</em>) &#8211; directory in which to write</li>
+<li><strong>path</strong> (<em>str</em>) &#8211; directory in which to write</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="refinement.Refinement.report_constrained">
+<code class="descname">report_constrained</code><span class="sig-paren">(</span><em>tabulate=False</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/refinement.html#Refinement.report_constrained"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#refinement.Refinement.report_constrained" title="Permalink to this definition">¶</a></dt>
+<dd><p>report parameters with attribute expr != None</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="refinement.Refinement.report_refined">
+<code class="descname">report_refined</code><span class="sig-paren">(</span><em>tabulate=False</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/refinement.html#Refinement.report_refined"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#refinement.Refinement.report_refined" title="Permalink to this definition">¶</a></dt>
+<dd><p>report parameters with attribute vary == True
+~! moved to utilities</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="refinement.Refinement.reset">
+<code class="descname">reset</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/refinement.html#Refinement.reset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#refinement.Refinement.reset" title="Permalink to this definition">¶</a></dt>
+<dd><p>use self.original to reset refined parameters to previous values</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="refinement.Refinement.residual_method">
+<code class="descname">residual_method</code><span class="sig-paren">(</span><em>params</em>, <em>**kws</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/refinement.html#Refinement.residual_method"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#refinement.Refinement.residual_method" title="Permalink to this definition">¶</a></dt>
+<dd><p>For each phase in refinement, get DIFFaX pattern and calculate residual</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>params</strong> (<em>lmfit.Parameters</em>) &#8211; </li>
+<li><strong>kws</strong> &#8211; see below</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="docutils">
+<dt>kws:</dt>
+<dd>path: working directory
+subdir: subdirectory
+plot_resid: real-time residual plotting (pass thru to callback)
+sqrt_filter: sounds silly, actually just compare sqrt intensities</dd>
+</dl>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">residual with length of data</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body">np.array</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="refinement.Refinement.revert">
+<code class="descname">revert</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/refinement.html#Refinement.revert"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#refinement.Refinement.revert" title="Permalink to this definition">¶</a></dt>
+<dd><p>use self.backup to revert Parameters instance to last minimizer call</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="refinement.Refinement.rwp">
+<code class="descname">rwp</code><span class="sig-paren">(</span><em>weight=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/refinement.html#Refinement.rwp"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#refinement.Refinement.rwp" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="docutils">
+<dt>calculate rwp for the model:</dt>
+<dd>Rwp = {sum_m(w_m * (Yo,m - Yc,m) ** 2) / sum_m(wm * Yo,m) ** 2} ** 1/2
+wm = 1 / sigma ** 2</dd>
+</dl>
+<p>weight (length == data)
+defalut weight: (Yo,m ** 1/2) ** -2</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="refinement.Refinement.save">
+<code class="descname">save</code><span class="sig-paren">(</span><em>filename=None</em>, <em>path=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/refinement.html#Refinement.save"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#refinement.Refinement.save" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a pickled save state of the refinement.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>filename</strong> (<em>str</em>) &#8211; filename.pkl or some such</li>
+<li><strong>subdir</strong> (<em>str</em>) &#8211; directory</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="refinement.Refinement.update_background">
+<code class="descname">update_background</code><span class="sig-paren">(</span><em>background_coefficients=None</em>, <em>params=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/refinement.html#Refinement.update_background"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#refinement.Refinement.update_background" title="Permalink to this definition">¶</a></dt>
+<dd><p>update background from list of coefficients or parameters instances
+assumes a functional form ybg = A/x + B + C * x + D * x <a href="#id5"><span class="problematic" id="id6">**</span></a>2 + E * x ** 3</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>background_coefficients</strong> (<em>list | None</em>) &#8211; </li>
+<li><strong>params</strong> (<em>lmfit.Parameters | None</em>) &#8211; </li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="refinement.Refinement.update_broadening">
+<code class="descname">update_broadening</code><span class="sig-paren">(</span><em>broadening</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/refinement.html#Refinement.update_broadening"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#refinement.Refinement.update_broadening" title="Permalink to this definition">¶</a></dt>
+<dd><p>update empirical instrumental broadening parameters from list
+gaussian broadening: [FWHM] length 1 argument
+pseudo-voight: [u, v, w, sigma] length 4 argument</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>broadening</strong> (<em>list</em>) &#8211; </td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">None</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="refinement.Refinement.update_phase">
+<code class="descname">update_phase</code><span class="sig-paren">(</span><em>phases</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/refinement.html#Refinement.update_phase"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#refinement.Refinement.update_phase" title="Permalink to this definition">¶</a></dt>
+<dd><p>add phases to refinement.Phase(s) dict</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="refinement.Refinement.update_phase_params">
+<code class="descname">update_phase_params</code><span class="sig-paren">(</span><em>phase_params</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/refinement.html#Refinement.update_phase_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#refinement.Refinement.update_phase_params" title="Permalink to this definition">¶</a></dt>
+<dd><p>update|initialize phase_params</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>phase_params</strong> (<em>dict</em>) &#8211; {&#8216;phase_name&#8217;: &lt;lmfit.Parameters&gt;}</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">None</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="refinement.Refinement.update_theta_range">
+<code class="descname">update_theta_range</code><span class="sig-paren">(</span><em>theta_range</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/refinement.html#Refinement.update_theta_range"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#refinement.Refinement.update_theta_range" title="Permalink to this definition">¶</a></dt>
+<dd><p>Update the refined data range</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>theta_range</strong> (<em>list</em>) &#8211; [min, max, stride] in units of 2 theta</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">None</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="refinement.Refinement.update_weights">
+<code class="descname">update_weights</code><span class="sig-paren">(</span><em>weights</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/refinement.html#Refinement.update_weights"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#refinement.Refinement.update_weights" title="Permalink to this definition">¶</a></dt>
+<dd><p>Update weights.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>weights</strong> (<em>dict</em>) &#8211; {phase name: weight}</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">weights are automatically normalized to 1</p>
+</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">None</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="refinement.Refinement.validate_diffev">
+<code class="descname">validate_diffev</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/refinement.html#Refinement.validate_diffev"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#refinement.Refinement.validate_diffev" title="Permalink to this definition">¶</a></dt>
+<dd><p>Differential evolution requires min/max values to be supplied for all
+variables, not just those that are refined.</p>
+<p>This function coerces min/max values from supplied information if none
+are given by the user.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">True</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="refinement.Refinement.weighted_composite">
+<code class="descname">weighted_composite</code><span class="sig-paren">(</span><em>path=None</em>, <em>individual=False</em>, <em>column=2</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/refinement.html#Refinement.weighted_composite"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#refinement.Refinement.weighted_composite" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return composite of patterns generated by phases &amp; associated weighting factors.
+looks for phase_name.spc in pathsubdir</p>
+<p>Args:</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">all weighted components
+individual is False (list | default): [(x1, y1), ... ]</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body">individual is True (dict)</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">refinement</a><ul>
+<li><a class="reference internal" href="#refinement-refinement">refinement.Refinement</a></li>
+</ul>
+</li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="pairdistributionfunction.html" title="previous chapter">pairdistributionfunction</a></li>
+      <li>Next: <a href="structure.html" title="next chapter">structure</a></li>
+  </ul></li>
+</ul>
+</div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/rst/refinement.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Peter C Metz.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.5.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.9</a>
+      
+      |
+      <a href="../_sources/rst/refinement.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

@@ -1,0 +1,672 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>utilities &#8212; MStack 0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="prev" title="transition" href="transition.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body role="document">
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="module-utilities">
+<span id="utilities"></span><h1>utilities<a class="headerlink" href="#module-utilities" title="Permalink to this headline">¶</a></h1>
+<p>Created on Thu Dec 03 13:28:46 2015</p>
+<p>Common utility classes and functions for MStack.</p>
+<p>&#64;author: Peter C Metz</p>
+<dl class="class">
+<dt id="utilities.DynamicPlot">
+<em class="property">class </em><code class="descclassname">utilities.</code><code class="descname">DynamicPlot</code><span class="sig-paren">(</span><em>fontsize=14</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/utilities.html#DynamicPlot"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#utilities.DynamicPlot" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Plotting utility used to create output for itterative function.
+Called in minimizer callback function to create Rwp  vs.  iter
+Reserves plot number 100 for this purpose.</p>
+<p>call signiture: DynamicPlot(xdata, ydata) &#8211;&gt; appended point to plot</p>
+<dl class="method">
+<dt id="utilities.DynamicPlot.__init__">
+<code class="descname">__init__</code><span class="sig-paren">(</span><em>fontsize=14</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/utilities.html#DynamicPlot.__init__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#utilities.DynamicPlot.__init__" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="utilities.DynamicPlot.on_launch">
+<code class="descname">on_launch</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/utilities.html#DynamicPlot.on_launch"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#utilities.DynamicPlot.on_launch" title="Permalink to this definition">¶</a></dt>
+<dd><p>set up plot</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="utilities.DynamicPlot.on_running">
+<code class="descname">on_running</code><span class="sig-paren">(</span><em>new_x</em>, <em>new_y</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/utilities.html#DynamicPlot.on_running"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#utilities.DynamicPlot.on_running" title="Permalink to this definition">¶</a></dt>
+<dd><p>update plot</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="utilities.MergeParams">
+<em class="property">class </em><code class="descclassname">utilities.</code><code class="descname">MergeParams</code><a class="reference internal" href="../_modules/utilities.html#MergeParams"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#utilities.MergeParams" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Tools to merge Parmeters instances between objects containing them while
+maintaining unique parameter names.</p>
+<p>The result is an lmfit.Parameters object on the top class with the name &#8216;params&#8217;
+(so call your lmfit.Parameters instance params if you want this to work smoothly)
+Although the specification of lmfit.Parameters attributes as other names works
+with specifier</p>
+<dl class="method">
+<dt id="utilities.MergeParams.add_set_params">
+<code class="descname">add_set_params</code><span class="sig-paren">(</span><em>name=None</em>, <em>value=None</em>, <em>vary=None</em>, <em>min=None</em>, <em>max=None</em>, <em>expr=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/utilities.html#MergeParams.add_set_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#utilities.MergeParams.add_set_params" title="Permalink to this definition">¶</a></dt>
+<dd><p>add/set parameter in refinement parameters</p>
+<p>for list of supported mathematics, see:
+<a class="reference external" href="http://lmfit.github.io/lmfit-py/constraints.html#supported-operators-functions-and-constants">http://lmfit.github.io/lmfit-py/constraints.html#supported-operators-functions-and-constants</a></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>name</strong> (<em>str</em>) &#8211; parameter name</li>
+<li><strong>value</strong> (<em>float</em>) &#8211; parameter value</li>
+<li><strong>vary</strong> (<em>bool</em>) &#8211; vary in refinement?</li>
+<li><strong>min</strong> (<em>float</em>) &#8211; minimum bound</li>
+<li><strong>max</strong> (<em>float</em>) &#8211; maximum bound</li>
+<li><strong>expr</strong> (<em>str</em>) &#8211; constrain expression.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="utilities.MergeParams.deepcompare">
+<code class="descname">deepcompare</code><span class="sig-paren">(</span><em>p1</em>, <em>p2</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/utilities.html#MergeParams.deepcompare"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#utilities.MergeParams.deepcompare" title="Permalink to this definition">¶</a></dt>
+<dd><p>deep compare lmfit Parameter instances</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="utilities.MergeParams.exists">
+<code class="descname">exists</code><span class="sig-paren">(</span><em>attribute</em>, <em>value=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/utilities.html#MergeParams.exists"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#utilities.MergeParams.exists" title="Permalink to this definition">¶</a></dt>
+<dd><p>check if attribute exists in object | create with value(None) else</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="utilities.MergeParams.lower_to_upper">
+<code class="descname">lower_to_upper</code><span class="sig-paren">(</span><em>top_attribute</em>, <em>specifier=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/utilities.html#MergeParams.lower_to_upper"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#utilities.MergeParams.lower_to_upper" title="Permalink to this definition">¶</a></dt>
+<dd><p>When merging lmfit.Parameters instances belonging to different constituent refinement
+objects, we run into an issue of unique variable naming (x occurs for each atom coodinate,
+i.e.)</p>
+<p>The transmogrifier appends the top_attribute.name to the bottom_attribute.Parameter.name attribute
+to construct a unique variable label. This change is propagated to variables in the instance&#8217;s
+constraint expression to maintain validity.</p>
+<dl class="docutils">
+<dt>i.e top_attribute = (attribute as str) indicating dictionary of subordinate objects</dt>
+<dd>bottom_attribute = params instance subordinate object</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="utilities.MergeParams.param_finder">
+<code class="descname">param_finder</code><span class="sig-paren">(</span><em>bottom_attribute</em>, <em>specifier</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/utilities.html#MergeParams.param_finder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#utilities.MergeParams.param_finder" title="Permalink to this definition">¶</a></dt>
+<dd><p>get parameter instance from subordinate object</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="utilities.MergeParams.upper_to_lower">
+<code class="descname">upper_to_lower</code><span class="sig-paren">(</span><em>top_attribute</em>, <em>specifier=None</em>, <em>debug=False</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/utilities.html#MergeParams.upper_to_lower"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#utilities.MergeParams.upper_to_lower" title="Permalink to this definition">¶</a></dt>
+<dd><ul class="simple">
+<li><dl class="first docutils">
+<dt>top_attribute: attribute name for dict of subordinate objects</dt>
+<dd>i.e. &#8216;phases&#8217; &#8211;&gt; refinement.phases = {&#8216;phase_1&#8217;: &lt;PairDistributionFunction.PdfPhase&gt;}</dd>
+</dl>
+</li>
+<li>specifier: name of parameters instance in subordinate object</li>
+</ul>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="utilities.UpdateMethods">
+<em class="property">class </em><code class="descclassname">utilities.</code><code class="descname">UpdateMethods</code><a class="reference internal" href="../_modules/utilities.html#UpdateMethods"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#utilities.UpdateMethods" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Generic update methods for the data types dealt with in pdf refinement objects</p>
+<ul class="simple">
+<li>initialize: set attribute for class if it doesn&#8217;t exist, add Parameter instance</li>
+<li>update: update an initialized parameter with appropriate method</li>
+<li>update_with_limits: update when value received as (value, min, max)</li>
+<li>update_with_lmfit: update when value received as lmfit.Parameter instance</li>
+</ul>
+<dl class="method">
+<dt id="utilities.UpdateMethods.initialize">
+<code class="descname">initialize</code><span class="sig-paren">(</span><em>attribute</em>, <em>value=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/utilities.html#UpdateMethods.initialize"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#utilities.UpdateMethods.initialize" title="Permalink to this definition">¶</a></dt>
+<dd><p>default variable initialization</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="utilities.UpdateMethods.update">
+<code class="descname">update</code><span class="sig-paren">(</span><em>attribute</em>, <em>value=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/utilities.html#UpdateMethods.update"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#utilities.UpdateMethods.update" title="Permalink to this definition">¶</a></dt>
+<dd><p>default update mode</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="utilities.UpdateMethods.update_with_limits">
+<code class="descname">update_with_limits</code><span class="sig-paren">(</span><em>attribute</em>, <em>tup</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/utilities.html#UpdateMethods.update_with_limits"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#utilities.UpdateMethods.update_with_limits" title="Permalink to this definition">¶</a></dt>
+<dd><p>allow args passed as (value, min, max)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="utilities.UpdateMethods.update_with_lmfit">
+<code class="descname">update_with_lmfit</code><span class="sig-paren">(</span><em>attribute</em>, <em>parameter</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/utilities.html#UpdateMethods.update_with_lmfit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#utilities.UpdateMethods.update_with_lmfit" title="Permalink to this definition">¶</a></dt>
+<dd><p>update self.params with Parameter instance</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="utilities.absfpath">
+<code class="descclassname">utilities.</code><code class="descname">absfpath</code><span class="sig-paren">(</span><em>relative_path=None</em>, <em>filename=None</em>, <em>extension=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/utilities.html#absfpath"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#utilities.absfpath" title="Permalink to this definition">¶</a></dt>
+<dd><p>return absolute path of rel_path/filename.extension</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="utilities.abspath">
+<code class="descclassname">utilities.</code><code class="descname">abspath</code><span class="sig-paren">(</span><em>relative_path</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/utilities.html#abspath"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#utilities.abspath" title="Permalink to this definition">¶</a></dt>
+<dd><p>return absolute path from relative path in a uniform way to be used throughout
+package.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>relative_path</strong> (<em>*</em>) &#8211; path relative to working directory</td>
+</tr>
+</tbody>
+</table>
+<p>Note:
+|    /foo
+|        /work
+|            /isnofun
+|        /bar
+|
+|    pwd = /foo/work
+|    abspath(&#8216;isnofun&#8217;) == /foo/work/isnofun
+|    abspath(&#8216;../bar&#8217;) == /foo/bar</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="utilities.attributegetter">
+<code class="descclassname">utilities.</code><code class="descname">attributegetter</code><span class="sig-paren">(</span><em>*items</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/utilities.html#attributegetter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#utilities.attributegetter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a callable object that retrieves named <em>attributes</em> from its operand
+using the objects __getattribute__() method. This is analagous to the built-in
+operator <em>operator.itemgetter</em>.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>items</strong> (<em>str</em><em>, </em><em>list</em>) &#8211; attribute names</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">callable object that retreives attribute values from the operand</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="utilities.checkequal">
+<code class="descclassname">utilities.</code><code class="descname">checkequal</code><span class="sig-paren">(</span><em>iterator</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/utilities.html#checkequal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#utilities.checkequal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Check if subsequent iterables are equivilant
+used only in Structure.pub_input</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>iterator</strong> (<em>iterable</em>) &#8211; </td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">bool</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="utilities.filter_report">
+<code class="descclassname">utilities.</code><code class="descname">filter_report</code><span class="sig-paren">(</span><em>refinement</em>, <em>variable=True</em>, <em>constrained=False</em>, <em>_print=True</em>, <em>_text=False</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/utilities.html#filter_report"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#utilities.filter_report" title="Permalink to this definition">¶</a></dt>
+<dd><p>print a limited portion of the lmfit minimizer fit report.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>refinement</strong> (<em>Refinement instance</em>) &#8211; Pdf or I(Q) Refinement instance</li>
+<li><strong>variable</strong> (<em>bool|True</em>) &#8211; report refined variables</li>
+<li><strong>constrained</strong> (<em>bool|False</em>) &#8211; report constrained variables</li>
+<li><strong>_print</strong> (<em>bool|True</em>) &#8211; print output</li>
+<li><strong>_text</strong> (<em>bool|False</em>) &#8211; list output</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">list of lines of output text</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">list</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="utilities.flatten">
+<code class="descclassname">utilities.</code><code class="descname">flatten</code><span class="sig-paren">(</span><em>iterable</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/utilities.html#flatten"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#utilities.flatten" title="Permalink to this definition">¶</a></dt>
+<dd><p>flatten list of lists with N-recursion depth</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="utilities.interpolate_data">
+<code class="descclassname">utilities.</code><code class="descname">interpolate_data</code><span class="sig-paren">(</span><em>Array1</em>, <em>Array2</em>, <em>*mesh</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/utilities.html#interpolate_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#utilities.interpolate_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>Map Array1 onto Array2 if Array 2 specified
+Else, map Array1 onto user defined mesh(float)</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>Array1</strong> (<em>list</em><em>, </em><em>np.array</em>) &#8211; (x, y) data</li>
+<li><strong>Array2</strong> (<em>list</em><em>, </em><em>np.array</em>) &#8211; (x, y) data</li>
+<li><strong>mesh</strong> (<em>float</em>) &#8211; stride for interpolation if Array2 absent</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">[(x1, y1), ..., (xn, yn)]</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">list</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="utilities.isfinite">
+<code class="descclassname">utilities.</code><code class="descname">isfinite</code><span class="sig-paren">(</span><em>value</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/utilities.html#isfinite"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#utilities.isfinite" title="Permalink to this definition">¶</a></dt>
+<dd><p>test if value is infinite</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="utilities.not_header">
+<code class="descclassname">utilities.</code><code class="descname">not_header</code><span class="sig-paren">(</span><em>line</em>, <em>override=False</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/utilities.html#not_header"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#utilities.not_header" title="Permalink to this definition">¶</a></dt>
+<dd><p>Check line in input file for # or text
+Override used for debugging only</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">True if data, False if header</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body">bool</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="utilities.plot">
+<code class="descclassname">utilities.</code><code class="descname">plot</code><span class="sig-paren">(</span><em>*Array</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/utilities.html#plot"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#utilities.plot" title="Permalink to this definition">¶</a></dt>
+<dd><p>Takes a list of tuples [(x1,y1),...,(xn,yn)] and plots with line format</p>
+<p>~! bug: axis determined on last loaded plot (could lead to truncation)</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>Array</strong> (<em>list</em><em>, </em><em>np.array</em>) &#8211; array(s) with shape (N,2)</li>
+<li><strong>kwargs</strong> &#8211; accepts xmin, xmax, ymin, ymax as key word args</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">matplotlib plot object</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="utilities.print_table">
+<code class="descclassname">utilities.</code><code class="descname">print_table</code><span class="sig-paren">(</span><em>dictionary=None</em>, <em>table=None</em>, <em>key=None</em>, <em>headers=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/utilities.html#print_table"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#utilities.print_table" title="Permalink to this definition">¶</a></dt>
+<dd><p>pretty print wrapper of tabulate.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>dictionary</strong> (<em>dict | None</em>) &#8211; dictionary of table content</li>
+<li><strong>table</strong> (<em>list | None</em>) &#8211; list format of table</li>
+<li><strong>key</strong> (<em>sort key | None</em>) &#8211; last operation is list.sort(key=key)</li>
+<li><strong>headers</strong> (<em>list | None</em>) &#8211; list of headers for columns [&#8216;string&#8217;, ...&#8217;Nstring&#8217;]</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">prints table, returns True if no exception raised</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">bool</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="utilities.pub_cif">
+<code class="descclassname">utilities.</code><code class="descname">pub_cif</code><span class="sig-paren">(</span><em>a</em>, <em>b</em>, <em>c</em>, <em>gam</em>, <em>asym</em>, <em>path=None</em>, <em>filename=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/utilities.html#pub_cif"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#utilities.pub_cif" title="Permalink to this definition">¶</a></dt>
+<dd><p>publish a structure in .cif format.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>b</strong><strong>, </strong><strong>c</strong><strong>, </strong><strong>gam</strong> (<em>a</em><em>,</em><em></em>) &#8211; lattice parameters</li>
+<li><strong>asym</strong> (<em>dict</em>) &#8211; list of structure.Atoms</li>
+<li><strong>path</strong> (<em>str</em>) &#8211; directory of file.cif</li>
+<li><strong>filename</strong> (<em>str</em>) &#8211; filname for dump (omit .cif)</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="utilities.pub_xyz">
+<code class="descclassname">utilities.</code><code class="descname">pub_xyz</code><span class="sig-paren">(</span><em>a</em>, <em>b</em>, <em>c</em>, <em>gam</em>, <em>asym</em>, <em>path=None</em>, <em>filename=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/utilities.html#pub_xyz"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#utilities.pub_xyz" title="Permalink to this definition">¶</a></dt>
+<dd><p>write .xyz as
+&lt;N atoms&gt;
+&lt;comment line&gt;
+&lt; atom&gt; &lt;x&gt; &lt;y&gt; &lt;z&gt;</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>b</strong><strong>, </strong><strong>c</strong><strong>, </strong><strong>gam</strong> (<em>a</em><em>,</em><em></em>) &#8211; lattice parameters</li>
+<li><strong>asym</strong> (<em>dict</em>) &#8211; list of structure.Atoms</li>
+<li><strong>path</strong> (<em>str</em>) &#8211; directory of file.xyz</li>
+<li><strong>filename</strong> (<em>str</em>) &#8211; filname for dump (omit .xyz)</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>&#64;!!!!!! Orthogonal vector space conversion is broken</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="utilities.read_data">
+<code class="descclassname">utilities.</code><code class="descname">read_data</code><span class="sig-paren">(</span><em>filename</em>, <em>path=None</em>, <em>column=1</em>, <em>lam=None</em>, <em>q=False</em>, <em>override=True</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/utilities.html#read_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#utilities.read_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reads data from space delimited format. Default assumption is that (x, y) are in
+the first and second column, respectively. Use column argument to change elsewise.
+use argument &#8216;q&#8217; if data is a function of scattering vector rather than 2theta.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>filename</strong> &#8211; [str] relative_path/filename.extension</li>
+<li><strong>column</strong> &#8211; [int] location of f(x), x being the 0th column</li>
+<li><strong>lam</strong> &#8211; [float] wavelength of experimental radiation</li>
+<li><strong>q</strong> &#8211; [bool] whether data is a function of scattering vector q</li>
+<li><strong>override</strong> &#8211; [bool] skip stripping header operation if output is unacceptable</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">(x,y) array of data like [(x1, y1), ..., (xn, yn)]</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">list</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="utilities.report_refined">
+<code class="descclassname">utilities.</code><code class="descname">report_refined</code><span class="sig-paren">(</span><em>minimizer_results_object_params</em>, <em>tabulate=False</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/utilities.html#report_refined"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#utilities.report_refined" title="Permalink to this definition">¶</a></dt>
+<dd><p>report values of parameters object with attribute vary=True</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>result</strong> (<em>lmfit.result</em>) &#8211; fit result object</li>
+<li><strong>tabulate</strong> (<em>bool | False</em>) &#8211; print or return table</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">if tabulate is False
+print: if tabulate is True</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">dict</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="utilities.rwp">
+<code class="descclassname">utilities.</code><code class="descname">rwp</code><span class="sig-paren">(</span><em>PDF_refinement</em>, <em>weight=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/utilities.html#rwp"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#utilities.rwp" title="Permalink to this definition">¶</a></dt>
+<dd><p>returns the pattern weighted residual for a single data set refinement
+e.g.</p>
+<blockquote>
+<div>(sum(weight * diff ** 2) / sum(weight * ref.yo ** 2)) ** 0.5</div></blockquote>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>PDF_refinement</strong> &#8211; [PdfRefinement instance]</li>
+<li><strong>weight</strong> &#8211; [np.array] with same shape as observed data vector Yo</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">Rwp value</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">float</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<div class="section" id="utilities-dynamicplot">
+<h2>utilities.DynamicPlot<a class="headerlink" href="#utilities-dynamicplot" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt>
+<em class="property">class </em><code class="descclassname">utilities.</code><code class="descname">DynamicPlot</code><span class="sig-paren">(</span><em>fontsize=14</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/utilities.html#DynamicPlot"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Plotting utility used to create output for itterative function.
+Called in minimizer callback function to create Rwp  vs.  iter
+Reserves plot number 100 for this purpose.</p>
+<p>call signiture: DynamicPlot(xdata, ydata) &#8211;&gt; appended point to plot</p>
+<dl class="method">
+<dt>
+<code class="descname">__init__</code><span class="sig-paren">(</span><em>fontsize=14</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/utilities.html#DynamicPlot.__init__"><span class="viewcode-link">[source]</span></a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt>
+<code class="descname">on_launch</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/utilities.html#DynamicPlot.on_launch"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>set up plot</p>
+</dd></dl>
+
+<dl class="method">
+<dt>
+<code class="descname">on_running</code><span class="sig-paren">(</span><em>new_x</em>, <em>new_y</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/utilities.html#DynamicPlot.on_running"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>update plot</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="utilities-mergeparams">
+<h2>utilities.MergeParams<a class="headerlink" href="#utilities-mergeparams" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt>
+<em class="property">class </em><code class="descclassname">utilities.</code><code class="descname">DynamicPlot</code><span class="sig-paren">(</span><em>fontsize=14</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/utilities.html#DynamicPlot"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Plotting utility used to create output for itterative function.
+Called in minimizer callback function to create Rwp  vs.  iter
+Reserves plot number 100 for this purpose.</p>
+<p>call signiture: DynamicPlot(xdata, ydata) &#8211;&gt; appended point to plot</p>
+<dl class="method">
+<dt>
+<code class="descname">__init__</code><span class="sig-paren">(</span><em>fontsize=14</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/utilities.html#DynamicPlot.__init__"><span class="viewcode-link">[source]</span></a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt>
+<code class="descname">on_launch</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/utilities.html#DynamicPlot.on_launch"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>set up plot</p>
+</dd></dl>
+
+<dl class="method">
+<dt>
+<code class="descname">on_running</code><span class="sig-paren">(</span><em>new_x</em>, <em>new_y</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/utilities.html#DynamicPlot.on_running"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>update plot</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="utilities-updatemethods">
+<h2>utilities.UpdateMethods<a class="headerlink" href="#utilities-updatemethods" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt>
+<em class="property">class </em><code class="descclassname">utilities.</code><code class="descname">DynamicPlot</code><span class="sig-paren">(</span><em>fontsize=14</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/utilities.html#DynamicPlot"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Plotting utility used to create output for itterative function.
+Called in minimizer callback function to create Rwp  vs.  iter
+Reserves plot number 100 for this purpose.</p>
+<p>call signiture: DynamicPlot(xdata, ydata) &#8211;&gt; appended point to plot</p>
+<dl class="method">
+<dt>
+<code class="descname">__init__</code><span class="sig-paren">(</span><em>fontsize=14</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/utilities.html#DynamicPlot.__init__"><span class="viewcode-link">[source]</span></a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt>
+<code class="descname">on_launch</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/utilities.html#DynamicPlot.on_launch"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>set up plot</p>
+</dd></dl>
+
+<dl class="method">
+<dt>
+<code class="descname">on_running</code><span class="sig-paren">(</span><em>new_x</em>, <em>new_y</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/utilities.html#DynamicPlot.on_running"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>update plot</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">utilities</a><ul>
+<li><a class="reference internal" href="#utilities-dynamicplot">utilities.DynamicPlot</a></li>
+<li><a class="reference internal" href="#utilities-mergeparams">utilities.MergeParams</a></li>
+<li><a class="reference internal" href="#utilities-updatemethods">utilities.UpdateMethods</a></li>
+</ul>
+</li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="transition.html" title="previous chapter">transition</a></li>
+  </ul></li>
+</ul>
+</div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/rst/utilities.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Peter C Metz.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.5.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.9</a>
+      
+      |
+      <a href="../_sources/rst/utilities.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

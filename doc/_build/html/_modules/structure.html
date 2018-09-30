@@ -1,0 +1,828 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>structure &#8212; MStack 0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body role="document">
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for structure</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Created on Fri Oct 16 16:37:48 2015</span>
+
+<span class="sd">A structure is a essentially an enhanced dictionary that contains</span>
+<span class="sd">lattice parameters and atom instances.</span>
+
+
+<span class="sd">@author: Peter C Metz</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="c1"># imports</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">lmfit</span>
+<span class="kn">import</span> <span class="nn">utilities</span> <span class="k">as</span> <span class="nn">u</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">from</span> <span class="nn">operator</span> <span class="k">import</span> <span class="n">itemgetter</span>
+<span class="kn">from</span> <span class="nn">CifFile</span> <span class="k">import</span> <span class="n">ReadCif</span>
+<span class="kn">from</span> <span class="nn">utilities</span> <span class="k">import</span> <span class="n">MergeParams</span><span class="p">,</span> <span class="n">UpdateMethods</span>
+<span class="kn">from</span> <span class="nn">utilities</span> <span class="k">import</span>  <span class="n">abspath</span><span class="p">,</span> <span class="n">absfpath</span>
+<span class="kn">from</span> <span class="nn">utilities</span> <span class="k">import</span> <span class="n">pub_cif</span> <span class="k">as</span> <span class="n">_pub_cif</span>
+<span class="kn">from</span> <span class="nn">utilities</span> <span class="k">import</span> <span class="n">pub_xyz</span> <span class="k">as</span> <span class="n">_pub_xyz</span>
+
+<span class="c1"># globals</span>
+<span class="n">cwd</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">()</span>
+
+<span class="c1"># ##################### structure functions ################################# #</span>
+
+
+<div class="viewcode-block" id="build_cif"><a class="viewcode-back" href="../rst/structure.html#structure.build_cif">[docs]</a><span class="k">def</span> <span class="nf">build_cif</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">structure_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">layer_number</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Use PyCifRW to parse a .cif file and output a Structure instance.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        * filename (str): path\\filname.extension</span>
+<span class="sd">        * structure_name (str): name for Structure intsance</span>
+<span class="sd">        * layer_number (int): layer number</span>
+<span class="sd">        * path (str|None): directory</span>
+
+<span class="sd">    * currently required site labels as \&quot;TypeNumber\&quot;; i.e. Mn1, O5000, Uuo195</span>
+
+<span class="sd">    Note:</span>
+<span class="sd">        There appears to be an error with parsing a filename containing a complete path.</span>
+<span class="sd">        i.e. C:\Path1\Path2\...\filename.cif is interpreted as a URL for some dumb reason.</span>
+<span class="sd">        The current use of ReadCif simply strips the mount point of your disk drive, which</span>
+<span class="sd">        seems to work so long as the current working directory is on the same disk as your</span>
+<span class="sd">        .cif file.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">fpath</span> <span class="o">=</span> <span class="n">absfpath</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;cif&#39;</span><span class="p">)</span>
+
+    <span class="c1"># preliminary</span>
+    <span class="k">if</span> <span class="n">structure_name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">while</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="mi">100</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="nb">locals</span><span class="p">,</span> <span class="s1">&#39;untitled_</span><span class="si">%0d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">i</span><span class="p">):</span>
+                <span class="n">structure_name</span> <span class="o">=</span> <span class="s1">&#39;untitled_</span><span class="si">%0d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">i</span>
+                <span class="k">break</span>
+            <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">if</span> <span class="n">i</span> <span class="o">&gt;=</span> <span class="mi">100</span><span class="p">:</span>
+                <span class="k">raise</span><span class="p">(</span><span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;name your damn structure.&#39;</span><span class="p">))</span>
+
+    <span class="c1"># read .cif file</span>
+    <span class="c1"># joined_path = os.path.join(path, filename).lstrip(&#39;C:&#39;)  # ~! depricated 4/5/17</span>
+    <span class="c1"># print joined_path ~! debug</span>
+    <span class="n">cf</span> <span class="o">=</span> <span class="n">ReadCif</span><span class="p">(</span><span class="n">fpath</span><span class="p">)</span>
+
+    <span class="c1"># read cell</span>
+    <span class="c1"># ~! this probably needs to be generalized to look at all values for possible</span>
+    <span class="c1"># ~! value (esd) pairs</span>
+    <span class="n">cell</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;_cell_length_a&#39;</span><span class="p">,</span> <span class="s1">&#39;_cell_length_b&#39;</span><span class="p">,</span> <span class="s1">&#39;_cell_length_c&#39;</span><span class="p">,</span>
+                 <span class="s1">&#39;_cell_angle_alpha&#39;</span><span class="p">,</span> <span class="s1">&#39;_cell_angle_beta&#39;</span><span class="p">,</span> <span class="s1">&#39;_cell_angle_gamma&#39;</span><span class="p">]:</span>
+        <span class="n">split</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;[(*)]&#39;</span><span class="p">,</span> <span class="n">cf</span><span class="p">[</span><span class="n">cf</span><span class="o">.</span><span class="n">keys</span><span class="p">()[</span><span class="mi">0</span><span class="p">]][</span><span class="n">item</span><span class="p">])</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">value</span><span class="p">,</span> <span class="n">esd</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">split</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="nb">float</span><span class="p">(</span><span class="n">split</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
+            <span class="c1"># if no esd, take value only</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">split</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="c1"># print split[0], esd ~! debug</span>
+        <span class="n">cell</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">item</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span> <span class="n">value</span><span class="p">})</span>
+
+    <span class="n">cb</span> <span class="o">=</span> <span class="n">cf</span><span class="o">.</span><span class="n">first_block</span><span class="p">()</span>
+    <span class="n">lb</span> <span class="o">=</span> <span class="n">cb</span><span class="o">.</span><span class="n">GetLoop</span><span class="p">(</span><span class="s1">&#39;_atom_site_label&#39;</span><span class="p">)</span>
+
+    <span class="c1"># get ADP type from loop keys</span>
+    <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">lb</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="n">adp</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+        <span class="n">m</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s1">&#39;u_iso&#39;</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s1">&#39;b_iso&#39;</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">m</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">adp</span> <span class="o">=</span> <span class="s1">&#39;Uiso&#39;</span>
+            <span class="k">break</span>
+        <span class="k">elif</span> <span class="n">n</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">adp</span> <span class="o">=</span> <span class="s1">&#39;Biso&#39;</span>
+            <span class="k">break</span>
+
+    <span class="k">if</span> <span class="n">adp</span> <span class="o">==</span> <span class="s1">&#39;&#39;</span><span class="p">:</span>
+        <span class="k">raise</span><span class="p">(</span><span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;ADP not found in .cif file&#39;</span><span class="p">))</span>
+
+    <span class="c1"># get the remaining information</span>
+    <span class="c1"># k is the lb key that breaks the previous for loop</span>
+    <span class="n">info</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;_atom_site_label&#39;</span><span class="p">,</span> <span class="s1">&#39;_atom_site_number&#39;</span><span class="p">,</span> <span class="s1">&#39;_atom_site_fract_x&#39;</span><span class="p">,</span>
+                 <span class="s1">&#39;_atom_site_fract_y&#39;</span><span class="p">,</span> <span class="s1">&#39;_atom_site_fract_z&#39;</span><span class="p">,</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">k</span><span class="p">,</span> <span class="s1">&#39;_atom_site_occupancy&#39;</span><span class="p">]:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">info</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">item</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span> <span class="n">lb</span><span class="p">[</span><span class="n">item</span><span class="p">]})</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="k">pass</span>
+
+    <span class="c1"># split atom|number if necessary</span>
+    <span class="n">lab</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">num</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">at</span> <span class="ow">in</span> <span class="n">info</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]:</span>
+        <span class="n">lab</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">re</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;[-+]?\d+&#39;</span><span class="p">,</span> <span class="n">at</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">num</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">re</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;[a-zA-Z]+&#39;</span><span class="p">,</span> <span class="n">at</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">info</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="n">lab</span><span class="p">})</span>  <span class="c1"># atom name</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">(</span><span class="n">k</span> <span class="o">==</span> <span class="s1">&#39;number&#39;</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">info</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+        <span class="n">info</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;number&#39;</span><span class="p">:</span> <span class="n">num</span><span class="p">})</span>  <span class="c1"># atom number</span>
+
+    <span class="c1"># instantiate atoms</span>
+    <span class="n">ai</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">at</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">info</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]):</span>
+        <span class="c1"># atom name, number, x, y, z, ADP, occ, disp_type</span>
+        <span class="n">ai</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Atom</span><span class="p">(</span><span class="n">info</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">],</span>        <span class="c1"># atom name</span>
+                       <span class="n">info</span><span class="p">[</span><span class="s1">&#39;number&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">],</span>       <span class="c1"># atom number</span>
+                       <span class="n">info</span><span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">],</span>            <span class="c1"># x-coordinate</span>
+                       <span class="n">info</span><span class="p">[</span><span class="s1">&#39;y&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">],</span>            <span class="c1"># y-coordinate</span>
+                       <span class="n">info</span><span class="p">[</span><span class="s1">&#39;z&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">],</span>            <span class="c1"># z-coordinate</span>
+                       <span class="n">info</span><span class="p">[</span><span class="s1">&#39;equiv&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">],</span>        <span class="c1"># Uiso or Biso value</span>
+                       <span class="n">info</span><span class="p">[</span><span class="s1">&#39;occupancy&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">],</span>    <span class="c1"># occupancy</span>
+                       <span class="n">adp</span>                      <span class="c1"># ADP type</span>
+                       <span class="p">))</span>
+
+    <span class="c1"># instantiate structure</span>
+    <span class="k">return</span> <span class="n">Structure</span><span class="p">(</span><span class="n">structure_name</span><span class="p">,</span> <span class="o">*</span><span class="n">itemgetter</span><span class="p">(</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">,</span> <span class="s1">&#39;alpha&#39;</span><span class="p">,</span> <span class="s1">&#39;beta&#39;</span><span class="p">,</span> <span class="s1">&#39;gamma&#39;</span><span class="p">)(</span><span class="n">cell</span><span class="p">),</span>
+                     <span class="n">atoms</span><span class="o">=</span><span class="n">ai</span><span class="p">,</span> <span class="n">number</span><span class="o">=</span><span class="n">layer_number</span><span class="p">)</span></div>
+
+<span class="c1"># ##################### structure classes ################################# #</span>
+
+
+<div class="viewcode-block" id="Atom"><a class="viewcode-back" href="../rst/structure.html#structure.Atom">[docs]</a><span class="k">class</span> <span class="nc">Atom</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    an atom instance contains its type (name) and number (of its kind) which define</span>
+<span class="sd">    a unique label (i.e. O1, Nb5). x, y, &amp; z are float fractional coordinates and</span>
+<span class="sd">    Uiso is the thermal displacement parameter (Biso =  8*pi**2*&lt;u**2&gt; = 8*pi**2*Uiso)</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        * atom_name (str): atom name</span>
+<span class="sd">        * number (int): site number</span>
+<span class="sd">        * x, y, z (float): fractional coordinates</span>
+<span class="sd">        * Uiso_or_equiv (float): isotropic thermal displacement parameter</span>
+<span class="sd">        * occ (float): occupancy fractional</span>
+<span class="sd">        * disp_type (str | Uiso): &#39;Biso&#39; or &#39;Uiso&#39;</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="Atom.__init__"><a class="viewcode-back" href="../rst/structure.html#structure.Atom.__init__">[docs]</a>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">atom_name</span><span class="p">,</span> <span class="n">number</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">Uiso_or_equiv</span><span class="p">,</span>
+                 <span class="n">occ</span><span class="p">,</span> <span class="n">disp_type</span><span class="o">=</span><span class="s1">&#39;Uiso&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Args:</span>
+<span class="sd">            * atom_name (str): atom name</span>
+<span class="sd">            * number (int): site number</span>
+<span class="sd">            * x, y, z (float): fractional coordinates</span>
+<span class="sd">            * Uiso_or_equiv (float): isotropic thermal displacement parameter</span>
+<span class="sd">            * occ (float): occupancy fractional</span>
+<span class="sd">            * disp_type (str | Uiso): &#39;Biso&#39; or &#39;Uiso&#39;</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">atom_name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">number</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">number</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">label</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">atom_name</span><span class="p">)</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">number</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">y</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">z</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">z</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">occ</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">occ</span><span class="p">)</span>
+
+        <span class="c1"># ~! This may create problems later, but initialize ADP&#39;s by name and value</span>
+        <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;disp_type&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">disp_type</span><span class="p">))</span>
+        <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">disp_type</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="n">Uiso_or_equiv</span><span class="p">))</span></div></div>
+
+    <span class="c1"># End of class atom</span>
+
+
+<div class="viewcode-block" id="Structure"><a class="viewcode-back" href="../rst/structure.html#structure.Structure">[docs]</a><span class="k">class</span> <span class="nc">Structure</span><span class="p">(</span><span class="n">UpdateMethods</span><span class="p">,</span> <span class="n">MergeParams</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A structure instance contains the lattice and asymmetric unit,</span>
+<span class="sd">    presently limited only to P1 symmetry, of a layer structure.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="Structure.merge_adp"><a class="viewcode-back" href="../rst/structure.html#structure.Structure.merge_adp">[docs]</a>    <span class="k">def</span> <span class="nf">merge_adp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">atoms</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        get list of atom ADPS in common ADP type (Biso)</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            * atoms (structure.Atoms): list of atom instances</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">atoms</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="n">atoms</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">at</span> <span class="ow">in</span> <span class="n">atoms</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">at</span><span class="o">.</span><span class="n">disp_type</span> <span class="o">==</span> <span class="s1">&#39;Uiso&#39;</span><span class="p">:</span>
+                <span class="c1"># Biso = 8 * pi ** 2 * Uiso</span>
+                <span class="n">at</span><span class="o">.</span><span class="n">Uiso</span> <span class="o">=</span> <span class="mi">8</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">at</span><span class="o">.</span><span class="n">Uiso</span>  <span class="c1"># scale value</span>
+                <span class="nb">setattr</span><span class="p">(</span><span class="n">at</span><span class="p">,</span> <span class="s1">&#39;Biso&#39;</span><span class="p">,</span> <span class="n">at</span><span class="o">.</span><span class="n">Uiso</span><span class="p">)</span>        <span class="c1"># create attribute Biso</span>
+                <span class="n">at</span><span class="o">.</span><span class="n">disp_type</span> <span class="o">=</span> <span class="s1">&#39;Biso&#39;</span>               <span class="c1"># update disp_type</span>
+                <span class="k">del</span> <span class="n">at</span><span class="o">.</span><span class="n">Uiso</span>                         <span class="c1"># remove former attribute Uiso</span>
+
+            <span class="k">elif</span> <span class="n">at</span><span class="o">.</span><span class="n">disp_type</span> <span class="o">==</span> <span class="s1">&#39;Biso&#39;</span><span class="p">:</span>
+                <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="Structure.__init__"><a class="viewcode-back" href="../rst/structure.html#structure.Structure.__init__">[docs]</a>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">alp</span><span class="o">=</span><span class="mi">90</span><span class="p">,</span> <span class="n">bet</span><span class="o">=</span><span class="mi">90</span><span class="p">,</span> <span class="n">gam</span><span class="o">=</span><span class="mi">90</span><span class="p">,</span> <span class="n">atoms</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">number</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+        <span class="sd">u&quot;&quot;&quot;</span>
+<span class="sd">        Structure.__init__</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            * a: lattice parameter a [Å]</span>
+<span class="sd">            * b: lattice parameter b [Å]</span>
+<span class="sd">            * c: lattice parameter c [Å]</span>
+<span class="sd">            * alp: lattice parameter alpha [°]   *default = 90*</span>
+<span class="sd">            * bet: lattice parameter beta [°]   *default = 90*</span>
+<span class="sd">            * gam: lattice parameter gamma [°]   *default  = 90*</span>
+<span class="sd">            * atoms: list of atom instances   *default = None*</span>
+<span class="sd">            * number: layer number [integer] used to index layer when building transition matrix</span>
+
+<span class="sd">        Note:</span>
+<span class="sd">            In DIFFaX alpha and beta are constrained to 90°- only gamma may vary. These are presently</span>
+<span class="sd">            included as a formality.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">a</span> <span class="o">=</span> <span class="n">a</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">b</span> <span class="o">=</span> <span class="n">b</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">c</span> <span class="o">=</span> <span class="n">c</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">alp</span> <span class="o">=</span> <span class="n">alp</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bet</span> <span class="o">=</span> <span class="n">bet</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gam</span> <span class="o">=</span> <span class="n">gam</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">number</span> <span class="o">=</span> <span class="n">number</span>
+
+        <span class="c1"># construct dict of atom instances from list of atom instances</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">if</span> <span class="n">atoms</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">atoms</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="n">atoms</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">merge_adp</span><span class="p">(</span><span class="n">atoms</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">atoms</span><span class="p">)):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">_</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">atoms</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">label</span><span class="p">):</span> <span class="n">atoms</span><span class="p">[</span><span class="n">i</span><span class="p">]})</span>
+                <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">atoms</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">label</span><span class="p">,</span> <span class="n">atoms</span><span class="p">[</span><span class="n">i</span><span class="p">])</span></div>
+    
+<div class="viewcode-block" id="Structure.disp_type"><a class="viewcode-back" href="../rst/structure.html#structure.Structure.disp_type">[docs]</a>    <span class="k">def</span> <span class="nf">disp_type</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39; raise disp_type from atom to structure &#39;&#39;&#39;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">keys</span><span class="p">()[</span><span class="mi">0</span><span class="p">]]</span><span class="o">.</span><span class="n">disp_type</span></div>
+
+<div class="viewcode-block" id="Structure.lattice_params"><a class="viewcode-back" href="../rst/structure.html#structure.Structure.lattice_params">[docs]</a>    <span class="k">def</span> <span class="nf">lattice_params</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; return lattice parameters as variables (dict)&quot;&quot;&quot;</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">]:</span>
+            <span class="n">r</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s1">&#39;_</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">k</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__getattribute__</span><span class="p">(</span><span class="n">k</span><span class="p">)})</span>
+        <span class="k">return</span> <span class="n">r</span></div>
+
+<div class="viewcode-block" id="Structure.lattice_angles"><a class="viewcode-back" href="../rst/structure.html#structure.Structure.lattice_angles">[docs]</a>    <span class="k">def</span> <span class="nf">lattice_angles</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; return lattice angles as variables (dict) &quot;&quot;&quot;</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;alp&#39;</span><span class="p">,</span> <span class="s1">&#39;bet&#39;</span><span class="p">,</span> <span class="s1">&#39;gam&#39;</span><span class="p">]:</span>
+            <span class="n">r</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s1">&#39;_</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">k</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__getattribute__</span><span class="p">(</span><span class="n">k</span><span class="p">)})</span>
+        <span class="k">return</span> <span class="n">r</span></div>
+
+<div class="viewcode-block" id="Structure.get_atom_par"><a class="viewcode-back" href="../rst/structure.html#structure.Structure.get_atom_par">[docs]</a>    <span class="k">def</span> <span class="nf">get_atom_par</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">par</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; return atom par(str) with keys label_par (dict)&quot;&quot;&quot;</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">r</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">_</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">par</span><span class="p">):</span> <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">__getattribute__</span><span class="p">(</span><span class="n">par</span><span class="p">)})</span>
+        <span class="k">return</span> <span class="n">r</span></div>
+
+<div class="viewcode-block" id="Structure.get_all_par"><a class="viewcode-back" href="../rst/structure.html#structure.Structure.get_all_par">[docs]</a>    <span class="k">def</span> <span class="nf">get_all_par</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        returns dictionary of all paramters stored in structure, e.g.:</span>
+<span class="sd">            * lattice parameters (vector magnitudes and angles)</span>
+<span class="sd">            * atom parameters (x, y, z, occ, Uiso)</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            dict: {[atom.label]_[par]: value, ...}</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">r</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lattice_angles</span><span class="p">())</span>
+        <span class="n">r</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lattice_params</span><span class="p">())</span>
+        <span class="k">for</span> <span class="n">at</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">for</span> <span class="n">par</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="s1">&#39;z&#39;</span><span class="p">,</span> <span class="s1">&#39;occ&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">disp_type</span><span class="p">())]:</span>
+                <span class="n">r</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_atom_par</span><span class="p">(</span><span class="n">par</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">r</span></div>
+
+<div class="viewcode-block" id="Structure.parameters"><a class="viewcode-back" href="../rst/structure.html#structure.Structure.parameters">[docs]</a>    <span class="k">def</span> <span class="nf">parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">valid_keys</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Creates a lmfit Parameters instance from the contents of structure.</span>
+
+<span class="sd">        All pars come fixed by default- user will flag enteries for</span>
+<span class="sd">        refinment using the Parameters method instance[&#39;parname&#39;].vary=Boolean.</span>
+
+<span class="sd">        If a list of keywords is passed, parameters() will attempt to assemble a</span>
+<span class="sd">        Parameters instance using the valid keys and reporting the invalid keys</span>
+<span class="sd">        (i.e. [&#39;a&#39;, &#39;b&#39;, &#39;c&#39;, &#39;Ox&#39;]... returned params.keys()= &#39;a&#39;, &#39;b&#39;, &#39;c&#39;): invalid</span>
+<span class="sd">        key &#39;ox&#39;.)</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            * valid_keys (str, list): parameter keys</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            * lmfit.Parameters: instance containing *valid_keys</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span> <span class="nn">lmfit</span>
+        <span class="n">parameters</span> <span class="o">=</span> <span class="n">lmfit</span><span class="o">.</span><span class="n">Parameters</span><span class="p">()</span>
+
+        <span class="c1"># check if valid_keys exist in structure.keys()</span>
+        <span class="n">try_keys</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="n">valid_keys</span><span class="p">)</span>
+        <span class="n">strupar</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_all_par</span><span class="p">()</span>
+        <span class="n">existing_keys</span> <span class="o">=</span> <span class="n">strupar</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">try_keys</span><span class="p">:</span>
+            <span class="n">report</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">existing_keys</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">strupar</span><span class="p">[</span><span class="n">k</span><span class="p">])</span> <span class="o">==</span> <span class="nb">str</span><span class="p">:</span>
+                    <span class="nb">print</span> <span class="s1">&#39;Warning! type(</span><span class="si">%s</span><span class="s1">) == str. This may create problems.&#39;</span> <span class="o">%</span> <span class="n">k</span>
+                <span class="c1"># add to Parameters instance if key exists in structure</span>
+                <span class="n">parameters</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">k</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">strupar</span><span class="p">[</span><span class="n">k</span><span class="p">],</span> <span class="n">vary</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># build report of failed additions</span>
+                <span class="n">report</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+
+        <span class="c1"># report success/failure</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">report</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">g</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">try_keys</span><span class="p">)</span>
+            <span class="n">b</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">report</span><span class="p">)</span>
+            <span class="nb">print</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> / </span><span class="si">%s</span><span class="s1"> keys instantiated&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">g</span> <span class="o">-</span> <span class="n">b</span><span class="p">,</span> <span class="n">g</span><span class="p">)</span>
+            <span class="nb">print</span> <span class="s1">&#39;invalid keys for structure </span><span class="si">%s</span><span class="s1">:&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+            <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">report</span><span class="p">:</span>
+                <span class="nb">print</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">k</span>
+        <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">report</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="c1"># print &#39;%s parameters successfully instantiated&#39; % len(try_keys)</span>
+            <span class="k">pass</span>
+
+        <span class="k">return</span> <span class="n">parameters</span></div></div>
+
+    <span class="c1"># End of class structure</span>
+
+
+<div class="viewcode-block" id="Phase"><a class="viewcode-back" href="../rst/structure.html#structure.Phase">[docs]</a><span class="k">class</span> <span class="nc">Phase</span><span class="p">(</span><span class="n">MergeParams</span><span class="p">,</span> <span class="n">UpdateMethods</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A Phase contains the layer structure and transition(s) to be expanded into</span>
+<span class="sd">    a refinable supercell model.</span>
+
+<span class="sd">    Multiple Phase objects can be fed to the Refinement object to accout for</span>
+<span class="sd">    polytypism or multiphase data, etc.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># ######################### update methods ############################## #</span>
+<div class="viewcode-block" id="Phase.update_transitions"><a class="viewcode-back" href="../rst/structure.html#structure.Phase.update_transitions">[docs]</a>    <span class="k">def</span> <span class="nf">update_transitions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">T</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        add/update transition to/in model</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            T (transition.Transitions)</span>
+<span class="sd">        Note:</span>
+<span class="sd">            trans_dict depricated 1/18/17- transitions object replaced by np.ndarray</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># initialize</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;transitions&#39;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">trans</span> <span class="o">=</span> <span class="n">T</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">trans_dict</span> <span class="o">=</span> <span class="n">T</span><span class="o">.</span><span class="n">todict</span><span class="p">()</span>
+
+        <span class="c1"># update phase params</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lower_to_upper</span><span class="p">(</span><span class="s1">&#39;trans_dict&#39;</span><span class="p">,</span> <span class="n">specifier</span><span class="o">=</span><span class="s1">&#39;params&#39;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="kc">True</span></div>
+
+<div class="viewcode-block" id="Phase.update_structures"><a class="viewcode-back" href="../rst/structure.html#structure.Phase.update_structures">[docs]</a>    <span class="k">def</span> <span class="nf">update_structures</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stru</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        add/update structure to/in model</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            * stru (structure.Structure, list)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">u</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="n">stru</span><span class="p">):</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">name</span><span class="p">),</span> <span class="n">item</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">structures</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">item</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="n">item</span><span class="p">})</span></div>
+
+<div class="viewcode-block" id="Phase.initialize_structure_params"><a class="viewcode-back" href="../rst/structure.html#structure.Phase.initialize_structure_params">[docs]</a>    <span class="k">def</span> <span class="nf">initialize_structure_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stru</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        initialize structure parameters as lmfit parameters for stru(s)</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            * stru (structure.Structure, list)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;params&#39;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">lmfit</span><span class="o">.</span><span class="n">Parameters</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">u</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="n">stru</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">+=</span> <span class="n">item</span><span class="o">.</span><span class="n">parameters</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">get_all_par</span><span class="p">()</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span></div>
+
+<div class="viewcode-block" id="Phase.update_mcl"><a class="viewcode-back" href="../rst/structure.html#structure.Phase.update_mcl">[docs]</a>    <span class="k">def</span> <span class="nf">update_mcl</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mcl</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create mean column length and MCL/1022 variabels. DIFFaX interprets</span>
+<span class="sd">        mcl &gt;= 1022 as infinite crystallites, hence the normalization.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            * mcl (int): 1 &lt;= mean column length &lt;= 1022</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;mcl_1022&#39;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s1">&#39;mcl_1022&#39;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="p">(</span><span class="n">mcl</span><span class="o">/</span><span class="mf">1022.0</span><span class="p">),</span> <span class="n">vary</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="nb">min</span><span class="o">=</span><span class="mf">0.0001</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;mcl&#39;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s1">&#39;mcl&#39;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">mcl</span><span class="p">,</span> <span class="nb">min</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mf">1022.0</span><span class="p">,</span> <span class="n">expr</span><span class="o">=</span><span class="s1">&#39;mcl_1022 * 1022.0&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">mcl</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;mcl&#39;</span><span class="p">]</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;mcl_1022&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="p">(</span><span class="n">mcl</span><span class="o">/</span><span class="mf">1022.0</span><span class="p">))</span></div>
+
+    <span class="c1"># ############################ __init__ ################################# #</span>
+
+<div class="viewcode-block" id="Phase.__init__"><a class="viewcode-back" href="../rst/structure.html#structure.Phase.__init__">[docs]</a>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">transitions</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">structures</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">parameters</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">redchi</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">broadening</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">mcl</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Phase.__init__</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            * transitions- transitions instance (containing transition objects)</span>
+<span class="sd">            * structures- list of structure instances</span>
+<span class="sd">            * parameters- lmfit parameters instance</span>
+<span class="sd">            * redchi - reduced chi value of last iteration</span>
+<span class="sd">            * broadening - [FWHM] | [u, v, w, sigma]</span>
+<span class="sd">            * mcl - mean column length (int)</span>
+<span class="sd">            * path (str|current dir): directory path  #~! depricated 4/5/17</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># initialize standard variables</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">redchi</span> <span class="o">=</span> <span class="n">redchi</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hist</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># list of tuples containing (iter, R-val)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">refinement_flags</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># list of variable names to flag for refinement</span>
+
+        <span class="c1"># initialize conditional cases</span>
+        <span class="k">if</span> <span class="n">transitions</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="s1">&#39;access transitions instance from model level or from dict of transitions&#39;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">update_transitions</span><span class="p">(</span><span class="n">transitions</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">structures</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="s1">&#39;access structure instance from model level or from dict of structures&#39;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">structures</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">update_structures</span><span class="p">(</span><span class="n">structures</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">parameters</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="s1">&#39;If parameters are passed in assign them to the model class&#39;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">parameters</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="s1">&#39;Default to all fixed parameters (so that lmfit.Parameters.set still operates)&#39;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">initialize_structure_params</span><span class="p">(</span><span class="n">structures</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">mcl</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">update_mcl</span><span class="p">(</span><span class="n">mcl</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">update_mcl</span><span class="p">(</span><span class="mf">1022.0</span><span class="p">)</span></div>
+
+    <span class="c1"># ########################## structure methods ########################## #</span>
+
+<div class="viewcode-block" id="Phase.toggle"><a class="viewcode-back" href="../rst/structure.html#structure.Phase.toggle">[docs]</a>    <span class="k">def</span> <span class="nf">toggle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">flags</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        set refinement_flags to refine</span>
+
+<span class="sd">        flags (str): parameter names to togggle vary - True</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">vary</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="k">if</span> <span class="n">flags</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">l</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">refinement_flags</span>
+        <span class="k">elif</span> <span class="n">flags</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">l</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="n">flags</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">l</span><span class="p">:</span>
+            <span class="n">invalid</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">vary</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                <span class="n">invalid</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+                <span class="k">pass</span>
+
+        <span class="nb">print</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="si">%d</span><span class="s1"> variables flagged for refinement: </span><span class="si">%d</span><span class="s1"> invalid keys</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">flags</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">invalid</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">invalid</span><span class="p">:</span>
+            <span class="nb">print</span> <span class="n">k</span></div></div>
+
+<span class="k">def</span> <span class="nf">phase_to_trans</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    update transition instances from phase params (values only)</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        None</span>
+
+<span class="sd">    Note:</span>
+<span class="sd">        Depricated by utilities.MergeParams upper_to_lower method though</span>
+<span class="sd">        change has not been completely propagated in structure module.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">trans</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">incorporated</span><span class="p">:</span>  <span class="c1"># these are like &#39;transition_#&#39;</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="n">trans</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>     <span class="c1"># but refered to in transition as #</span>
+        <span class="c1"># for key that starts with k</span>
+        <span class="k">for</span> <span class="n">trans_var</span> <span class="ow">in</span> <span class="p">[</span><span class="n">s</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="k">if</span> <span class="n">s</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">trans</span><span class="p">)]:</span>
+            <span class="n">var</span> <span class="o">=</span> <span class="nb">filter</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">trans_var</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">_&#39;</span> <span class="o">%</span> <span class="n">trans</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>  <span class="c1"># var like transition_#_var --&gt; var</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">trans_dict</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">var</span><span class="p">]</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">trans_var</span><span class="p">]:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="c1"># overwrite phase in trans_dict, which shares pointer with transition instance</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">trans_dict</span><span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">)]</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">var</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">trans_var</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+                                                       <span class="n">vary</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">trans_var</span><span class="p">]</span><span class="o">.</span><span class="n">vary</span><span class="p">,</span>
+                                                       <span class="nb">min</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">trans_var</span><span class="p">]</span><span class="o">.</span><span class="n">min</span><span class="p">,</span>
+                                                       <span class="nb">max</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">trans_var</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">)</span>
+                    <span class="c1"># ~! again need to include decatentation of expr if passed</span>
+                <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                    <span class="c1"># this shouldn&#39;t be an issue at the phase - transition level</span>
+                    <span class="nb">print</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> not updated: see Structure.phase.phase_to_trans()&#39;</span> <span class="o">%</span> <span class="n">trans_var</span>
+                    <span class="k">pass</span>
+
+    <span class="c1"># update Transitions object with new params, validate parameters</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">trans</span><span class="o">.</span><span class="n">update_transitions</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">trans_dict</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+
+    <span class="k">def</span> <span class="nf">pub_cif</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure_name</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>  <span class="c1"># , subdir=&#39;LSQ&#39;):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        publish a .cif file from the refined structure model</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            * structure_name (str): structure.Structure.name</span>
+<span class="sd">            * filename (str | None): write to filename.cif</span>
+<span class="sd">            * path (str | None): relative path</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            * bool: True</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">asym</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">structures</span><span class="p">[</span><span class="n">structure_name</span><span class="p">]</span><span class="o">.</span><span class="n">atoms</span>  <span class="c1"># asymmetric unit</span>
+
+        <span class="n">sn</span> <span class="o">=</span> <span class="n">structure_name</span>  <span class="c1"># shorten variable name</span>
+
+        <span class="n">keys</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;header_line&#39;</span><span class="p">:</span> <span class="n">time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%m-</span><span class="si">%d</span><span class="s1">-%y_%H-%M-%S&#39;</span><span class="p">),</span>
+                <span class="s1">&#39;a&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">_a&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">structures</span><span class="p">[</span><span class="n">sn</span><span class="p">]</span><span class="o">.</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+                <span class="s1">&#39;b&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">_b&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">structures</span><span class="p">[</span><span class="n">sn</span><span class="p">]</span><span class="o">.</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+                <span class="s1">&#39;c&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">_c&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">structures</span><span class="p">[</span><span class="n">sn</span><span class="p">]</span><span class="o">.</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+                <span class="s1">&#39;alp&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">_alp&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">structures</span><span class="p">[</span><span class="n">sn</span><span class="p">]</span><span class="o">.</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+                <span class="s1">&#39;bet&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">_bet&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">structures</span><span class="p">[</span><span class="n">sn</span><span class="p">]</span><span class="o">.</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+                <span class="s1">&#39;gam&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">_gam&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">structures</span><span class="p">[</span><span class="n">sn</span><span class="p">]</span><span class="o">.</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">}</span>
+
+        <span class="n">_pub_cif</span><span class="p">(</span><span class="o">*</span><span class="n">itemgetter</span><span class="p">(</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">,</span> <span class="s1">&#39;gam&#39;</span><span class="p">)(</span><span class="n">keys</span><span class="p">),</span>
+                 <span class="n">asym</span> <span class="o">=</span> <span class="n">asym</span><span class="p">,</span>
+                 <span class="n">path</span> <span class="o">=</span> <span class="n">path</span><span class="p">,</span>
+                 <span class="n">filename</span> <span class="o">=</span> <span class="n">filename</span>
+                 <span class="p">)</span>
+        
+        <span class="k">return</span> <span class="kc">True</span>
+
+    <span class="k">def</span> <span class="nf">pub_control</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">info</span><span class="p">,</span> <span class="n">inputname</span><span class="o">=</span><span class="s1">&#39;diffax_in&#39;</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">subdir</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        write control file for single file inputname.dat</span>
+<span class="sd">        supply T_min, T_max_ T_step as info ~! this will change at some point</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            * info (dict): theta information (min, max, step)</span>
+<span class="sd">            * inputname (str): .dat file for DIFFaX to munch crunch upon</span>
+<span class="sd">            * path (str): directory</span>
+<span class="sd">            * subdir (str | None): more directory info... probably scrap this</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            * bool: True</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">con_path</span> <span class="o">=</span> <span class="n">absfpath</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;control&#39;</span><span class="p">,</span> <span class="s1">&#39;dif&#39;</span><span class="p">)</span>
+        <span class="n">dat_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">subdir</span><span class="p">)</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">])</span>
+        <span class="n">dat_path</span> <span class="o">=</span> <span class="n">absfpath</span><span class="p">(</span><span class="n">dat_path</span><span class="p">,</span> <span class="n">inputname</span><span class="p">,</span> <span class="s1">&#39;dat&#39;</span><span class="p">)</span>
+        <span class="n">dat_path</span> <span class="o">=</span> <span class="n">dat_path</span><span class="o">.</span><span class="n">lstrip</span><span class="p">(</span><span class="n">con_path</span><span class="p">)</span>
+        <span class="c1"># write control</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">con_path</span><span class="p">,</span> <span class="s1">&#39;w+&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">r&#39;</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">dat_path</span><span class="p">))</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;0 {data dump}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;0 {atom pos dump}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+                <span class="c1"># f.write(&#39;0 {sym eval dump}\n&#39;) ~! not required if prior is 0</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;3 {powder diffraction}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%6.4F</span><span class="s1"> </span><span class="si">%6.4F</span><span class="s1"> </span><span class="si">%6.4F</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">itemgetter</span><span class="p">(</span><span class="s1">&#39;T_min&#39;</span><span class="p">,</span> <span class="s1">&#39;T_max&#39;</span><span class="p">,</span> <span class="s1">&#39;T_step&#39;</span><span class="p">)(</span><span class="n">info</span><span class="p">))</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;1 {adaptive quadrature on diffuse}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;1 {adaptive quadrature on sharp}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;end</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="k">raise</span>
+
+    <span class="k">def</span> <span class="nf">pub_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">info</span><span class="p">,</span> <span class="n">inputname</span><span class="o">=</span><span class="s1">&#39;diffax_in&#39;</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>  <span class="c1"># subdir=None):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Distill phase into diffax input file inputname.dat.</span>
+
+<span class="sd">        At the moment, ancillary information is not stored in model- i.e. radiation type,</span>
+<span class="sd">        2-theta limits, etc... needs to be passed in</span>
+<span class="sd">        needed (key):</span>
+<span class="sd">                * wavelength (wvl)</span>
+<span class="sd">                * broadening parameters (gau) ~! only gaussian implimented right now!</span>
+<span class="sd">                * lateral braodening (lat) -- this is optional</span>
+<span class="sd">                * Mean Column Length (MCL)</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            * info (dict): indicated above</span>
+<span class="sd">            * inputname (str): fname</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            * None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># perfunctory stuff, hombre</span>
+        <span class="n">fpath</span> <span class="o">=</span> <span class="n">absfpath</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">inputname</span><span class="p">,</span> <span class="s1">&#39;dat&#39;</span><span class="p">)</span>
+        <span class="n">nlayers</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">trans</span><span class="o">.</span><span class="n">transitions</span><span class="p">)</span>
+
+        <span class="c1"># not necessarily refined- establish source</span>
+        <span class="c1"># ~! figure out how to clean this up</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;wvl&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;gau&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;lat&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;MCL&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;pv_coefficients&#39;</span><span class="p">:</span> <span class="p">()}</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">d</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">d</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">k</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">k</span><span class="o">.</span><span class="n">lower</span><span class="p">()]</span><span class="o">.</span><span class="n">value</span><span class="p">})</span>
+                <span class="c1"># ~! print k, &#39;params&#39;</span>
+            <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">d</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">k</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span> <span class="n">info</span><span class="p">[</span><span class="n">k</span><span class="p">]})</span>
+                <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">k</span> <span class="o">==</span> <span class="s1">&#39;lat&#39;</span><span class="p">:</span>
+                        <span class="k">pass</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">raise</span>
+                <span class="c1"># ~! print k, &#39;dict&#39;</span>
+
+        <span class="k">def</span> <span class="nf">picker</span><span class="p">(</span><span class="n">index</span><span class="p">):</span>
+            <span class="s1">&#39;returns key of index-th layer&#39;</span>
+            <span class="k">return</span> <span class="p">[</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">structures</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">structures</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">number</span> <span class="o">==</span> <span class="nb">int</span><span class="p">(</span><span class="n">index</span><span class="p">)][</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="c1"># main ##################</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">fpath</span><span class="p">,</span> <span class="s1">&#39;w+&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="s1">&#39;# write INSTRUMENTAL block&#39;</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;INSTRUMENTAL</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;X-RAY {rad type}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%10.8F</span><span class="s1"> {rad wvl}</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">d</span><span class="p">[</span><span class="s1">&#39;wvl&#39;</span><span class="p">])</span>
+            <span class="s1">&#39;# ~! rewrite to automatically identify gaussian/PV with regex&#39;</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">u</span><span class="o">.</span><span class="n">checkequal</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="s1">&#39;pv_coefficients&#39;</span><span class="p">]):</span>
+                    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;PSEUDO-VOIGT </span><span class="si">%6.4F</span><span class="s1"> </span><span class="si">%6.4F</span><span class="s1"> </span><span class="si">%6.4F</span><span class="s1"> </span><span class="si">%6.4F</span><span class="s1"> trim {empirical broadening}</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">d</span><span class="p">[</span><span class="s1">&#39;pv_coefficients&#39;</span><span class="p">])</span>
+                <span class="k">elif</span> <span class="n">d</span><span class="p">[</span><span class="s1">&#39;gau&#39;</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;GAUSSIAN </span><span class="si">%8.6F</span><span class="s1"> {empirical broadening}</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">d</span><span class="p">[</span><span class="s1">&#39;gau&#39;</span><span class="p">])</span>
+                <span class="k">elif</span> <span class="n">d</span><span class="p">[</span><span class="s1">&#39;gau&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;NONE {instrumental broadening}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;NONE {instrumental broadening}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+
+            <span class="s1">&#39;# write STRUCTURAL block&#39;</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;STRUCTURAL</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="c1"># use 1st index to set lattice parameters</span>
+            <span class="n">k</span> <span class="o">=</span> <span class="n">picker</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%10.8F</span><span class="s1"> </span><span class="si">%10.8F</span><span class="s1"> </span><span class="si">%10.8F</span><span class="s1"> </span><span class="si">%10.8F</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">_a&#39;</span> <span class="o">%</span> <span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+                                                       <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">_b&#39;</span> <span class="o">%</span> <span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+                                                       <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">_c&#39;</span> <span class="o">%</span> <span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+                                                       <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">_gam&#39;</span> <span class="o">%</span> <span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">))</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;-1 {lowest Laue group}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%d</span><span class="s1"> </span><span class="si">{nlayers}</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">nlayers</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">info</span><span class="p">[</span><span class="s1">&#39;lat&#39;</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%12.10F</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">d</span><span class="p">[</span><span class="s1">&#39;lat&#39;</span><span class="p">])</span>  <span class="c1"># %12.10F\n&#39;   # , d[&#39;lat&#39;]))</span>
+            <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;infinite </span><span class="si">{lateral}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;infinite </span><span class="si">{lateral}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+
+            <span class="s1">&#39;# write layer block&#39;</span>
+            <span class="c1"># first layer using k from above</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;LAYER </span><span class="si">%d</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;None {assumed layer symmetry (?)}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;{type  #   x   y   z   Biso  occ}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+
+            <span class="k">def</span> <span class="nf">last</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+                <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s1">r&#39;\d+&#39;</span><span class="p">,</span> <span class="n">s</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+
+            <span class="n">s</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">at</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">structures</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="n">s</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">at</span><span class="p">)</span>
+            <span class="n">s</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="n">last</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">at</span> <span class="ow">in</span> <span class="n">s</span><span class="p">:</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39; </span><span class="si">%s</span><span class="s1">   </span><span class="si">%s</span><span class="s1">  </span><span class="si">%s</span><span class="s1">  </span><span class="si">%s</span><span class="s1">  </span><span class="si">%s</span><span class="s1">  </span><span class="si">%s</span><span class="s1">  </span><span class="si">%s</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">structures</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">atoms</span><span class="p">[</span><span class="n">at</span><span class="p">]</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">structures</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">atoms</span><span class="p">[</span><span class="n">at</span><span class="p">]</span><span class="o">.</span><span class="n">number</span><span class="p">,</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">_x&#39;</span> <span class="o">%</span> <span class="n">at</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">_y&#39;</span> <span class="o">%</span> <span class="n">at</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">_z&#39;</span> <span class="o">%</span> <span class="n">at</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+                        <span class="c1"># ~! conditional handle Uiso</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">_Biso&#39;</span> <span class="o">%</span> <span class="n">at</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">_occ&#39;</span> <span class="o">%</span> <span class="n">at</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">))</span>
+
+            <span class="c1"># cases for filling other n blocks</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">structures</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="s1">&#39; use layer n = 1 for only 1 layer type &#39;</span>
+                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nlayers</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+                    <span class="n">layer</span> <span class="o">=</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">2</span>
+                    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;LAYER </span><span class="si">%d</span><span class="s1"> = 1</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">layer</span><span class="p">))</span>
+
+            <span class="k">elif</span> <span class="n">nlayers</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">structures</span><span class="p">)</span> <span class="ow">and</span> <span class="n">nlayers</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="s1">&#39; if n unique layer descriptions exist, write n layers&#39;</span>
+                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nlayers</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+                    <span class="n">layer</span> <span class="o">=</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">2</span>
+                    <span class="c1"># get ith layer key</span>
+                    <span class="n">k</span> <span class="o">=</span> <span class="n">picker</span><span class="p">(</span><span class="n">layer</span><span class="p">)</span>
+                    <span class="n">s</span> <span class="o">=</span> <span class="p">[]</span>
+                    <span class="k">for</span> <span class="n">at</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">structures</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                        <span class="n">s</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">at</span><span class="p">)</span>
+                    <span class="n">s</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="n">last</span><span class="p">)</span>
+                    <span class="c1"># write asymmetric unit to input file</span>
+                    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;LAYER </span><span class="si">%d</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">layer</span><span class="p">))</span>
+                    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;None {assumed layer symmetry (?)}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+                    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;{type  #   x   y   z   Biso}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+                    <span class="k">for</span> <span class="n">at</span> <span class="ow">in</span> <span class="n">s</span><span class="p">:</span>
+                        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39; </span><span class="si">%s</span><span class="s1">   </span><span class="si">%s</span><span class="s1">  </span><span class="si">%s</span><span class="s1">  </span><span class="si">%s</span><span class="s1">  </span><span class="si">%s</span><span class="s1">  </span><span class="si">%s</span><span class="s1">  </span><span class="si">%s</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">structures</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">atoms</span><span class="p">[</span><span class="n">at</span><span class="p">]</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">structures</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">atoms</span><span class="p">[</span><span class="n">at</span><span class="p">]</span><span class="o">.</span><span class="n">number</span><span class="p">,</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">_x&#39;</span> <span class="o">%</span> <span class="n">at</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">_y&#39;</span> <span class="o">%</span> <span class="n">at</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">_z&#39;</span> <span class="o">%</span> <span class="n">at</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+                                <span class="c1"># ~! conditional handle Uiso</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">_Biso&#39;</span> <span class="o">%</span> <span class="n">at</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">_occ&#39;</span> <span class="o">%</span> <span class="n">at</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">))</span>
+
+            <span class="k">elif</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">structures</span><span class="p">)</span> <span class="o">==</span> <span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="n">nlayers</span><span class="p">]):</span>
+                <span class="s1">&#39; no handling for intermediate cases&#39;</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Could not parse layer structure input: see Structure.model.pub_input&#39;</span><span class="p">)</span>
+
+            <span class="s1">&#39;# write STACKING block&#39;</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;STACKING</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;recursive</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%d</span><span class="s1"> {mean column length}</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">d</span><span class="p">[</span><span class="s1">&#39;mcl&#39;</span><span class="p">])</span>
+
+            <span class="s1">&#39;# write TRANSITIONS block&#39;</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;TRANSITIONS</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;{alpij     Rxj     Ryj     Rzj     (clm)}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">trans</span><span class="o">.</span><span class="n">pub_trans</span><span class="p">():</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">line</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="kc">True</span>
+
+    <span class="k">def</span> <span class="nf">report_refined</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; returns dict of items with self.params[item].vary == True &quot;&quot;&quot;</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="p">[</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">vary</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">]:</span>
+            <span class="n">d</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">item</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">item</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">})</span>
+        <span class="k">return</span> <span class="n">d</span>
+
+    <span class="c1"># End of class Phase</span>
+
+<span class="c1"># EOF #</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Peter C Metz.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.5.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.9</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

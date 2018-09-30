@@ -1,0 +1,433 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>structure &#8212; MStack 0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="supercell" href="supercell.html" />
+    <link rel="prev" title="refinement" href="refinement.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body role="document">
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="structure">
+<h1>structure<a class="headerlink" href="#structure" title="Permalink to this headline">¶</a></h1>
+<p>A structure contains atoms (x ,y, z, occ, type, ADP), and
+a structure contains a unit cell (a, b, c, α, β, γ) and asymmetric
+unit (list of atoms).</p>
+<p>A phase contains layer structures as well as transitions to
+propagate the layer motif in along the perpendicular vector.
+The stacking vector is always taken as parallel to <strong>c</strong>.</p>
+<span class="target" id="module-structure"></span><p>Created on Fri Oct 16 16:37:48 2015</p>
+<p>A structure is a essentially an enhanced dictionary that contains
+lattice parameters and atom instances.</p>
+<p>&#64;author: Peter C Metz</p>
+<dl class="function">
+<dt id="structure.build_cif">
+<code class="descclassname">structure.</code><code class="descname">build_cif</code><span class="sig-paren">(</span><em>filename</em>, <em>structure_name=None</em>, <em>layer_number=1</em>, <em>path=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/structure.html#build_cif"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#structure.build_cif" title="Permalink to this definition">¶</a></dt>
+<dd><blockquote>
+<div><p>Use PyCifRW to parse a .cif file and output a Structure instance.</p>
+<dl class="docutils">
+<dt>Args:</dt>
+<dd><ul class="first last simple">
+<li>filename (str): pathfilname.extension</li>
+<li>structure_name (str): name for Structure intsance</li>
+<li>layer_number (int): layer number</li>
+<li>path (str|None): directory</li>
+</ul>
+</dd>
+</dl>
+<ul class="simple">
+<li>currently required site labels as &#8220;TypeNumber&#8221;; i.e. Mn1, O5000, Uuo195</li>
+</ul>
+<dl class="docutils">
+<dt>Note:</dt>
+<dd>There appears to be an error with parsing a filename containing a complete path.
+i.e. C:Path1Path2...</dd>
+</dl>
+</div></blockquote>
+<dl class="docutils">
+<dt>ilename.cif is interpreted as a URL for some dumb reason.</dt>
+<dd>The current use of ReadCif simply strips the mount point of your disk drive, which
+seems to work so long as the current working directory is on the same disk as your
+.cif file.</dd>
+</dl>
+</dd></dl>
+
+<div class="section" id="structure-atom">
+<h2>structure.Atom<a class="headerlink" href="#structure-atom" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="structure.Atom">
+<em class="property">class </em><code class="descclassname">structure.</code><code class="descname">Atom</code><span class="sig-paren">(</span><em>atom_name</em>, <em>number</em>, <em>x</em>, <em>y</em>, <em>z</em>, <em>Uiso_or_equiv</em>, <em>occ</em>, <em>disp_type='Uiso'</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/structure.html#Atom"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#structure.Atom" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>an atom instance contains its type (name) and number (of its kind) which define
+a unique label (i.e. O1, Nb5). x, y, &amp; z are float fractional coordinates and
+Uiso is the thermal displacement parameter (Biso =  8*pi**2*&lt;u**2&gt; = 8*pi**2*Uiso)</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>atom_name</strong> (<em>*</em>) &#8211; atom name</li>
+<li><strong>number</strong> (<em>*</em>) &#8211; site number</li>
+<li><strong>x</strong><strong>, </strong><strong>y</strong><strong>, </strong><strong>z</strong> (<em>*</em>) &#8211; fractional coordinates</li>
+<li><strong>Uiso_or_equiv</strong> (<em>*</em>) &#8211; isotropic thermal displacement parameter</li>
+<li><strong>occ</strong> (<em>*</em>) &#8211; occupancy fractional</li>
+<li><strong>disp_type</strong> (<em>*</em>) &#8211; &#8216;Biso&#8217; or &#8216;Uiso&#8217;</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="structure.Atom.__init__">
+<code class="descname">__init__</code><span class="sig-paren">(</span><em>atom_name</em>, <em>number</em>, <em>x</em>, <em>y</em>, <em>z</em>, <em>Uiso_or_equiv</em>, <em>occ</em>, <em>disp_type='Uiso'</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/structure.html#Atom.__init__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#structure.Atom.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>atom_name</strong> (<em>*</em>) &#8211; atom name</li>
+<li><strong>number</strong> (<em>*</em>) &#8211; site number</li>
+<li><strong>x</strong><strong>, </strong><strong>y</strong><strong>, </strong><strong>z</strong> (<em>*</em>) &#8211; fractional coordinates</li>
+<li><strong>Uiso_or_equiv</strong> (<em>*</em>) &#8211; isotropic thermal displacement parameter</li>
+<li><strong>occ</strong> (<em>*</em>) &#8211; occupancy fractional</li>
+<li><strong>disp_type</strong> (<em>*</em>) &#8211; &#8216;Biso&#8217; or &#8216;Uiso&#8217;</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="structure-structure">
+<h2>structure.Structure<a class="headerlink" href="#structure-structure" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="structure.Structure">
+<em class="property">class </em><code class="descclassname">structure.</code><code class="descname">Structure</code><span class="sig-paren">(</span><em>name</em>, <em>a</em>, <em>b</em>, <em>c</em>, <em>alp=90</em>, <em>bet=90</em>, <em>gam=90</em>, <em>atoms=None</em>, <em>number=1</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/structure.html#Structure"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#structure.Structure" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="utilities.html#utilities.UpdateMethods" title="utilities.UpdateMethods"><code class="xref py py-class docutils literal"><span class="pre">utilities.UpdateMethods</span></code></a>, <a class="reference internal" href="utilities.html#utilities.MergeParams" title="utilities.MergeParams"><code class="xref py py-class docutils literal"><span class="pre">utilities.MergeParams</span></code></a></p>
+<p>A structure instance contains the lattice and asymmetric unit,
+presently limited only to P1 symmetry, of a layer structure.</p>
+<dl class="method">
+<dt id="structure.Structure.__init__">
+<code class="descname">__init__</code><span class="sig-paren">(</span><em>name</em>, <em>a</em>, <em>b</em>, <em>c</em>, <em>alp=90</em>, <em>bet=90</em>, <em>gam=90</em>, <em>atoms=None</em>, <em>number=1</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/structure.html#Structure.__init__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#structure.Structure.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>a</strong> (<em>*</em>) &#8211; lattice parameter a [Å]</li>
+<li><strong>b</strong> (<em>*</em>) &#8211; lattice parameter b [Å]</li>
+<li><strong>c</strong> (<em>*</em>) &#8211; lattice parameter c [Å]</li>
+<li><strong>alp</strong> (<em>*</em>) &#8211; lattice parameter alpha [°]   <em>default = 90</em></li>
+<li><strong>bet</strong> (<em>*</em>) &#8211; lattice parameter beta [°]   <em>default = 90</em></li>
+<li><strong>gam</strong> (<em>*</em>) &#8211; lattice parameter gamma [°]   <em>default  = 90</em></li>
+<li><strong>atoms</strong> (<em>*</em>) &#8211; list of atom instances   <em>default = None</em></li>
+<li><strong>number</strong> (<em>*</em>) &#8211; layer number [integer] used to index layer when building transition matrix</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">In DIFFaX alpha and beta are constrained to 90°- only gamma may vary. These are presently
+included as a formality.</p>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="structure.Structure.disp_type">
+<code class="descname">disp_type</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/structure.html#Structure.disp_type"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#structure.Structure.disp_type" title="Permalink to this definition">¶</a></dt>
+<dd><p>raise disp_type from atom to structure</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="structure.Structure.get_all_par">
+<code class="descname">get_all_par</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/structure.html#Structure.get_all_par"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#structure.Structure.get_all_par" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="docutils">
+<dt>returns dictionary of all paramters stored in structure, e.g.:</dt>
+<dd><ul class="first last simple">
+<li>lattice parameters (vector magnitudes and angles)</li>
+<li>atom parameters (x, y, z, occ, Uiso)</li>
+</ul>
+</dd>
+</dl>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">{[atom.label]_[par]: value, ...}</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body">dict</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="structure.Structure.get_atom_par">
+<code class="descname">get_atom_par</code><span class="sig-paren">(</span><em>par</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/structure.html#Structure.get_atom_par"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#structure.Structure.get_atom_par" title="Permalink to this definition">¶</a></dt>
+<dd><p>return atom par(str) with keys label_par (dict)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="structure.Structure.lattice_angles">
+<code class="descname">lattice_angles</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/structure.html#Structure.lattice_angles"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#structure.Structure.lattice_angles" title="Permalink to this definition">¶</a></dt>
+<dd><p>return lattice angles as variables (dict)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="structure.Structure.lattice_params">
+<code class="descname">lattice_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/structure.html#Structure.lattice_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#structure.Structure.lattice_params" title="Permalink to this definition">¶</a></dt>
+<dd><p>return lattice parameters as variables (dict)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="structure.Structure.merge_adp">
+<code class="descname">merge_adp</code><span class="sig-paren">(</span><em>atoms</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/structure.html#Structure.merge_adp"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#structure.Structure.merge_adp" title="Permalink to this definition">¶</a></dt>
+<dd><p>get list of atom ADPS in common ADP type (Biso)</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>atoms</strong> (<em>*</em>) &#8211; list of atom instances</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="structure.Structure.parameters">
+<code class="descname">parameters</code><span class="sig-paren">(</span><em>*valid_keys</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/structure.html#Structure.parameters"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#structure.Structure.parameters" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates a lmfit Parameters instance from the contents of structure.</p>
+<p>All pars come fixed by default- user will flag enteries for
+refinment using the Parameters method instance[&#8216;parname&#8217;].vary=Boolean.</p>
+<p>If a list of keywords is passed, parameters() will attempt to assemble a
+Parameters instance using the valid keys and reporting the invalid keys
+(i.e. [&#8216;a&#8217;, &#8216;b&#8217;, &#8216;c&#8217;, &#8216;Ox&#8217;]... returned params.keys()= &#8216;a&#8217;, &#8216;b&#8217;, &#8216;c&#8217;): invalid
+key &#8216;ox&#8217;.)</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>valid_keys</strong> (<em>*</em>) &#8211; parameter keys</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">instance containing <a href="#id1"><span class="problematic" id="id2">*</span></a>valid_keys</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><ul class="simple">
+<li>lmfit.Parameters</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="structure-phase">
+<h2>structure.Phase<a class="headerlink" href="#structure-phase" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="structure.Phase">
+<em class="property">class </em><code class="descclassname">structure.</code><code class="descname">Phase</code><span class="sig-paren">(</span><em>name</em>, <em>transitions=None</em>, <em>structures=None</em>, <em>parameters=None</em>, <em>redchi=None</em>, <em>broadening=None</em>, <em>mcl=None</em>, <em>path=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/structure.html#Phase"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#structure.Phase" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="utilities.html#utilities.MergeParams" title="utilities.MergeParams"><code class="xref py py-class docutils literal"><span class="pre">utilities.MergeParams</span></code></a>, <a class="reference internal" href="utilities.html#utilities.UpdateMethods" title="utilities.UpdateMethods"><code class="xref py py-class docutils literal"><span class="pre">utilities.UpdateMethods</span></code></a></p>
+<p>A Phase contains the layer structure and transition(s) to be expanded into
+a refinable supercell model.</p>
+<p>Multiple Phase objects can be fed to the Refinement object to accout for
+polytypism or multiphase data, etc.</p>
+<dl class="method">
+<dt id="structure.Phase.__init__">
+<code class="descname">__init__</code><span class="sig-paren">(</span><em>name</em>, <em>transitions=None</em>, <em>structures=None</em>, <em>parameters=None</em>, <em>redchi=None</em>, <em>broadening=None</em>, <em>mcl=None</em>, <em>path=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/structure.html#Phase.__init__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#structure.Phase.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>transitions- transitions instance</strong> (<em>*</em>) &#8211; </li>
+<li><strong>structures- list of structure instances</strong> (<em>*</em>) &#8211; </li>
+<li><strong>parameters- lmfit parameters instance</strong> (<em>*</em>) &#8211; </li>
+<li><strong>redchi - reduced chi value of last iteration</strong> (<em>*</em>) &#8211; </li>
+<li><strong>broadening -</strong><strong> [</strong><strong>FWHM</strong><strong>] </strong><strong>|</strong><strong> [</strong><strong>u</strong><strong>, </strong><strong>v</strong><strong>, </strong><strong>w</strong><strong>, </strong><strong>sigma</strong><strong>]</strong><strong></strong> (<em>*</em>) &#8211; </li>
+<li><strong>mcl - mean column length</strong> (<em>*</em>) &#8211; </li>
+<li><strong>path</strong> (<em>*</em>) &#8211; directory path  #~! depricated 4/5/17</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="structure.Phase.initialize_structure_params">
+<code class="descname">initialize_structure_params</code><span class="sig-paren">(</span><em>stru</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/structure.html#Phase.initialize_structure_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#structure.Phase.initialize_structure_params" title="Permalink to this definition">¶</a></dt>
+<dd><p>initialize structure parameters as lmfit parameters for stru(s)</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>stru</strong> (<em>*</em>) &#8211; </td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="structure.Phase.toggle">
+<code class="descname">toggle</code><span class="sig-paren">(</span><em>flags=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/structure.html#Phase.toggle"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#structure.Phase.toggle" title="Permalink to this definition">¶</a></dt>
+<dd><p>set refinement_flags to refine</p>
+<p>flags (str): parameter names to togggle vary - True</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="structure.Phase.update_mcl">
+<code class="descname">update_mcl</code><span class="sig-paren">(</span><em>mcl</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/structure.html#Phase.update_mcl"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#structure.Phase.update_mcl" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create mean column length and MCL/1022 variabels. DIFFaX interprets
+mcl &gt;= 1022 as infinite crystallites, hence the normalization.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>mcl</strong> (<em>*</em>) &#8211; 1 &lt;= mean column length &lt;= 1022</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="structure.Phase.update_structures">
+<code class="descname">update_structures</code><span class="sig-paren">(</span><em>stru</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/structure.html#Phase.update_structures"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#structure.Phase.update_structures" title="Permalink to this definition">¶</a></dt>
+<dd><p>add/update structure to/in model</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>stru</strong> (<em>*</em>) &#8211; </td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="structure.Phase.update_transitions">
+<code class="descname">update_transitions</code><span class="sig-paren">(</span><em>T</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/structure.html#Phase.update_transitions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#structure.Phase.update_transitions" title="Permalink to this definition">¶</a></dt>
+<dd><p>add/update transition to/in model</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>T</strong> (<a class="reference internal" href="transition.html#transition.Transitions" title="transition.Transitions"><em>transition.Transitions</em></a>) &#8211; </td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">trans_dict depricated 1/18/17- transitions object replaced by np.ndarray</p>
+</div>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">structure</a><ul>
+<li><a class="reference internal" href="#structure-atom">structure.Atom</a></li>
+<li><a class="reference internal" href="#structure-structure">structure.Structure</a></li>
+<li><a class="reference internal" href="#structure-phase">structure.Phase</a></li>
+</ul>
+</li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="refinement.html" title="previous chapter">refinement</a></li>
+      <li>Next: <a href="supercell.html" title="next chapter">supercell</a></li>
+  </ul></li>
+</ul>
+</div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/rst/structure.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Peter C Metz.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.5.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.9</a>
+      
+      |
+      <a href="../_sources/rst/structure.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

@@ -1,0 +1,349 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>interface &#8212; MStack 0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body role="document">
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for interface</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Created on Tue Apr 26 13:54:44 2016</span>
+
+<span class="sd">@author: Peter C Metz</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="c1"># ### import block ######</span>
+<span class="kn">import</span> <span class="nn">utilities</span> <span class="k">as</span> <span class="nn">ut</span>
+<span class="kn">import</span> <span class="nn">structure</span> <span class="k">as</span> <span class="nn">st</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">numpy</span> <span class="k">import</span> <span class="n">pi</span>
+<span class="kn">from</span> <span class="nn">copy</span> <span class="k">import</span> <span class="n">deepcopy</span>
+<span class="kn">from</span> <span class="nn">diffpy.Structure</span> <span class="k">import</span> <span class="n">Structure</span><span class="p">,</span> <span class="n">Atom</span><span class="p">,</span> <span class="n">Lattice</span>
+
+
+<span class="c1"># interface functions #</span>
+<div class="viewcode-block" id="is_dict"><a class="viewcode-back" href="../rst/interface.html#interface.is_dict">[docs]</a><span class="k">def</span> <span class="nf">is_dict</span><span class="p">(</span><span class="n">d</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; returns boolean T|F if d passes type check &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="nb">type</span><span class="p">(</span><span class="n">d</span><span class="p">)</span> <span class="o">==</span> <span class="nb">dict</span></div>
+
+
+<span class="c1"># interface class #</span>
+<div class="viewcode-block" id="Interface"><a class="viewcode-back" href="../rst/interface.html#interface.Interface">[docs]</a><span class="k">class</span> <span class="nc">Interface</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Interface DIFFaX-Py object with DiffPy Structure/Calculator objects</span>
+
+<span class="sd">    _modules return *return self.attribute.update({stuff})* and are accessed</span>
+<span class="sd">    from interface.attribute</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># ####### generic ###########</span>
+<div class="viewcode-block" id="Interface.add"><a class="viewcode-back" href="../rst/interface.html#interface.Interface.add">[docs]</a>    <span class="k">def</span> <span class="nf">add</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attribute</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; generic method &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attribute</span><span class="p">):</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attribute</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span></div>
+
+    <span class="c1"># ######## unit cell #########</span>
+    <span class="k">def</span> <span class="nf">_get_lattices</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Retrieve all lattice prms using Utilities.getattributes()</span>
+
+<span class="sd">        **Returns:** {phase: {stru: diffpy.Structure.Lattice, ...}, ...}</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s1">&#39;lattices&#39;</span><span class="p">,</span> <span class="p">{})</span>
+        <span class="n">rv</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">phases</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">rv</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">p</span><span class="p">:</span> <span class="p">{}})</span>
+            <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">phases</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">structures</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="n">rv</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">s</span><span class="p">:</span> <span class="n">Lattice</span><span class="p">(</span><span class="o">*</span><span class="n">ut</span><span class="o">.</span><span class="n">attributegetter</span><span class="p">(</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">,</span> <span class="s1">&#39;alp&#39;</span><span class="p">,</span> <span class="s1">&#39;bet&#39;</span><span class="p">,</span> <span class="s1">&#39;gam&#39;</span><span class="p">)(</span>
+                             <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">phases</span><span class="p">[</span><span class="n">p</span><span class="p">],</span> <span class="n">s</span><span class="p">)))})</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">lattices</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">rv</span><span class="p">)</span>
+
+    <span class="c1"># ###### assymetric unit ######</span>
+<div class="viewcode-block" id="Interface.is_Uiso"><a class="viewcode-back" href="../rst/interface.html#interface.Interface.is_Uiso">[docs]</a>    <span class="k">def</span> <span class="nf">is_Uiso</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">atom</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        requires atom as Structure.atom as input</span>
+<span class="sd">        returns boolean discriminating ADP type</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">(</span><span class="n">atom</span><span class="o">.</span><span class="n">disp_type</span> <span class="o">==</span> <span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;Biso&#39;</span><span class="p">,</span> <span class="s1">&#39;Uiso&#39;</span><span class="p">]):</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;expected atom to contain Uiso or Biso as </span><span class="se">\</span>
+<span class="s1">                            isotropic displacement parameter type&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">atom</span><span class="o">.</span><span class="n">disp_type</span> <span class="o">==</span> <span class="s1">&#39;Uiso&#39;</span></div>
+
+    <span class="k">def</span> <span class="nf">_get_atoms</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Retrieve all asymmetric units (xyz, ADP, occ)</span>
+
+<span class="sd">        **Returns:** {phase: {structure: [diffpy.Structure.Atom, ...], ...}, ...}</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># O2 = Atom(&#39;O&#39;, xyz=(0.6666, 0.3333, 0.2), label=&#39;O2&#39;, occupancy=1., Uisoequiv=0.003)</span>
+        <span class="c1"># (atype=None, xyz=None, label=None, occupancy=None, anisotropy=None, U=None, Uisoequiv=None, lattice=None)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s1">&#39;atoms&#39;</span><span class="p">,</span> <span class="p">{})</span>
+        <span class="n">rv</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">phases</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">rv</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">p</span><span class="p">:</span> <span class="p">{}})</span>
+            <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">phases</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">structures</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="n">atoms</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">phases</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">structures</span><span class="p">[</span><span class="n">s</span><span class="p">]</span><span class="o">.</span><span class="n">atoms</span>
+                <span class="n">l</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">for</span> <span class="n">at</span> <span class="ow">in</span> <span class="n">atoms</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_Uiso</span><span class="p">(</span><span class="n">atoms</span><span class="p">[</span><span class="n">at</span><span class="p">]):</span>
+                        <span class="n">ADP</span> <span class="o">=</span> <span class="n">atoms</span><span class="p">[</span><span class="n">at</span><span class="p">]</span><span class="o">.</span><span class="n">Biso</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="p">(</span><span class="mf">8.0</span> <span class="o">*</span> <span class="n">pi</span> <span class="o">*</span> <span class="n">pi</span><span class="p">))</span>
+                    <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_Uiso</span><span class="p">(</span><span class="n">atoms</span><span class="p">[</span><span class="n">at</span><span class="p">]):</span>
+                        <span class="n">ADP</span> <span class="o">=</span> <span class="n">atoms</span><span class="p">[</span><span class="n">at</span><span class="p">]</span><span class="o">.</span><span class="n">Uiso</span>
+
+                    <span class="c1"># ~! for some reason diffpy is creating Uij entries when anisotropy is False</span>
+                    <span class="n">U</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
+                    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+                        <span class="n">U</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">ADP</span>
+
+                    <span class="n">XYZ</span> <span class="o">=</span> <span class="n">ut</span><span class="o">.</span><span class="n">attributegetter</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="s1">&#39;z&#39;</span><span class="p">)(</span><span class="n">atoms</span><span class="p">[</span><span class="n">at</span><span class="p">])</span>
+                    <span class="n">l</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Atom</span><span class="p">(</span><span class="n">atype</span><span class="o">=</span><span class="n">atoms</span><span class="p">[</span><span class="n">at</span><span class="p">]</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                                  <span class="n">xyz</span><span class="o">=</span><span class="n">XYZ</span><span class="p">,</span>
+                                  <span class="n">label</span><span class="o">=</span><span class="n">atoms</span><span class="p">[</span><span class="n">at</span><span class="p">]</span><span class="o">.</span><span class="n">label</span><span class="p">,</span>
+                                  <span class="n">occupancy</span><span class="o">=</span><span class="n">atoms</span><span class="p">[</span><span class="n">at</span><span class="p">]</span><span class="o">.</span><span class="n">occ</span><span class="p">,</span>
+                                  <span class="n">U</span><span class="o">=</span><span class="n">U</span><span class="p">))</span>  <span class="c1"># Uisoequiv=ADP))</span>
+
+                <span class="n">rv</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">s</span><span class="p">:</span> <span class="n">l</span><span class="p">})</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">rv</span><span class="p">)</span>
+
+    <span class="c1"># ########## supercell expansion ##############</span>
+<div class="viewcode-block" id="Interface.expand_supercell"><a class="viewcode-back" href="../rst/interface.html#interface.Interface.expand_supercell">[docs]</a>    <span class="k">def</span> <span class="nf">expand_supercell</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lattice</span><span class="p">,</span> <span class="n">atoms</span><span class="p">,</span> <span class="n">trans</span><span class="p">,</span> <span class="n">dim</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Expand first unit cell (*lattice* +  *atoms*) with the transition</span>
+<span class="sd">        vectors in *trans* and the dimension *dim*</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            * lattice: diffpy.Structure.Lattice(a, b, c, alpha, beta, gamma)</span>
+<span class="sd">            * atoms: [diffpy.Stucture.Atom(1), ..., Atom(N)]</span>
+<span class="sd">            * trans: Transition.transition(alpij, rx, ry, rz, cijk)</span>
+<span class="sd">            * dim: intintint (i.e. 123) as dim of supercell</span>
+<span class="sd">            * label: label to be applied to supercell</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            diffpy.Structure: instance of supercell</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># initialize short-name internal variables</span>
+        <span class="n">m</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">o</span> <span class="o">=</span> <span class="n">dim</span><span class="p">[:]</span>
+        <span class="n">rx</span><span class="p">,</span> <span class="n">ry</span><span class="p">,</span> <span class="n">rz</span> <span class="o">=</span> <span class="p">[</span><span class="n">k</span><span class="o">.</span><span class="n">value</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">trans</span><span class="o">.</span><span class="n">vector</span><span class="o">.</span><span class="n">values</span><span class="p">()][:]</span>
+
+        <span class="c1"># supercell dimensions</span>
+        <span class="n">aprime</span> <span class="o">=</span> <span class="n">m</span> <span class="o">*</span> <span class="n">lattice</span><span class="o">.</span><span class="n">a</span> <span class="o">*</span> <span class="mi">1</span>  <span class="c1"># * rx</span>
+        <span class="n">bprime</span> <span class="o">=</span> <span class="n">n</span> <span class="o">*</span> <span class="n">lattice</span><span class="o">.</span><span class="n">b</span> <span class="o">*</span> <span class="mi">1</span>  <span class="c1"># * ry</span>
+        <span class="n">cprime</span> <span class="o">=</span> <span class="n">o</span> <span class="o">*</span> <span class="n">lattice</span><span class="o">.</span><span class="n">c</span> <span class="o">*</span> <span class="n">rz</span>
+        <span class="n">superlattice</span> <span class="o">=</span> <span class="n">Lattice</span><span class="p">(</span><span class="n">aprime</span><span class="p">,</span> <span class="n">bprime</span><span class="p">,</span> <span class="n">cprime</span><span class="p">,</span>
+                               <span class="n">lattice</span><span class="o">.</span><span class="n">alpha</span><span class="p">,</span> <span class="n">lattice</span><span class="o">.</span><span class="n">beta</span><span class="p">,</span> <span class="n">lattice</span><span class="o">.</span><span class="n">gamma</span><span class="p">)</span>
+
+        <span class="c1"># recast asymmetic unit in prime coordinates</span>
+        <span class="n">asym</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">at</span> <span class="ow">in</span> <span class="n">atoms</span><span class="p">:</span>
+            <span class="n">tag</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">{0}</span><span class="s1">_</span><span class="si">{1}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">at</span><span class="o">.</span><span class="n">label</span><span class="p">,</span> <span class="s1">&#39;000&#39;</span><span class="p">)</span>               <span class="c1"># handle</span>
+            <span class="n">asym</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">tag</span><span class="p">:</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">at</span><span class="p">)})</span>                    <span class="c1"># copy to modify</span>
+            <span class="n">asym</span><span class="p">[</span><span class="n">tag</span><span class="p">]</span><span class="o">.</span><span class="n">label</span> <span class="o">=</span> <span class="n">tag</span>                               <span class="c1"># homogenize label</span>
+            <span class="n">asym</span><span class="p">[</span><span class="n">tag</span><span class="p">]</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="p">(</span><span class="n">lattice</span><span class="o">.</span><span class="n">a</span> <span class="o">/</span> <span class="n">aprime</span><span class="p">)</span> <span class="o">*</span> <span class="n">asym</span><span class="p">[</span><span class="n">tag</span><span class="p">]</span><span class="o">.</span><span class="n">x</span>    <span class="c1"># scale x coord</span>
+            <span class="n">asym</span><span class="p">[</span><span class="n">tag</span><span class="p">]</span><span class="o">.</span><span class="n">y</span> <span class="o">=</span> <span class="p">(</span><span class="n">lattice</span><span class="o">.</span><span class="n">b</span> <span class="o">/</span> <span class="n">bprime</span><span class="p">)</span> <span class="o">*</span> <span class="n">asym</span><span class="p">[</span><span class="n">tag</span><span class="p">]</span><span class="o">.</span><span class="n">y</span>    <span class="c1"># scale y coord</span>
+            <span class="n">asym</span><span class="p">[</span><span class="n">tag</span><span class="p">]</span><span class="o">.</span><span class="n">z</span> <span class="o">=</span> <span class="p">(</span><span class="n">lattice</span><span class="o">.</span><span class="n">c</span> <span class="o">/</span> <span class="n">cprime</span><span class="p">)</span> <span class="o">*</span> <span class="n">asym</span><span class="p">[</span><span class="n">tag</span><span class="p">]</span><span class="o">.</span><span class="n">z</span>    <span class="c1"># scale z coord</span>
+
+        <span class="c1"># copy asymmetric unit in 0th layer to mxn tiles</span>
+        <span class="n">asym000</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">asym</span><span class="p">)</span>  <span class="c1"># copy of 000th asymmetric unit to propagate</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">m</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="n">j</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="k">pass</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">pos</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">{0}{1}</span><span class="s1">0&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">j</span><span class="p">))</span>
+                    <span class="k">for</span> <span class="n">at</span> <span class="ow">in</span> <span class="n">asym000</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                        <span class="n">tag</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">{0}</span><span class="s1">_</span><span class="si">{1}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">asym000</span><span class="p">[</span><span class="n">at</span><span class="p">]</span><span class="o">.</span><span class="n">label</span><span class="p">,</span> <span class="n">pos</span><span class="p">)</span>
+                        <span class="n">asym</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">tag</span><span class="p">:</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">asym000</span><span class="p">[</span><span class="n">at</span><span class="p">])})</span>
+                        <span class="n">asym</span><span class="p">[</span><span class="n">tag</span><span class="p">]</span><span class="o">.</span><span class="n">label</span> <span class="o">=</span> <span class="n">tag</span>
+                        <span class="n">asym</span><span class="p">[</span><span class="n">tag</span><span class="p">]</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="n">asym000</span><span class="p">[</span><span class="n">at</span><span class="p">]</span><span class="o">.</span><span class="n">x</span> <span class="o">+</span> <span class="nb">float</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="o">/</span> <span class="n">m</span>
+                        <span class="n">asym</span><span class="p">[</span><span class="n">tag</span><span class="p">]</span><span class="o">.</span><span class="n">y</span> <span class="o">=</span> <span class="n">asym000</span><span class="p">[</span><span class="n">at</span><span class="p">]</span><span class="o">.</span><span class="n">y</span> <span class="o">+</span> <span class="nb">float</span><span class="p">(</span><span class="n">j</span><span class="p">)</span> <span class="o">/</span> <span class="n">n</span>
+
+        <span class="c1"># apply stacking vector to 0th layer o times</span>
+        <span class="n">asymmn0</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">asym</span><span class="p">)</span>  <span class="c1"># copy of mn0th asymmetric unit to propagate</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">o</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">k</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">for</span> <span class="n">at</span> <span class="ow">in</span> <span class="n">asymmn0</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="n">pos</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">{0}{1}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">asymmn0</span><span class="p">[</span><span class="n">at</span><span class="p">]</span><span class="o">.</span><span class="n">label</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)[:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">k</span><span class="p">))</span>
+                <span class="n">tag</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">{0}</span><span class="s1">_</span><span class="si">{1}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">asymmn0</span><span class="p">[</span><span class="n">at</span><span class="p">]</span><span class="o">.</span><span class="n">label</span><span class="p">,</span> <span class="n">pos</span><span class="p">)</span>
+                <span class="n">asym</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">tag</span><span class="p">:</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">asymmn0</span><span class="p">[</span><span class="n">at</span><span class="p">])})</span>
+                <span class="n">asym</span><span class="p">[</span><span class="n">tag</span><span class="p">]</span><span class="o">.</span><span class="n">label</span> <span class="o">=</span> <span class="n">tag</span>
+                <span class="n">asym</span><span class="p">[</span><span class="n">tag</span><span class="p">]</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="n">asymmn0</span><span class="p">[</span><span class="n">at</span><span class="p">]</span><span class="o">.</span><span class="n">x</span> <span class="o">+</span> <span class="n">k</span> <span class="o">*</span> <span class="n">rx</span> <span class="o">/</span> <span class="n">m</span>
+                <span class="n">asym</span><span class="p">[</span><span class="n">tag</span><span class="p">]</span><span class="o">.</span><span class="n">y</span> <span class="o">=</span> <span class="n">asymmn0</span><span class="p">[</span><span class="n">at</span><span class="p">]</span><span class="o">.</span><span class="n">y</span> <span class="o">+</span> <span class="n">k</span> <span class="o">*</span> <span class="n">ry</span> <span class="o">/</span> <span class="n">n</span>
+                <span class="n">asym</span><span class="p">[</span><span class="n">tag</span><span class="p">]</span><span class="o">.</span><span class="n">z</span> <span class="o">=</span> <span class="n">asymmn0</span><span class="p">[</span><span class="n">at</span><span class="p">]</span><span class="o">.</span><span class="n">z</span> <span class="o">+</span> <span class="n">k</span> <span class="o">*</span> <span class="mf">1.</span> <span class="o">/</span> <span class="n">o</span>
+
+        <span class="c1"># create/return diffpy.Structure(asym)</span>
+        <span class="k">if</span> <span class="n">debug</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">asym</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">Structure</span><span class="p">(</span><span class="n">atoms</span><span class="o">=</span><span class="n">asym</span><span class="o">.</span><span class="n">values</span><span class="p">(),</span> <span class="n">lattice</span><span class="o">=</span><span class="n">superlattice</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="n">label</span><span class="p">)</span>  <span class="c1"># rv</span></div>
+
+    <span class="k">def</span> <span class="nf">_get_supercells</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dim</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Supercell expansion using diffpy.Structure expander.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            * dim (tuple): (m, n, o) supercell dimensions</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            dict: {phase: {stru: supercell}, {phase: }</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s1">&#39;supercells&#39;</span><span class="p">,</span> <span class="p">{})</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s1">&#39;alpij&#39;</span><span class="p">,</span> <span class="p">{})</span>
+        <span class="n">rv</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">alp</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">str_number</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">number</span>
+
+        <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">phases</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">strs</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">phases</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">structures</span><span class="o">.</span><span class="n">values</span><span class="p">(),</span> <span class="n">key</span><span class="o">=</span><span class="n">str_number</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">s</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">strs</span><span class="p">):</span>               
+                <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">phases</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">trans</span><span class="o">.</span><span class="n">nlayers</span><span class="p">):</span>
+                    <span class="c1"># lattice, atoms, trans, dim, label</span>
+                    <span class="n">lat</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">lattices</span><span class="p">[</span><span class="n">p</span><span class="p">][</span><span class="n">s</span><span class="o">.</span><span class="n">name</span><span class="p">]</span>
+                    <span class="n">ato</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="p">[</span><span class="n">p</span><span class="p">][</span><span class="n">s</span><span class="o">.</span><span class="n">name</span><span class="p">]</span>
+                    <span class="n">tra</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">phases</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">trans</span><span class="o">.</span><span class="n">transitions</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span>
+                    <span class="n">dim</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mno</span>
+                    <span class="n">lab</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">{0}</span><span class="s1">_</span><span class="si">{1}{2}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">)</span>
+                                              <span class="c1"># self.phases[p].structures[s].number,</span>
+                                              <span class="c1"># self.phases[p].trans_dict[t].n)</span>
+
+                    <span class="n">alp</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">lab</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">phases</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">trans</span><span class="o">.</span><span class="n">transitions</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">alpha</span><span class="p">})</span>  <span class="c1"># trans_dict[str(i + 1)].alpij[&#39;alp%0d%0d&#39; % (i + 1, j + 1)]})</span>
+
+                    <span class="n">rv</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">lab</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">expand_supercell</span><span class="p">(</span><span class="n">lattice</span><span class="o">=</span><span class="n">lat</span><span class="p">,</span>
+                                                          <span class="n">atoms</span><span class="o">=</span><span class="n">ato</span><span class="p">,</span>
+                                                          <span class="n">trans</span><span class="o">=</span><span class="n">tra</span><span class="p">,</span>
+                                                          <span class="n">dim</span><span class="o">=</span><span class="n">dim</span><span class="p">,</span>
+                                                          <span class="n">label</span><span class="o">=</span><span class="n">lab</span><span class="p">,</span>
+                                                          <span class="n">debug</span><span class="o">=</span><span class="n">debug</span><span class="p">)})</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">supercells</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">rv</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">alpij</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">alp</span><span class="p">)</span>
+        
+        <span class="k">return</span>
+
+    <span class="c1"># ###### phases ########</span>
+<div class="viewcode-block" id="Interface.update_phases"><a class="viewcode-back" href="../rst/interface.html#interface.Interface.update_phases">[docs]</a>    <span class="k">def</span> <span class="nf">update_phases</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">phases</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; phase updater &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s1">&#39;phases&#39;</span><span class="p">,</span> <span class="p">{})</span>
+
+        <span class="c1"># construct phases dict</span>
+        <span class="k">if</span> <span class="n">is_dict</span><span class="p">(</span><span class="n">phases</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">phases</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">phases</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">type</span><span class="p">(</span><span class="n">phases</span><span class="p">)</span> <span class="ow">is</span> <span class="n">st</span><span class="o">.</span><span class="n">phase</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">phases</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">phases</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="n">phases</span><span class="p">})</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;valid types for phases are a Structure.phase or</span><span class="se">\</span>
+<span class="s1">                            a phase dict {phase.name: phase, ...}&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_get_lattices</span><span class="p">()</span>    <span class="c1"># reconstruct lattice dict with new phase</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_get_atoms</span><span class="p">()</span>       <span class="c1"># reconstruct atoms dict with new asymmetric units</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_get_supercells</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mno</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">debug</span><span class="p">)</span>  <span class="c1"># reconstruct supercell dict</span></div>
+
+    <span class="c1"># #### init #####</span>
+<div class="viewcode-block" id="Interface.__init__"><a class="viewcode-back" href="../rst/interface.html#interface.Interface.__init__">[docs]</a>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">phases</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">mno</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        A collection of tools for retreiving values from Phase object(s) in order</span>
+<span class="sd">        to construct diffpy.Structure objects and PDF calculations therefrom.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            * Phases: (dict | Structure.phase)</span>
+<span class="sd">            * mno: (int, int, int): i.e. (1, 2, 3) a sequence of</span>
+<span class="sd">                    three integers for supercell expansion</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">debug</span> <span class="o">=</span> <span class="n">debug</span>  <span class="c1"># dev only</span>
+
+        <span class="k">if</span> <span class="n">mno</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">mno</span> <span class="o">=</span> <span class="n">mno</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">mno</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">phases</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">update_phases</span><span class="p">(</span><span class="n">phases</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Interface.to_cif"><a class="viewcode-back" href="../rst/interface.html#interface.Interface.to_cif">[docs]</a>    <span class="k">def</span> <span class="nf">to_cif</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; write supercells to *supercell.label.cif* in cwd &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">sc</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">supercells</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="n">sc</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">((</span><span class="n">sc</span><span class="o">.</span><span class="n">title</span><span class="p">,</span> <span class="s1">&#39;.cif&#39;</span><span class="p">)),</span> <span class="s1">&#39;cif&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">True</span></div></div>
+
+    <span class="c1"># End of class Interface #</span>
+
+<span class="c1"># EOF #</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Peter C Metz.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.5.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.9</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

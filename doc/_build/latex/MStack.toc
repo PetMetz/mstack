@@ -1,0 +1,27 @@
+\select@language {english}
+\contentsline {chapter}{\numberline {1}Abstract:}{3}{chapter.1}
+\contentsline {chapter}{\numberline {2}Contents:}{5}{chapter.2}
+\contentsline {section}{\numberline {2.1}background}{5}{section.2.1}
+\contentsline {section}{\numberline {2.2}interface}{5}{section.2.2}
+\contentsline {section}{\numberline {2.3}pairdistributionfunction}{6}{section.2.3}
+\contentsline {subsection}{\numberline {2.3.1}pairdistributionfunction.PdfData}{6}{subsection.2.3.1}
+\contentsline {subsection}{\numberline {2.3.2}pairdistributionfunction.PdfModel}{7}{subsection.2.3.2}
+\contentsline {subsection}{\numberline {2.3.3}pairdistributionfunction.PdfRefinement}{8}{subsection.2.3.3}
+\contentsline {paragraph}{Notes}{10}{paragraph*.27}
+\contentsline {section}{\numberline {2.4}refinement}{13}{section.2.4}
+\contentsline {subsection}{\numberline {2.4.1}refinement.Refinement}{14}{subsection.2.4.1}
+\contentsline {paragraph}{Notes}{16}{paragraph*.52}
+\contentsline {section}{\numberline {2.5}structure}{19}{section.2.5}
+\contentsline {subsection}{\numberline {2.5.1}structure.Atom}{20}{subsection.2.5.1}
+\contentsline {subsection}{\numberline {2.5.2}structure.Structure}{20}{subsection.2.5.2}
+\contentsline {subsection}{\numberline {2.5.3}structure.Phase}{22}{subsection.2.5.3}
+\contentsline {section}{\numberline {2.6}supercell}{23}{section.2.6}
+\contentsline {section}{\numberline {2.7}transition}{24}{section.2.7}
+\contentsline {subsection}{\numberline {2.7.1}transition.Transition}{24}{subsection.2.7.1}
+\contentsline {subsection}{\numberline {2.7.2}transition.Transitions}{25}{subsection.2.7.2}
+\contentsline {section}{\numberline {2.8}utilities}{26}{section.2.8}
+\contentsline {subsection}{\numberline {2.8.1}utilities.DynamicPlot}{30}{subsection.2.8.1}
+\contentsline {subsection}{\numberline {2.8.2}utilities.MergeParams}{30}{subsection.2.8.2}
+\contentsline {subsection}{\numberline {2.8.3}utilities.UpdateMethods}{30}{subsection.2.8.3}
+\contentsline {chapter}{\numberline {3}Indices and tables}{33}{chapter.3}
+\contentsline {chapter}{Python Module Index}{35}{section*.143}

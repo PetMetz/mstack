@@ -1,0 +1,761 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>mstack.utilities &#8212; MStack 0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body role="document">
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for mstack.utilities</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Created on Thu Dec 03 13:28:46 2015</span>
+
+<span class="sd">Common utility classes and functions for MStack.</span>
+
+<span class="sd">@author: Peter C Metz</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+
+<span class="c1"># import</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">lmfit</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">string</span>
+<span class="kn">from</span> <span class="nn">matplotlib</span> <span class="k">import</span> <span class="n">pyplot</span> <span class="k">as</span> <span class="n">plt</span>
+<span class="kn">from</span> <span class="nn">scipy.interpolate</span> <span class="k">import</span> <span class="n">interp1d</span>
+<span class="kn">from</span> <span class="nn">tabulate</span> <span class="k">import</span> <span class="n">tabulate</span>
+
+
+<span class="c1"># utility functions ##############################</span>
+
+
+<div class="viewcode-block" id="attributegetter"><a class="viewcode-back" href="../../rst/utilities.html#mstack.utilities.attributegetter">[docs]</a><span class="k">def</span> <span class="nf">attributegetter</span><span class="p">(</span><span class="n">items</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Return a callable object that retrieves named *attributes* from its operand</span>
+<span class="sd">    using the objects __getattribute__() method. This is analagous to the built-in</span>
+<span class="sd">    operator *operator.itemgetter*.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        items (str, list): attribute names</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        callable object that retreives attribute values from the operand</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">items</span> <span class="o">=</span> <span class="n">flatten</span><span class="p">(</span><span class="n">items</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">g</span><span class="p">(</span><span class="n">obj</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">obj</span><span class="o">.</span><span class="n">__getattribute__</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">item</span><span class="p">))</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">items</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">g</span></div>
+
+
+<div class="viewcode-block" id="checkequal"><a class="viewcode-back" href="../../rst/utilities.html#mstack.utilities.checkequal">[docs]</a><span class="k">def</span> <span class="nf">checkequal</span><span class="p">(</span><span class="n">iterator</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Check if subsequent iterables are equivilant</span>
+<span class="sd">    used only in Structure.pub_input</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        iterator (iterable)</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        bool</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">iterator</span> <span class="o">=</span> <span class="nb">iter</span><span class="p">(</span><span class="n">iterator</span><span class="p">)</span>
+        <span class="n">first</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">iterator</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">all</span><span class="p">(</span><span class="n">first</span> <span class="o">==</span> <span class="n">rest</span> <span class="k">for</span> <span class="n">rest</span> <span class="ow">in</span> <span class="n">iterator</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">StopIteration</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">True</span></div>
+
+
+<div class="viewcode-block" id="filter_report"><a class="viewcode-back" href="../../rst/utilities.html#mstack.utilities.filter_report">[docs]</a><span class="k">def</span> <span class="nf">filter_report</span><span class="p">(</span><span class="n">refinement</span><span class="p">,</span> <span class="n">variable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">constrained</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                  <span class="n">_print</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">_text</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    print a limited portion of the lmfit minimizer fit report.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        refinement (Refinement instance): Pdf or I(Q) Refinement instance</span>
+<span class="sd">        variable (bool|True): report refined variables</span>
+<span class="sd">        constrained (bool|False): report constrained variables</span>
+<span class="sd">        _print (bool|True): print output</span>
+<span class="sd">        _text (bool|False): list output</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        list: list of lines of output text</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">refinement</span><span class="o">.</span><span class="n">report</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="n">rv</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">variable</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="n">v</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">st</span> <span class="ow">in</span> <span class="n">s</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">st</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;(fixed)&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">st</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\&#39;</span><span class="s1">&#39;</span><span class="p">):</span>
+                    <span class="n">v</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">st</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">_print</span><span class="p">:</span>
+                <span class="nb">print</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">start: </span><span class="si">%s</span><span class="s1">, end: </span><span class="si">%s</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">refinement</span><span class="o">.</span><span class="n">start</span><span class="p">,</span>
+                                                  <span class="n">refinement</span><span class="o">.</span><span class="n">end</span><span class="p">)</span>
+                <span class="nb">print</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">_text</span><span class="p">:</span>
+                <span class="n">rv</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">constrained</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="n">v</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">st</span> <span class="ow">in</span> <span class="n">s</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">st</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\&#39;</span><span class="s1">&#39;</span><span class="p">):</span>
+                    <span class="n">v</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">st</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">_print</span><span class="p">:</span>
+                <span class="nb">print</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">start: </span><span class="si">%s</span><span class="s1">, end: </span><span class="si">%s</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">refinement</span><span class="o">.</span><span class="n">start</span><span class="p">,</span>
+                                                  <span class="n">refinement</span><span class="o">.</span><span class="n">end</span><span class="p">)</span>
+                <span class="nb">print</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">_text</span><span class="p">:</span>
+                <span class="n">rv</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+
+    <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+        <span class="nb">print</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">.report does not exist. Have you run a minimization yet?&#39;</span>\
+                <span class="o">%</span> <span class="n">refinement</span><span class="o">.</span><span class="n">name</span>
+    <span class="k">return</span> <span class="n">rv</span></div>
+
+
+<div class="viewcode-block" id="flatten"><a class="viewcode-back" href="../../rst/utilities.html#mstack.utilities.flatten">[docs]</a><span class="k">def</span> <span class="nf">flatten</span><span class="p">(</span><span class="n">iterable</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; flatten list of lists with N-recursion depth &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">iterable</span><span class="p">,</span> <span class="s1">&#39;__iter__&#39;</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">iterable</span><span class="p">]</span>
+    <span class="c1"># recursion of flatten(l)</span>
+    <span class="n">l</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">el</span> <span class="ow">in</span> <span class="n">iterable</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">el</span><span class="p">,</span> <span class="s1">&#39;__iter__&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">el</span><span class="p">,</span> <span class="n">basestring</span><span class="p">):</span>
+            <span class="n">l</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">flatten</span><span class="p">(</span><span class="n">el</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">l</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">el</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">l</span></div>
+
+
+<div class="viewcode-block" id="interpolate_data"><a class="viewcode-back" href="../../rst/utilities.html#mstack.utilities.interpolate_data">[docs]</a><span class="k">def</span> <span class="nf">interpolate_data</span><span class="p">(</span><span class="n">Array1</span><span class="p">,</span> <span class="n">Array2</span><span class="p">,</span> <span class="o">*</span><span class="n">mesh</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Map Array1 onto Array2 if Array 2 specified</span>
+<span class="sd">    Else, map Array1 onto user defined mesh(float)</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        Array1 (list, np.array): (x, y) data</span>
+<span class="sd">        Array2 (list, np.array): (x, y) data</span>
+<span class="sd">        mesh (float): stride for interpolation if Array2 absent</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        list: [(x1, y1), ..., (xn, yn)]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># get array pieces</span>
+    <span class="n">A1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">Array1</span><span class="p">)</span>
+    <span class="n">x1</span><span class="p">,</span> <span class="n">y1</span> <span class="o">=</span> <span class="n">A1</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">A1</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">A2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">Array2</span><span class="p">)</span>
+        <span class="n">x2</span> <span class="o">=</span> <span class="n">A2</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>  <span class="c1"># , A2[:, 1]</span>
+    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+        <span class="nb">print</span> <span class="s1">&#39;Array2 == [], looking for mesh&#39;</span>
+
+    <span class="c1"># some initialization</span>
+    <span class="n">return_array</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">def</span> <span class="nf">try_to_interpolate</span><span class="p">(</span><span class="n">x_coord</span><span class="p">):</span>
+        <span class="c1"># tries to interpolate a function instantiated as f</span>
+        <span class="c1"># returns list of successfully interpolate tuples</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">return_array</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">x_coord</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">f</span><span class="p">(</span><span class="n">x_coord</span><span class="p">))))</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="k">pass</span>
+        <span class="k">return</span> <span class="n">return_array</span>
+
+    <span class="k">if</span> <span class="n">Array2</span> <span class="o">==</span> <span class="p">[]:</span>
+        <span class="c1"># if Array2 is passed as null, interpolate on user specified mesh</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">mesh</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">mesh</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="n">x2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">x1</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">len</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">mesh</span><span class="p">))),</span> <span class="nb">round</span><span class="p">(</span><span class="n">x1</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="nb">len</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">mesh</span><span class="p">))),</span> <span class="n">mesh</span><span class="p">)</span>
+
+            <span class="n">f</span> <span class="o">=</span> <span class="n">interp1d</span><span class="p">(</span><span class="n">x1</span><span class="p">,</span> <span class="n">y1</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="s2">&quot;slinear&quot;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">x_coord</span> <span class="ow">in</span> <span class="n">x2</span><span class="p">:</span>
+                <span class="n">try_to_interpolate</span><span class="p">(</span><span class="n">x_coord</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="nb">print</span> <span class="s1">&#39;Array2 and/or mesh not specified&#39;</span>
+
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># get interpolated values valid for both arrays</span>
+        <span class="c1"># data rejected if they lie outside the common maximal x-coordinates</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="n">interp1d</span><span class="p">(</span><span class="n">x1</span><span class="p">,</span> <span class="n">y1</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="s1">&#39;slinear&#39;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">x_coord</span> <span class="ow">in</span> <span class="n">x2</span><span class="p">:</span>
+            <span class="n">try_to_interpolate</span><span class="p">(</span><span class="n">x_coord</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">return_array</span></div>
+
+
+<div class="viewcode-block" id="isfinite"><a class="viewcode-back" href="../../rst/utilities.html#mstack.utilities.isfinite">[docs]</a><span class="k">def</span> <span class="nf">isfinite</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;test if value is infinite&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">(</span><span class="n">value</span> <span class="o">==</span> <span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="p">[</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">])</span></div>
+
+
+<div class="viewcode-block" id="not_header"><a class="viewcode-back" href="../../rst/utilities.html#mstack.utilities.not_header">[docs]</a><span class="k">def</span> <span class="nf">not_header</span><span class="p">(</span><span class="n">line</span><span class="p">,</span> <span class="n">override</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Check line in input file for # or text</span>
+<span class="sd">    Override used for debugging only</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        bool: True if data, False if header</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># flag == 0 if line is not header.</span>
+    <span class="n">flag</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="c1"># &#39;#&#39; signifies comment line</span>
+    <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">c</span> <span class="o">==</span> <span class="s1">&#39;#&#39;</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">line</span><span class="p">):</span>
+        <span class="n">flag</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="c1"># line is data only if it contains only number types</span>
+    <span class="k">elif</span> <span class="nb">any</span><span class="p">(</span><span class="ow">not</span> <span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">el</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">float</span> <span class="ow">or</span> <span class="nb">type</span><span class="p">(</span><span class="n">el</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">int</span><span class="p">)</span> <span class="k">for</span> <span class="n">el</span> <span class="ow">in</span> <span class="n">line</span><span class="p">):</span>
+        <span class="n">flag</span> <span class="o">=</span> <span class="mi">1</span>
+
+    <span class="k">if</span> <span class="n">override</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">flag</span> <span class="o">==</span> <span class="mi">0</span></div>
+
+
+<div class="viewcode-block" id="plot"><a class="viewcode-back" href="../../rst/utilities.html#mstack.utilities.plot">[docs]</a><span class="k">def</span> <span class="nf">plot</span><span class="p">(</span><span class="o">*</span><span class="n">Array</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Takes a list of tuples [(x1,y1),...,(xn,yn)] and plots with line format</span>
+
+<span class="sd">    ~! bug: axis determined on last loaded plot (could lead to truncation)</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        Array (list, np.array): array(s) with shape (N,2)</span>
+<span class="sd">        kwargs: accepts xmin, xmax, ymin, ymax as key word args</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        matplotlib plot object</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># initialize a figure</span>
+    <span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+    <span class="n">ax</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_autoscaley_on</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="c1"># plot empty</span>
+    <span class="n">lines</span><span class="p">,</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">([],</span> <span class="p">[])</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">canvas</span><span class="o">.</span><span class="n">draw</span><span class="p">()</span>
+
+    <span class="c1"># add plots in Arrays</span>
+    <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">Array</span><span class="p">:</span>
+        <span class="n">points</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">points</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">points</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span>
+
+        <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="c1"># autoscale</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">relim</span><span class="p">()</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">autoscale_view</span><span class="p">()</span>
+
+    <span class="n">fig</span><span class="o">.</span><span class="n">canvas</span><span class="o">.</span><span class="n">draw</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="n">fig</span></div>
+
+
+<div class="viewcode-block" id="print_table"><a class="viewcode-back" href="../../rst/utilities.html#mstack.utilities.print_table">[docs]</a><span class="k">def</span> <span class="nf">print_table</span><span class="p">(</span><span class="n">dictionary</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">table</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    pretty print wrapper of tabulate.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        dictionary (dict | None): dictionary of table content</span>
+<span class="sd">        table (list | None): list format of table</span>
+<span class="sd">        key (sort key | None): last operation is list.sort(key=key)</span>
+<span class="sd">        headers (list | None): list of headers for columns [&#39;string&#39;, ...&#39;Nstring&#39;]</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        bool: prints table, returns True if no exception raised</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">length</span><span class="p">(</span><span class="n">l</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="n">l</span><span class="p">)</span>
+
+    <span class="n">r</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="n">dictionary</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">dictionary</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">r</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">flatten</span><span class="p">((</span><span class="n">k</span><span class="p">,</span> <span class="n">dictionary</span><span class="p">[</span><span class="n">k</span><span class="p">])))</span>
+
+    <span class="k">if</span> <span class="n">table</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">element</span> <span class="ow">in</span> <span class="n">table</span><span class="p">:</span>
+            <span class="c1"># assumes key or label is first positional entry in tuple</span>
+            <span class="n">r</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">element</span><span class="p">)</span>
+
+    <span class="n">r</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="n">length</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">width</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">r</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+    <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s1">&#39;no parameters varied&#39;</span>
+
+    <span class="k">for</span> <span class="n">element</span> <span class="ow">in</span> <span class="n">r</span><span class="p">:</span>
+        <span class="k">while</span> <span class="nb">len</span><span class="p">(</span><span class="n">element</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">width</span><span class="p">:</span>
+            <span class="n">element</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+    <span class="n">r</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="n">key</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">headers</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">r</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">headers</span><span class="p">)</span>
+    <span class="nb">print</span> <span class="n">tabulate</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="s2">&quot;firstrow&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="kc">True</span></div>
+
+
+<div class="viewcode-block" id="read_data"><a class="viewcode-back" href="../../rst/utilities.html#mstack.utilities.read_data">[docs]</a><span class="k">def</span> <span class="nf">read_data</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">column</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">lam</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">q</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">override</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Reads data from space delimited format. Default assumption is that (x, y) are in</span>
+<span class="sd">    the first and second column, respectively. Use column argument to change elsewise.</span>
+<span class="sd">    use argument &#39;q&#39; if data is a function of scattering vector rather than 2theta.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        filename: [str] path/filename.extension</span>
+<span class="sd">        column: [int] location of f(x), x being the 0th column</span>
+<span class="sd">        lam: [float] wavelength of experimental radiation</span>
+<span class="sd">        q: [bool] whether data is a function of scattering vector q</span>
+<span class="sd">        override: [bool] skip stripping header operation if output is unacceptable</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        list: (x,y) array of data like [(x1, y1), ..., (xn, yn)]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># arg Q -&gt; convert from inverse angstrom to lambda = 0.2114 angstrom (just because)</span>
+    <span class="n">lam</span> <span class="o">=</span> <span class="mf">0.2114</span>  <span class="c1"># wavelength of APS-11-ID-B data we&#39;ve been using in angstoms</span>
+    <span class="k">if</span> <span class="n">lam</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">lam</span> <span class="o">=</span> <span class="n">lam</span>
+
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">clean</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="c1"># need to screen items in lines as float(item) to ensure scientific</span>
+        <span class="c1"># notation is accepted</span>
+        <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">f</span><span class="o">.</span><span class="n">readlines</span><span class="p">():</span>
+            <span class="n">line</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">lstrip</span><span class="p">()</span><span class="o">.</span><span class="n">rstrip</span><span class="p">()</span>
+            <span class="n">line</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">line</span><span class="p">)):</span>
+                    <span class="n">line</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">line</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+                <span class="n">clean</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                <span class="c1"># print &#39;%s&#39; % (line)  # ~!</span>
+                <span class="k">if</span> <span class="n">override</span><span class="p">:</span>
+                    <span class="k">pass</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">data cannot be converted to float. DIFFaX integration </span><span class="se">\</span>
+<span class="s1">                                     may be unstable. </span><span class="se">\n</span><span class="s1"> </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">line</span><span class="p">)</span>
+
+    <span class="c1"># strip header lines identified by characters [&#39;a-zA-Z&#39;]</span>
+    <span class="n">str_data</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">clean</span><span class="p">)):</span>
+        <span class="k">if</span> <span class="n">not_header</span><span class="p">(</span><span class="n">clean</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">override</span><span class="o">=</span><span class="n">override</span><span class="p">):</span>
+            <span class="n">str_data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">clean</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+
+    <span class="c1"># if data is in Q</span>
+    <span class="k">if</span> <span class="n">q</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">str_data</span><span class="p">)):</span>
+            <span class="n">str_data</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">2</span><span class="o">*</span><span class="n">math</span><span class="o">.</span><span class="n">asin</span><span class="p">((</span><span class="n">str_data</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="n">lam</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="mi">4</span><span class="o">*</span><span class="n">math</span><span class="o">.</span><span class="n">pi</span><span class="p">))</span><span class="o">*</span><span class="p">(</span><span class="mi">180</span><span class="o">/</span><span class="n">math</span><span class="o">.</span><span class="n">pi</span><span class="p">)</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">zip</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">str_data</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">str_data</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)[:,</span> <span class="n">column</span><span class="p">])</span>
+    <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+        <span class="nb">print</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">problem casting data into numpy array</span><span class="se">\n</span><span class="s1">&#39;</span>
+        <span class="k">raise</span></div>
+
+
+<div class="viewcode-block" id="report_refined"><a class="viewcode-back" href="../../rst/utilities.html#mstack.utilities.report_refined">[docs]</a><span class="k">def</span> <span class="nf">report_refined</span><span class="p">(</span><span class="n">minimizer_results_object_params</span><span class="p">,</span> <span class="n">tabulate</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    report values of parameters object with attribute vary=True</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        result (lmfit.result): fit result object</span>
+<span class="sd">        tabulate (bool | False): print or return table</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        dict: if tabulate is False</span>
+<span class="sd">        print: if tabulate is True</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">headers</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">,</span> <span class="s1">&#39;min&#39;</span><span class="p">,</span> <span class="s1">&#39;max&#39;</span><span class="p">,</span> <span class="s1">&#39;expr&#39;</span><span class="p">]</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">mrop</span> <span class="o">=</span> <span class="n">minimizer_results_object_params</span>
+    <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="p">[</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">mrop</span> <span class="k">if</span> <span class="n">mrop</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">vary</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">]:</span>
+        <span class="n">d</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">item</span><span class="p">:</span> <span class="n">attributegetter</span><span class="p">(</span><span class="s1">&#39;value&#39;</span><span class="p">,</span> <span class="s1">&#39;min&#39;</span><span class="p">,</span> <span class="s1">&#39;max&#39;</span><span class="p">,</span> <span class="s1">&#39;expr&#39;</span><span class="p">)(</span><span class="n">mrop</span><span class="p">[</span><span class="n">item</span><span class="p">])})</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">tabulate</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">d</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="nb">print</span> <span class="n">print_table</span><span class="p">(</span><span class="n">dictionary</span><span class="o">=</span><span class="n">d</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">)</span>
+        <span class="nb">print</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">variables: </span><span class="si">%0d</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">d</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="rwp"><a class="viewcode-back" href="../../rst/utilities.html#mstack.utilities.rwp">[docs]</a><span class="k">def</span> <span class="nf">rwp</span><span class="p">(</span><span class="n">PDF_refinement</span><span class="p">,</span> <span class="n">weight</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    returns the pattern weighted residual for a single data set refinement</span>
+<span class="sd">    e.g.</span>
+<span class="sd">        (sum(weight * diff ** 2) / sum(weight * ref.yo ** 2)) ** 0.5</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        PDF_refinement: [PdfRefinement instance]</span>
+<span class="sd">        weight: [np.array] with same shape as observed data vector Yo</span>
+<span class="sd">    Returns:</span>
+<span class="sd">        float: Rwp value</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">ref</span> <span class="o">=</span> <span class="n">PDF_refinement</span>
+
+    <span class="k">if</span> <span class="n">weight</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">weight</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">ref</span><span class="o">.</span><span class="n">yo</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">weight</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="n">ref</span><span class="o">.</span><span class="n">yo</span><span class="o">.</span><span class="n">shape</span><span class="p">:</span>
+        <span class="k">return</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;weight and data must have identical shape&#39;</span><span class="p">)</span>
+
+    <span class="n">diff</span> <span class="o">=</span> <span class="n">ref</span><span class="o">.</span><span class="n">yo</span> <span class="o">-</span> <span class="n">ref</span><span class="o">.</span><span class="n">yc</span>
+    <span class="n">rv</span> <span class="o">=</span> <span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="n">weight</span> <span class="o">*</span> <span class="n">diff</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="nb">sum</span><span class="p">(</span><span class="n">weight</span> <span class="o">*</span> <span class="n">ref</span><span class="o">.</span><span class="n">yo</span> <span class="o">**</span> <span class="mi">2</span><span class="p">))</span> <span class="o">**</span> <span class="mf">0.5</span>
+
+    <span class="k">return</span> <span class="n">rv</span></div>
+
+
+<span class="c1">####################################################</span>
+<span class="c1"># Utility Classes</span>
+<span class="c1">####################################################</span>
+
+
+<div class="viewcode-block" id="MergeParams"><a class="viewcode-back" href="../../rst/utilities.html#mstack.utilities.MergeParams">[docs]</a><span class="k">class</span> <span class="nc">MergeParams</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Tools to merge Parmeters instances between objects containing them while</span>
+<span class="sd">    maintaining unique parameter names.</span>
+
+<span class="sd">    The result is an lmfit.Parameters object on the top class with the name &#39;params&#39;</span>
+<span class="sd">    (so call your lmfit.Parameters instance params if you want this to work smoothly)</span>
+<span class="sd">    Although the specification of lmfit.Parameters attributes as other names works</span>
+<span class="sd">    with specifier</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="MergeParams.exists"><a class="viewcode-back" href="../../rst/utilities.html#mstack.utilities.MergeParams.exists">[docs]</a>    <span class="k">def</span> <span class="nf">exists</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attribute</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; check if attribute exists in object | create with value(None) else &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attribute</span><span class="p">):</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attribute</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="MergeParams.add_set_params"><a class="viewcode-back" href="../../rst/utilities.html#mstack.utilities.MergeParams.add_set_params">[docs]</a>    <span class="k">def</span> <span class="nf">add_set_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">vary</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="nb">min</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">expr</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+            <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            add/set parameter in refinement parameters</span>
+
+<span class="sd">            for list of supported mathematics, see:</span>
+<span class="sd">            http://lmfit.github.io/lmfit-py/constraints.html#supported-operators-functions-and-constants</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                name (str): parameter name</span>
+<span class="sd">                value (float): parameter value</span>
+<span class="sd">                vary (bool): vary in refinement?</span>
+<span class="sd">                min (float): minimum bound</span>
+<span class="sd">                max (float): maximum bound</span>
+<span class="sd">                expr (str): constrain expression.</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                None</span>
+<span class="sd">            &quot;&quot;&quot;</span>
+            <span class="c1"># initialize</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;params&#39;</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">lmfit</span><span class="o">.</span><span class="n">Parameters</span><span class="p">()</span>
+
+            <span class="c1"># use add or set appropriately</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">(</span><span class="n">name</span> <span class="o">==</span> <span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">value</span><span class="p">,</span> <span class="n">vary</span><span class="o">=</span><span class="n">vary</span><span class="p">,</span> <span class="nb">min</span><span class="o">=</span><span class="nb">min</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="nb">max</span><span class="p">,</span> <span class="n">expr</span><span class="o">=</span><span class="n">expr</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="n">value</span><span class="p">,</span> <span class="n">vary</span><span class="o">=</span><span class="n">vary</span><span class="p">,</span> <span class="nb">min</span><span class="o">=</span><span class="nb">min</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="nb">max</span><span class="p">,</span> <span class="n">expr</span><span class="o">=</span><span class="n">expr</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="MergeParams.param_finder"><a class="viewcode-back" href="../../rst/utilities.html#mstack.utilities.MergeParams.param_finder">[docs]</a>    <span class="k">def</span> <span class="nf">param_finder</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bottom_attribute</span><span class="p">,</span> <span class="n">specifier</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        get parameter instance from subordinate object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># get attribute parameters instance handle</span>
+        <span class="n">l</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">dir</span><span class="p">(</span><span class="n">bottom_attribute</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">bottom_attribute</span><span class="p">,</span> <span class="n">k</span><span class="p">))</span> <span class="ow">is</span> <span class="n">lmfit</span><span class="o">.</span><span class="n">Parameters</span><span class="p">:</span>
+                <span class="n">l</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">l</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">specifier</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;unable to identify Bottom_Attribute.Parameters instance&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">l</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">bottom_params</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">bottom_attribute</span><span class="p">,</span> <span class="n">l</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">bottom_params</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">bottom_attribute</span><span class="p">,</span> <span class="n">specifier</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">bottom_params</span></div>
+
+<div class="viewcode-block" id="MergeParams.lower_to_upper"><a class="viewcode-back" href="../../rst/utilities.html#mstack.utilities.MergeParams.lower_to_upper">[docs]</a>    <span class="k">def</span> <span class="nf">lower_to_upper</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">top_attribute</span><span class="p">,</span> <span class="n">specifier</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        When merging lmfit.Parameters instances belonging to different constituent refinement</span>
+<span class="sd">        objects, we run into an issue of unique variable naming (x occurs for each atom coodinate,</span>
+<span class="sd">        i.e.)</span>
+
+<span class="sd">        The transmogrifier appends the top_attribute.name to the bottom_attribute.Parameter.name attribute</span>
+<span class="sd">        to construct a unique variable label. This change is propagated to variables in the instance&#39;s</span>
+<span class="sd">        constraint expression to maintain validity.</span>
+
+<span class="sd">        i.e top_attribute = (attribute as str) indicating dictionary of subordinate objects</span>
+<span class="sd">            bottom_attribute = params instance subordinate object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Initialize</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="s1">&#39;incorporated_</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">top_attribute</span><span class="p">,</span> <span class="p">[])</span>
+
+        <span class="c1"># for each item in top_attribute</span>
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">top_attribute</span><span class="p">)</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="c1"># get bottom_attribute Parameters instance</span>
+            <span class="n">bottom_params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">param_finder</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">top_attribute</span><span class="p">)[</span><span class="n">item</span><span class="p">],</span> <span class="n">specifier</span><span class="p">)</span>
+
+            <span class="c1"># get label for appending/spliting</span>
+            <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;incorporated_</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">top_attribute</span><span class="p">)</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+            <span class="n">keys</span> <span class="o">=</span> <span class="n">bottom_params</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>  <span class="c1"># use with regex to update expr</span>
+
+            <span class="c1"># merge up bottom_attribute parameters</span>
+            <span class="k">for</span> <span class="n">var</span> <span class="ow">in</span> <span class="n">bottom_params</span><span class="p">:</span>
+                <span class="c1"># changing variable names invalidates expressions</span>
+                <span class="k">if</span> <span class="n">bottom_params</span><span class="p">[</span><span class="n">var</span><span class="p">]</span><span class="o">.</span><span class="n">expr</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">add_set_params</span><span class="p">(</span><span class="s1">r&#39;</span><span class="si">%s</span><span class="s1">_</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="n">var</span><span class="p">),</span>
+                                        <span class="o">*</span><span class="n">attributegetter</span><span class="p">(</span><span class="s1">&#39;value&#39;</span><span class="p">,</span> <span class="s1">&#39;vary&#39;</span><span class="p">,</span> <span class="s1">&#39;min&#39;</span><span class="p">,</span> <span class="s1">&#39;max&#39;</span><span class="p">,</span> <span class="s1">&#39;expr&#39;</span><span class="p">)(</span>
+                                                         <span class="n">bottom_params</span><span class="p">[</span><span class="n">var</span><span class="p">]))</span>
+            <span class="k">for</span> <span class="n">var</span> <span class="ow">in</span> <span class="n">bottom_params</span><span class="p">:</span>
+                <span class="c1"># therefore update expr with new item_varname format</span>
+                <span class="k">if</span> <span class="n">bottom_params</span><span class="p">[</span><span class="n">var</span><span class="p">]</span><span class="o">.</span><span class="n">expr</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">inplace</span> <span class="o">=</span> <span class="n">bottom_params</span><span class="p">[</span><span class="n">var</span><span class="p">]</span><span class="o">.</span><span class="n">expr</span>
+                    <span class="c1"># print inplace</span>
+                    <span class="n">replace</span> <span class="o">=</span> <span class="nb">filter</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span>
+                                     <span class="n">re</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;[\+ \- </span><span class="se">\\</span><span class="s2"> \/ \* \** \( \) \[ \] \{ \}]+&quot;</span><span class="p">,</span> <span class="n">inplace</span><span class="p">))</span>
+
+                    <span class="k">for</span> <span class="n">word</span> <span class="ow">in</span> <span class="n">replace</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">w</span> <span class="ow">in</span> <span class="n">word</span> <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="n">keys</span><span class="p">):</span>
+                            <span class="n">inplace</span> <span class="o">=</span> <span class="n">string</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">inplace</span><span class="p">,</span> <span class="n">word</span><span class="p">,</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">_</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="n">word</span><span class="p">))</span>
+
+                    <span class="bp">self</span><span class="o">.</span><span class="n">add_set_params</span><span class="p">(</span><span class="s1">r&#39;</span><span class="si">%s</span><span class="s1">_</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="n">var</span><span class="p">),</span>
+                                        <span class="o">*</span><span class="n">attributegetter</span><span class="p">(</span><span class="s1">&#39;value&#39;</span><span class="p">,</span> <span class="s1">&#39;vary&#39;</span><span class="p">,</span> <span class="s1">&#39;min&#39;</span><span class="p">,</span> <span class="s1">&#39;max&#39;</span><span class="p">)(</span>
+                                                           <span class="n">bottom_params</span><span class="p">[</span><span class="n">var</span><span class="p">]),</span>
+                                        <span class="n">expr</span><span class="o">=</span><span class="n">inplace</span><span class="p">)</span>
+        <span class="k">return</span></div>
+
+<div class="viewcode-block" id="MergeParams.upper_to_lower"><a class="viewcode-back" href="../../rst/utilities.html#mstack.utilities.MergeParams.upper_to_lower">[docs]</a>    <span class="k">def</span> <span class="nf">upper_to_lower</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">top_attribute</span><span class="p">,</span> <span class="n">specifier</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        * top_attribute: attribute name for dict of subordinate objects</span>
+<span class="sd">            i.e. &#39;phases&#39; --&gt; refinement.phases = {&#39;phase_1&#39;: &lt;PairDistributionFunction.PdfPhase&gt;}</span>
+<span class="sd">        * specifier: name of parameters instance in subordinate object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">skipped</span> <span class="o">=</span> <span class="p">[(</span><span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="s1">&#39;item_var&#39;</span><span class="p">,</span> <span class="s1">&#39;var&#39;</span><span class="p">)]</span>  <span class="c1"># for debugging</span>
+        <span class="c1"># get bottom attribute Parameters instance</span>
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">top_attribute</span><span class="p">)</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">bottom_params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">param_finder</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">top_attribute</span><span class="p">)[</span><span class="n">item</span><span class="p">],</span> <span class="n">specifier</span><span class="p">)</span>
+
+            <span class="c1"># for name in getattr(self, &#39;incorporated_%s&#39; % top_attribute):</span>
+            <span class="c1"># this caused the parameter to be shadowed- i.e. wrong level of nesting here.</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="n">item</span>  <span class="c1"># ~!</span>
+            <span class="k">for</span> <span class="n">item_var</span> <span class="ow">in</span> <span class="p">[</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">name</span><span class="p">)]:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="c1"># strip item header to retrieve original var name</span>
+                    <span class="n">var</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">_&#39;</span> <span class="o">%</span> <span class="n">name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">item_var</span><span class="p">]</span><span class="o">.</span><span class="n">name</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="c1"># update bottom attribute params instance</span>
+                    <span class="n">bottom_params</span><span class="p">[</span><span class="n">var</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="o">*</span><span class="n">attributegetter</span><span class="p">(</span><span class="s1">&#39;value&#39;</span><span class="p">,</span> <span class="s1">&#39;vary&#39;</span><span class="p">,</span>
+                                           <span class="s1">&#39;min&#39;</span><span class="p">,</span> <span class="s1">&#39;max&#39;</span><span class="p">)(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">item_var</span><span class="p">]))</span>
+                <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                    <span class="c1"># skip keys that belong to top level only</span>
+                    <span class="k">if</span> <span class="n">debug</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+                        <span class="n">skipped</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">name</span><span class="p">,</span> <span class="n">item_var</span><span class="p">,</span> <span class="n">var</span><span class="p">))</span>
+                    <span class="k">pass</span>
+
+        <span class="k">if</span> <span class="n">debug</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">skipped</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">True</span></div></div>
+
+    <span class="c1"># End of class MergeParams</span>
+
+
+<div class="viewcode-block" id="DynamicPlot"><a class="viewcode-back" href="../../rst/utilities.html#mstack.utilities.DynamicPlot">[docs]</a><span class="k">class</span> <span class="nc">DynamicPlot</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Plotting utility used to create output for itterative function.</span>
+<span class="sd">    Called in minimizer callback function to create Rwp  vs.  iter</span>
+<span class="sd">    Reserves plot number 100 for this purpose.</span>
+
+<span class="sd">    call signiture: DynamicPlot(xdata, ydata) --&gt; appended point to plot</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="DynamicPlot.__init__"><a class="viewcode-back" href="../../rst/utilities.html#mstack.utilities.DynamicPlot.__init__">[docs]</a>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">14</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fontsize</span> <span class="o">=</span> <span class="n">fontsize</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">ion</span><span class="p">()</span>
+
+        <span class="c1"># preserve 100 as &quot;private&quot; plot for dynamic_plot</span>
+        <span class="k">if</span> <span class="n">plt</span><span class="o">.</span><span class="n">fignum_exists</span><span class="p">(</span><span class="mi">100</span><span class="p">):</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">close</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DynamicPlot.on_launch"><a class="viewcode-back" href="../../rst/utilities.html#mstack.utilities.DynamicPlot.on_launch">[docs]</a>    <span class="k">def</span> <span class="nf">on_launch</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; set up plot &quot;&quot;&quot;</span>
+        <span class="c1"># initialize a figure</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ax</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ax</span><span class="o">.</span><span class="n">set_autoscaley_on</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="c1"># plot self.hist</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lines</span><span class="p">,</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">([],</span> <span class="p">[],</span> <span class="s1">&#39;bo&#39;</span><span class="p">,</span> <span class="n">mec</span><span class="o">=</span><span class="s1">&#39;b&#39;</span><span class="p">,</span> <span class="n">mfc</span><span class="o">=</span><span class="s1">&#39;None&#39;</span><span class="p">,</span> <span class="n">ms</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+                                   <span class="n">label</span><span class="o">=</span><span class="s1">&#39;$\{\Sigma_i\/Y_</span><span class="si">{diff}</span><span class="s1">^2\/ / \/ N_{d.o.f.}\}^{1/2}$&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;$Iteration$&#39;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">fontsize</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;$Reduced\/\chi^2$&#39;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">fontsize</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fig</span><span class="o">.</span><span class="n">canvas</span><span class="o">.</span><span class="n">draw</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="DynamicPlot.on_running"><a class="viewcode-back" href="../../rst/utilities.html#mstack.utilities.DynamicPlot.on_running">[docs]</a>    <span class="k">def</span> <span class="nf">on_running</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">new_x</span><span class="p">,</span> <span class="n">new_y</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; update plot &quot;&quot;&quot;</span>
+        <span class="c1"># update x &amp; y data (all points)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lines</span><span class="o">.</span><span class="n">set_xdata</span><span class="p">(</span><span class="n">new_x</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lines</span><span class="o">.</span><span class="n">set_ydata</span><span class="p">(</span><span class="n">new_y</span><span class="p">)</span>
+
+        <span class="c1"># autoscale</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ax</span><span class="o">.</span><span class="n">relim</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ax</span><span class="o">.</span><span class="n">autoscale_view</span><span class="p">()</span>
+
+        <span class="c1"># draw and flush (not sure why, Zah said so S.O. 10944621)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fig</span><span class="o">.</span><span class="n">canvas</span><span class="o">.</span><span class="n">draw</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fig</span><span class="o">.</span><span class="n">canvas</span><span class="o">.</span><span class="n">flush_events</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">NotImplementedError</span><span class="p">:</span>
+            <span class="nb">print</span> <span class="s1">&#39;dynamic plotting only enabled for backends with gui.&#39;</span>
+            <span class="nb">print</span> <span class="s1">&#39;Please set qt backend (e.g. %matplotlib qt)&#39;</span>
+            <span class="k">raise</span></div>
+
+    <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">xdata</span><span class="p">,</span> <span class="n">ydata</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; sets behavior on instance call &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">plt</span><span class="o">.</span><span class="n">fignum_exists</span><span class="p">(</span><span class="mi">100</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">on_launch</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">on_running</span><span class="p">(</span><span class="n">xdata</span><span class="p">,</span> <span class="n">ydata</span><span class="p">)</span></div>
+
+    <span class="c1"># End of class DynamicPlot</span>
+
+
+<div class="viewcode-block" id="UpdateMethods"><a class="viewcode-back" href="../../rst/utilities.html#mstack.utilities.UpdateMethods">[docs]</a><span class="k">class</span> <span class="nc">UpdateMethods</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Generic update methods for the data types dealt with in pdf refinement objects</span>
+
+<span class="sd">    * initialize: set attribute for class if it doesn&#39;t exist, add Parameter instance</span>
+<span class="sd">    * update: update an initialized parameter with appropriate method</span>
+<span class="sd">    * update_with_limits: update when value received as (value, min, max)</span>
+<span class="sd">    * update_with_lmfit: update when value received as lmfit.Parameter instance</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="UpdateMethods.initialize"><a class="viewcode-back" href="../../rst/utilities.html#mstack.utilities.UpdateMethods.initialize">[docs]</a>    <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attribute</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; default variable initialization&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attribute</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="ow">is</span> <span class="n">lmfit</span><span class="o">.</span><span class="n">Parameter</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="nb">type</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">tuple</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">attribute</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">update_with_limits</span><span class="p">(</span><span class="n">attribute</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">attribute</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attribute</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+        <span class="k">return</span></div>
+
+<div class="viewcode-block" id="UpdateMethods.update"><a class="viewcode-back" href="../../rst/utilities.html#mstack.utilities.UpdateMethods.update">[docs]</a>    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attribute</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; default update mode &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">initialize</span><span class="p">(</span><span class="n">attribute</span><span class="p">,</span> <span class="n">lmfit</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">attribute</span><span class="p">,</span> <span class="n">vary</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">tuple</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">update_with_limits</span><span class="p">(</span><span class="n">attribute</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="nb">type</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="ow">is</span> <span class="n">lmfit</span><span class="o">.</span><span class="n">Parameter</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">update_with_lmfit</span><span class="p">(</span><span class="n">attribute</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">attribute</span><span class="p">]</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="k">return</span></div>
+
+<div class="viewcode-block" id="UpdateMethods.update_with_limits"><a class="viewcode-back" href="../../rst/utilities.html#mstack.utilities.UpdateMethods.update_with_limits">[docs]</a>    <span class="k">def</span> <span class="nf">update_with_limits</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attribute</span><span class="p">,</span> <span class="n">tup</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; allow args passed as (value, min, max)&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">attribute</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="n">tup</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">min</span><span class="o">=</span><span class="n">tup</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="nb">max</span><span class="o">=</span><span class="n">tup</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="k">raise</span><span class="p">(</span><span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> must be given as a number type or a len(tuple) = 3&#39;</span> <span class="o">%</span> <span class="n">attribute</span><span class="p">))</span>
+        <span class="k">return</span></div>
+
+<div class="viewcode-block" id="UpdateMethods.update_with_lmfit"><a class="viewcode-back" href="../../rst/utilities.html#mstack.utilities.UpdateMethods.update_with_lmfit">[docs]</a>    <span class="k">def</span> <span class="nf">update_with_lmfit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attribute</span><span class="p">,</span> <span class="n">parameter</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; update self.params with Parameter instance &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">,</span> <span class="s1">&#39;vary&#39;</span><span class="p">,</span> <span class="s1">&#39;min&#39;</span><span class="p">,</span> <span class="s1">&#39;max&#39;</span><span class="p">,</span> <span class="s1">&#39;expr&#39;</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">attribute</span><span class="p">],</span> <span class="n">k</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">parameter</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span>
+                    <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">attribute</span><span class="p">],</span> <span class="n">k</span><span class="p">,</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">parameter</span><span class="p">,</span> <span class="n">k</span><span class="p">))</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="k">raise</span><span class="p">(</span><span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;issue updating lmfit.parameter instance in pdf_data&#39;</span><span class="p">))</span>
+        <span class="k">return</span></div></div>
+
+    <span class="c1"># End of class UpdateMethods</span>
+
+
+<span class="c1"># EOF</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Peter C Metz.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.5.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.9</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

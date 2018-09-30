@@ -1,0 +1,212 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>supercell &#8212; MStack 0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body role="document">
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for supercell</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Created on Wed Mar 02 11:34:35 2016</span>
+
+<span class="sd">quick script to translate Structure instances into supercells</span>
+<span class="sd">-copy/shift asymmetric unit according to single vector</span>
+<span class="sd">-accept user dimension (N-units along c-vector) or default to MCL</span>
+<span class="sd">-dump .xyz file and/or .cif (P1) file for visualization and supercell PDF</span>
+
+<span class="sd">Attributes:</span>
+<span class="sd">    * pub_cif</span>
+<span class="sd">    * pub_xyz</span>
+<span class="sd">    * supercell</span>
+
+<span class="sd">@author: Peter C. Metz</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="c1"># import</span>
+<span class="kn">from</span> <span class="nn">time</span> <span class="k">import</span> <span class="n">strftime</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">from</span> <span class="nn">utilities</span> <span class="k">import</span> <span class="n">pub_cif</span><span class="p">,</span> <span class="n">pub_xyz</span>
+
+
+<div class="viewcode-block" id="supercell"><a class="viewcode-back" href="../rst/supercell.html#supercell.supercell">[docs]</a><span class="k">def</span> <span class="nf">supercell</span><span class="p">(</span><span class="n">struct</span><span class="p">,</span> <span class="n">vector</span><span class="p">,</span> <span class="n">N</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">cif</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">xyz</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+              <span class="n">path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Dump a supercell model for input structure and vector with dim 1x1xN.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        struct(structure.Structure): layer structure</span>
+<span class="sd">        vector (list, dict): layer vector in fractional values</span>
+<span class="sd">        N (bool | None): supercell dimension</span>
+<span class="sd">        cif (bool| True): output cif?</span>
+<span class="sd">        xyz (bool | False): output xyz?</span>
+<span class="sd">        path (str|None): directory</span>
+<span class="sd">        filename (str|None): filename</span>
+<span class="sd">        debug (bool|False): return expanded asymmetric unit</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        None</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># precursory stuff</span>
+    <span class="k">if</span> <span class="n">N</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">N</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">mcl</span><span class="o">.</span><span class="n">value</span>
+
+    <span class="k">if</span> <span class="n">path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">path</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">filename</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">filename</span> <span class="o">=</span> <span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%d</span><span class="s1">-%m-%y_%H.%M.%S&#39;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">vector</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">dict</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">rx</span> <span class="o">=</span> <span class="n">vector</span><span class="p">[</span><span class="s1">&#39;rx&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">value</span>
+            <span class="n">ry</span> <span class="o">=</span> <span class="n">vector</span><span class="p">[</span><span class="s1">&#39;ry&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">value</span>
+            <span class="n">rz</span> <span class="o">=</span> <span class="n">vector</span><span class="p">[</span><span class="s1">&#39;rz&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">value</span>
+        <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>
+            <span class="n">rx</span><span class="p">,</span> <span class="n">ry</span><span class="p">,</span> <span class="n">rz</span> <span class="o">=</span> <span class="n">vector</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
+    <span class="k">elif</span> <span class="nb">type</span><span class="p">(</span><span class="n">vector</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">list</span><span class="p">:</span>
+        <span class="n">rx</span><span class="p">,</span> <span class="n">ry</span><span class="p">,</span> <span class="n">rz</span> <span class="o">=</span> <span class="n">vector</span><span class="p">[:]</span>
+
+    <span class="c1"># in future, this should be expanded to visualize more complex stacking using complete set</span>
+    <span class="c1"># of stacking probabilities, vectors, and layer contents</span>
+
+    <span class="c1"># get new cell (i.e. c dim)</span>
+    <span class="n">c_prime</span> <span class="o">=</span> <span class="n">N</span> <span class="o">*</span> <span class="n">struct</span><span class="o">.</span><span class="n">c</span> <span class="o">*</span> <span class="n">rz</span>  <span class="c1"># c dim of supercell</span>
+
+    <span class="c1"># recast asymmetric cell in prime coordinates</span>
+    <span class="n">asym</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">at</span> <span class="ow">in</span> <span class="n">struct</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="n">asym</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">_</span><span class="si">%0d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">at</span><span class="p">,</span> <span class="mi">0</span><span class="p">):</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">struct</span><span class="o">.</span><span class="n">atoms</span><span class="p">[</span><span class="n">at</span><span class="p">])})</span>
+        <span class="n">asym</span><span class="p">[</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">_</span><span class="si">%0d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">at</span><span class="p">,</span> <span class="mi">0</span><span class="p">)]</span><span class="o">.</span><span class="n">z</span> <span class="o">=</span> <span class="p">(</span><span class="n">struct</span><span class="o">.</span><span class="n">c</span> <span class="o">/</span> <span class="n">c_prime</span><span class="p">)</span> <span class="o">*</span> <span class="n">asym</span><span class="p">[</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">_</span><span class="si">%0d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">at</span><span class="p">,</span> <span class="mi">0</span><span class="p">)]</span><span class="o">.</span><span class="n">z</span>
+        <span class="n">asym</span><span class="p">[</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">_</span><span class="si">%0d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">at</span><span class="p">,</span> <span class="mi">0</span><span class="p">)]</span><span class="o">.</span><span class="n">number</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">rz_prime</span> <span class="o">=</span> <span class="mf">1.</span> <span class="o">/</span> <span class="n">N</span>
+    <span class="c1"># print rz_prime</span>
+
+    <span class="c1"># copy shift asym N times (0th layer accounted for)</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">N</span><span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+        <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">for</span> <span class="n">at</span> <span class="ow">in</span> <span class="n">struct</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="n">asym</span><span class="p">[</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">_</span><span class="si">%0d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">at</span><span class="p">,</span> <span class="mi">0</span><span class="p">)]</span><span class="o">.</span><span class="n">name</span>
+            <span class="n">x_prime</span> <span class="o">=</span> <span class="n">asym</span><span class="p">[</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">_</span><span class="si">%0d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">at</span><span class="p">,</span> <span class="mi">0</span><span class="p">)]</span><span class="o">.</span><span class="n">x</span> <span class="o">+</span> <span class="n">i</span> <span class="o">*</span> <span class="n">rx</span>
+            <span class="n">y_prime</span> <span class="o">=</span> <span class="n">asym</span><span class="p">[</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">_</span><span class="si">%0d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">at</span><span class="p">,</span> <span class="mi">0</span><span class="p">)]</span><span class="o">.</span><span class="n">y</span> <span class="o">+</span> <span class="n">i</span> <span class="o">*</span> <span class="n">ry</span>
+            <span class="n">z_prime</span> <span class="o">=</span> <span class="n">asym</span><span class="p">[</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">_</span><span class="si">%0d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">at</span><span class="p">,</span> <span class="mi">0</span><span class="p">)]</span><span class="o">.</span><span class="n">z</span> <span class="o">+</span> <span class="n">i</span> <span class="o">*</span> <span class="n">rz_prime</span>
+            <span class="n">disp_type</span> <span class="o">=</span> <span class="n">asym</span><span class="p">[</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">_</span><span class="si">%0d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">at</span><span class="p">,</span> <span class="mi">0</span><span class="p">)]</span><span class="o">.</span><span class="n">disp_type</span>
+            <span class="n">ADP</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">asym</span><span class="p">[</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">_</span><span class="si">%0d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">at</span><span class="p">,</span> <span class="mi">0</span><span class="p">)],</span> <span class="n">disp_type</span><span class="p">)</span>
+            <span class="n">occ</span> <span class="o">=</span> <span class="n">asym</span><span class="p">[</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">_</span><span class="si">%0d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">at</span><span class="p">,</span> <span class="mi">0</span><span class="p">)]</span><span class="o">.</span><span class="n">occ</span>
+            <span class="n">asym</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">_</span><span class="si">%0d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">at</span><span class="p">,</span> <span class="n">i</span><span class="p">):</span>
+                         <span class="n">struct</span><span class="o">.</span><span class="n">atom</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">x_prime</span><span class="p">,</span> <span class="n">y_prime</span><span class="p">,</span> <span class="n">z_prime</span><span class="p">,</span>
+                                     <span class="n">ADP</span><span class="p">,</span> <span class="n">occ</span><span class="p">,</span> <span class="n">disp_type</span><span class="p">)})</span>
+
+    <span class="c1"># return asym</span>
+    <span class="c1"># return atoms to unit cell</span>
+    <span class="k">for</span> <span class="n">at</span> <span class="ow">in</span> <span class="n">asym</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="k">for</span> <span class="n">att</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">]:</span>
+            <span class="n">pos</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">asym</span><span class="p">[</span><span class="n">at</span><span class="p">],</span> <span class="n">att</span><span class="p">)</span>
+            <span class="n">count</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">while</span> <span class="n">pos</span> <span class="o">&gt;</span> <span class="mf">1.0</span><span class="p">:</span>
+                <span class="n">count</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="n">pos</span> <span class="o">-=</span> <span class="mi">1</span>
+                <span class="nb">setattr</span><span class="p">(</span><span class="n">asym</span><span class="p">[</span><span class="n">at</span><span class="p">],</span> <span class="n">att</span><span class="p">,</span> <span class="n">pos</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">count</span> <span class="o">&gt;=</span> <span class="mi">10</span> <span class="o">*</span> <span class="n">N</span><span class="p">:</span>
+                    <span class="k">raise</span><span class="p">(</span><span class="s1">&#39;something is goofy: can</span><span class="se">\&#39;</span><span class="s1">t shift atoms to first cell&#39;</span><span class="p">)</span>
+        <span class="c1"># print at, asym[at].x, asym[at].y, asym[at].z</span>
+
+    <span class="k">if</span> <span class="n">debug</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">asym</span>
+
+    <span class="k">if</span> <span class="n">xyz</span><span class="p">:</span>
+        <span class="c1"># write xyz</span>
+        <span class="nb">print</span> <span class="s1">&#39;WARNING! transformation to orthogonal basis is broken. Check your cell.&#39;</span>
+        <span class="n">pub_xyz</span><span class="p">(</span><span class="n">struct</span><span class="o">.</span><span class="n">a</span><span class="p">,</span> <span class="n">struct</span><span class="o">.</span><span class="n">b</span><span class="p">,</span> <span class="n">c_prime</span><span class="p">,</span> <span class="n">struct</span><span class="o">.</span><span class="n">gam</span><span class="p">,</span>
+                <span class="n">asym</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">cif</span><span class="p">:</span>
+        <span class="c1"># write cif</span>
+        <span class="n">pub_cif</span><span class="p">(</span><span class="n">struct</span><span class="o">.</span><span class="n">a</span><span class="p">,</span> <span class="n">struct</span><span class="o">.</span><span class="n">b</span><span class="p">,</span> <span class="n">c_prime</span><span class="p">,</span> <span class="n">struct</span><span class="o">.</span><span class="n">gam</span><span class="p">,</span>
+                <span class="n">asym</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span></div>
+
+<span class="c1"># EOF #</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Peter C Metz.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.5.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.9</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

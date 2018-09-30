@@ -1,0 +1,1267 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>mstack.pairdistributionfunction &#8212; MStack 0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body role="document">
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for mstack.pairdistributionfunction</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Created on Tue Apr 19 13:20:59 2016</span>
+
+<span class="sd">Designed to integrate lmfit/scipy differential evolution, existing structure</span>
+<span class="sd">tools, and diffpy PDF generator for global minimization of complex stacking</span>
+<span class="sd">disorered PDF data.</span>
+
+<span class="sd">@author: Peter C Metz</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="c1"># import block</span>
+<span class="kn">import</span> <span class="nn">lmfit</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">utilities</span> <span class="k">as</span> <span class="nn">u</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">cPickle</span>
+<span class="c1"># import dill</span>
+<span class="kn">from</span> <span class="nn">utilities</span> <span class="k">import</span> <span class="n">MergeParams</span><span class="p">,</span> <span class="n">UpdateMethods</span>
+<span class="kn">from</span> <span class="nn">interface</span> <span class="k">import</span> <span class="n">Interface</span>
+<span class="kn">from</span> <span class="nn">diffpy.srreal.pdfcalculator</span> <span class="k">import</span> <span class="n">PDFCalculator</span>
+<span class="kn">from</span> <span class="nn">diffpy.srfit.pdf</span> <span class="k">import</span> <span class="n">characteristicfunctions</span> <span class="k">as</span> <span class="n">CF</span>
+<span class="kn">from</span> <span class="nn">copy</span> <span class="k">import</span> <span class="n">copy</span><span class="p">,</span> <span class="n">deepcopy</span>
+<span class="kn">from</span> <span class="nn">time</span> <span class="k">import</span> <span class="n">strftime</span>
+<span class="kn">from</span> <span class="nn">matplotlib</span> <span class="k">import</span> <span class="n">pyplot</span> <span class="k">as</span> <span class="n">plt</span>
+
+
+<span class="c1"># ##################################### main ################################# #</span>
+
+
+<div class="viewcode-block" id="not_implemented"><a class="viewcode-back" href="../../rst/pairdistributionfunction.html#mstack.pairdistributionfunction.not_implemented">[docs]</a><span class="k">def</span> <span class="nf">not_implemented</span><span class="p">(</span><span class="n">parameter</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; raise exception if &quot;&quot;&quot;</span>
+    <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="o">=</span> <span class="n">parameter</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">parameter</span><span class="o">.</span><span class="n">value</span>
+    <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">k</span> <span class="o">==</span> <span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;rcut&#39;</span><span class="p">,</span> <span class="s1">&#39;stepcut&#39;</span><span class="p">,</span> <span class="s1">&#39;sratio&#39;</span><span class="p">]):</span>
+        <span class="k">if</span> <span class="n">u</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">v</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> not implimented. Pleast don</span><span class="se">\&#39;</span><span class="s1">t use it or complain</span><span class="se">\</span>
+<span class="s1">                            to the author as necessary.&#39;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="name_check"><a class="viewcode-back" href="../../rst/pairdistributionfunction.html#mstack.pairdistributionfunction.name_check">[docs]</a><span class="k">def</span> <span class="nf">name_check</span><span class="p">(</span><span class="n">iteritem</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; check if names in iteritem are unique &quot;&quot;&quot;</span>
+    <span class="n">seen</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="k">return</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">(</span><span class="n">i</span> <span class="ow">in</span> <span class="n">seen</span> <span class="ow">or</span> <span class="n">seen</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">iteritem</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="load"><a class="viewcode-back" href="../../rst/pairdistributionfunction.html#mstack.pairdistributionfunction.load">[docs]</a><span class="k">def</span> <span class="nf">load</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">subdir</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    load a pickled .dat file</span>
+<span class="sd">    Note: if all modules needed by the refinement object are not imported at time of</span>
+<span class="sd">        unpickling, there will likely be AttributeErrors thrown.</span>
+
+<span class="sd">    ~! actually, this is problematic. cPickle serializes class by reference, nor</span>
+<span class="sd">        definition, so changinging the namespace (e.g. adding or removing modules</span>
+<span class="sd">        to this program) will break the pickle.</span>
+
+<span class="sd">    upgrade to dill which serializes by definition</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span><span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">(),</span> <span class="n">subdir</span><span class="p">,</span> <span class="n">filename</span><span class="p">]</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">])</span>
+
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">obj</span> <span class="o">=</span> <span class="n">cPickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">obj</span></div>
+
+<span class="c1"># ########################### PDF Data ######################################### #</span>
+
+
+<div class="viewcode-block" id="PdfData"><a class="viewcode-back" href="../../rst/pairdistributionfunction.html#mstack.pairdistributionfunction.PdfData">[docs]</a><span class="k">class</span> <span class="nc">PdfData</span><span class="p">(</span><span class="n">UpdateMethods</span><span class="p">,</span> <span class="n">MergeParams</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A container for G(r) data which aggregates the miscellaneous necessary values.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">_nyquist</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        For rstep keyword &quot;nyquist,&quot; Nyquist-Shannon sampling theorem is applied.</span>
+<span class="sd">        This theorem states that the minimum number of data points in real space</span>
+<span class="sd">        (time domain) necessary to reconstruct the information in reciprocal space</span>
+<span class="sd">        (frequency domain) has a stride equal to pi over Qmax (the band width)</span>
+
+<span class="sd">            *N = Delta_r * Q_max / pi*</span>
+<span class="sd">                * Delta_r = [angstrom] extend of PDF in real space</span>
+<span class="sd">                * Qmax = [angstrom^-1] maximum value of observed reciprocal space</span>
+<span class="sd">                * pi = the greatest constant known to man</span>
+
+<span class="sd">        Reference:</span>
+<span class="sd">            Farrow, C., Shaw, M., Kim, H. et al. \&quot;The Nyquist-Shannon sampling</span>
+<span class="sd">            theorem and the atomic pair distribution function.\&quot; *Phys. Rev. B*</span>
+<span class="sd">            84, 134105 (2011).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">qmax</span>
+
+    <span class="k">def</span> <span class="nf">_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        for rstep keyword &quot;data&quot; return stride of self.data</span>
+<span class="sd">        assumes uniform stride and len(dat)&gt;2</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+
+<div class="viewcode-block" id="PdfData.update_data"><a class="viewcode-back" href="../../rst/pairdistributionfunction.html#mstack.pairdistributionfunction.PdfData.update_data">[docs]</a>    <span class="k">def</span> <span class="nf">update_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">column</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        add/upate data  to data object</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            data (str | np.array): file path or data array</span>
+<span class="sd">            column (int): if read, read from column</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([])</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">u</span><span class="o">.</span><span class="n">read_data</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">column</span><span class="o">=</span><span class="n">column</span><span class="p">,</span> <span class="n">lam</span><span class="o">=</span><span class="mf">1.0</span><span class="p">))</span>
+        <span class="k">except</span> <span class="ne">UnicodeDecodeError</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="ow">is</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">data</span>
+            <span class="k">elif</span> <span class="n">data</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">pass</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span><span class="p">(</span><span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Data must be entered as filepath or</span><span class="se">\</span>
+<span class="s1">                                (filepath, column) or np.array&#39;</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="PdfData.__init__"><a class="viewcode-back" href="../../rst/pairdistributionfunction.html#mstack.pairdistributionfunction.PdfData.__init__">[docs]</a>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">qmax</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">qmin</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">qbroad</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">qdamp</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">rmin</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">rmax</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">rstep</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">use</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+
+        <span class="sd">u&quot;&quot;&quot;</span>
+<span class="sd">        Args:</span>
+<span class="sd">            name: as string</span>
+<span class="sd">            data: as filepath or (filepath, column) or np.array</span>
+<span class="sd">            qmax:  as Å ** -1</span>
+<span class="sd">            qmin: as Å ** -1</span>
+<span class="sd">            qbroad: as Å?? look it up</span>
+<span class="sd">            qdamp: as Å?? look it up</span>
+<span class="sd">            scale: data scale factor</span>
+<span class="sd">            fit_min: minimum r value for refinement as Å</span>
+<span class="sd">            fit_max: maximum r value for refinement as Å</span>
+<span class="sd">            sampling: sampling interval as float or &#39;Nyquist&#39;</span>
+<span class="sd">            use: boolean flag for refinment</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># get data set</span>
+        <span class="k">if</span> <span class="n">data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># update/get data</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">update_data</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">data</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">update_data</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+        <span class="c1"># assign a default name to data if none given</span>
+        <span class="c1"># this will be necessary in order to merge up lmfit.Parameters</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;new_data&#39;</span>
+
+        <span class="c1"># parametrized</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">lmfit</span><span class="o">.</span><span class="n">Parameters</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="s1">&#39;qbroad&#39;</span><span class="p">,</span> <span class="n">qbroad</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="s1">&#39;qdamp&#39;</span><span class="p">,</span> <span class="n">qdamp</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="s1">&#39;scale&#39;</span><span class="p">,</span> <span class="n">scale</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="s1">&#39;scale&#39;</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+
+        <span class="c1"># with values only</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">qmax</span> <span class="o">=</span> <span class="n">qmax</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">qmin</span> <span class="o">=</span> <span class="n">qmin</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rmin</span> <span class="o">=</span> <span class="n">rmin</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rmax</span> <span class="o">=</span> <span class="n">rmax</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">use</span> <span class="o">=</span> <span class="n">use</span>
+
+        <span class="c1"># get rstep</span>
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">rstep</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">float</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">rstep</span> <span class="o">=</span> <span class="n">rstep</span>
+        <span class="k">elif</span> <span class="nb">type</span><span class="p">(</span><span class="n">rstep</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">str</span><span class="p">:</span>
+            <span class="n">rstep</span> <span class="o">=</span> <span class="n">rstep</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">rstep</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">rstep</span><span class="p">)</span><span class="o">.</span><span class="n">__call__</span><span class="p">()</span>
+            <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;valid rstep arguments are float|</span><span class="se">\&quot;</span><span class="s1">nyquist</span><span class="se">\&quot;</span><span class="s1">|</span><span class="se">\&quot;</span><span class="s1">data</span><span class="se">\&quot;</span><span class="s1">&#39;</span><span class="p">)</span></div></div>
+
+    <span class="c1"># End of PdfData ##############</span>
+
+<span class="c1"># ################################# PDF Model ####################################### #</span>
+
+
+<div class="viewcode-block" id="PdfModel"><a class="viewcode-back" href="../../rst/pairdistributionfunction.html#mstack.pairdistributionfunction.PdfModel">[docs]</a><span class="k">class</span> <span class="nc">PdfModel</span><span class="p">(</span><span class="n">UpdateMethods</span><span class="p">,</span> <span class="n">MergeParams</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A pdf_model is a single structure and the associated envelope parameters.</span>
+<span class="sd">    (i.e. scale, Qres, spdiameter, correlated motion delta1|delta2).</span>
+
+<span class="sd">    In the calculation sequence, model+data attributes spawn calculators by passing</span>
+<span class="sd">    config dicts (i.e. PDFcalculator(**cfg)) which act on the contained diffpy.Structure</span>
+<span class="sd">    to produce a PDF.</span>
+
+<span class="sd">    pdf_models are subordinate to pdf_phases which are the corresponding object to</span>
+<span class="sd">    reciprocal space objects</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="PdfModel.__init__"><a class="viewcode-back" href="../../rst/pairdistributionfunction.html#mstack.pairdistributionfunction.PdfModel.__init__">[docs]</a>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">structure</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">delta1</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">delta2</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">spdiameter</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">sthick</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">mno</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">use</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                 <span class="n">sratio</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">rcut</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">stepcut</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">u&quot;&quot;&quot;</span>
+<span class="sd">        Args:</span>
+<span class="sd">            name (str | None): model name</span>
+<span class="sd">            structure (diffpy.Structure | None): a supercell generated from interface</span>
+<span class="sd">            scale (float): scale factor</span>
+<span class="sd">            delta1 (float): [Å] component in the broadening equation below</span>
+<span class="sd">            delta2 (float): [Å ** 2] component in the broadening equation below</span>
+<span class="sd">            spdiameter (float): [Å] particle diameter in analytic damping function for spherical nanoparticles.</span>
+<span class="sd">            sthick (float): [Å] sheet thickness in analytic damping function (infinite width)</span>
+<span class="sd">            mno (int, list): [int] (int, int, int) supercell dimensions for expansion of structures</span>
+<span class="sd">            use (bool): include in refinement?</span>
+<span class="sd">            sratio: [-] sigma ratio for bonded atoms- peak sharpening due to correlated motion</span>
+<span class="sd">            rcut: [Å] radius cutoff for application of sratio</span>
+<span class="sd">            stepcut: [Å] distance above which G(r) is truncated</span>
+
+<span class="sd">        Note:</span>
+<span class="sd">            peak width is given by the Jeong peak width model:</span>
+<span class="sd">                σ_ij = σ&#39;_ij * sqrt(1 - δ_1 / r_ij - δ_2 / r^2_ij + Q^2_broad * r^2_ij)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># parameters</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">lmfit</span><span class="o">.</span><span class="n">Parameters</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="s1">&#39;scale&#39;</span><span class="p">,</span> <span class="n">scale</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="s1">&#39;delta1&#39;</span><span class="p">,</span> <span class="n">delta1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="s1">&#39;delta2&#39;</span><span class="p">,</span> <span class="n">delta2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="s1">&#39;spdiameter&#39;</span><span class="p">,</span> <span class="n">spdiameter</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="s1">&#39;sthick&#39;</span><span class="p">,</span> <span class="n">sthick</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="s1">&#39;sratio&#39;</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="s1">&#39;rcut&#39;</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="s1">&#39;stepcut&#39;</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+        <span class="c1"># catch not implemented</span>
+        <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="n">not_implemented</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+
+        <span class="c1"># not parameters</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">structure</span> <span class="o">=</span> <span class="n">structure</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mno</span> <span class="o">=</span> <span class="n">mno</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">use</span> <span class="o">=</span> <span class="n">use</span>
+
+        <span class="c1"># give a generic title to the pdf_model if none is given.</span>
+        <span class="c1"># titles will be appended to var names on merging up</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;new_model&#39;</span></div></div>
+
+    <span class="c1"># End of PdfModel ##############</span>
+
+<span class="c1"># ################################ PDF Phases ################################### #</span>
+
+
+<div class="viewcode-block" id="PdfPhase"><a class="viewcode-back" href="../../index.html#mstack.pairdistributionfunction.PdfPhase">[docs]</a><span class="k">class</span> <span class="nc">PdfPhase</span><span class="p">(</span><span class="n">UpdateMethods</span><span class="p">,</span> <span class="n">MergeParams</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    pdf_phases are a wrapping for Phase objects and contain the additional attributes</span>
+<span class="sd">    and methods necessary to decompose Phase objects (structures + vectors) into</span>
+<span class="sd">    single pdf_models suitable for diffpy.PDFCalculator.</span>
+
+<span class="sd">    Since lmfit.Parameters must exist before minimization is called, pdf_phases must</span>
+<span class="sd">    contain:</span>
+
+<span class="sd">        * phase scale factors: (derived from phase weights) % composition (constrained)</span>
+<span class="sd">        * model scale factors: (derived from alpij) % composition (constrained)</span>
+<span class="sd">        * model envelopes: (deltas, spdia) by default constraind to be equivilent</span>
+<span class="sd">        * asymmetric units: atom pos|occ|ADP are constrained at the phase level</span>
+<span class="sd">        * lattices: also constrained at the phase level, equivilent by default</span>
+
+<span class="sd">    To enable reinement of stacking parameters, supercells must be regenerated at each</span>
+<span class="sd">    minimizer call, and the parameters must be propagated from the top level down.</span>
+<span class="sd">    A suitable method is also required then:</span>
+
+<span class="sd">        * call interface to obtain new pdf_models</span>
+<span class="sd">        Note: phase parameters are updated at each minimizer callback, hence propagating</span>
+<span class="sd">        new trial parameter space from minimizer.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># ################ initialization| update methods ######################### #</span>
+
+    <span class="k">def</span> <span class="nf">_check_mno</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mno</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; type enforcing. returns mno as len 3 tuple&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">mno</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">tuple</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">mno</span><span class="p">)</span> <span class="ow">is</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">mno</span>
+        <span class="k">elif</span> <span class="nb">type</span><span class="p">(</span><span class="n">mno</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">int</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">mno</span><span class="p">))</span> <span class="ow">is</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">tuple</span><span class="p">([</span><span class="nb">int</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">mno</span><span class="p">)[:]])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;values of m|n|o greater than 9 must be entered</span><span class="se">\</span>
+<span class="s1">                            as tuples in order to be correctly interpreted.</span><span class="se">\</span>
+<span class="s1">                            </span><span class="se">\n\n</span><span class="s1"> tuples must be length 3 (m, n, o).&#39;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="PdfPhase.add_phase"><a class="viewcode-back" href="../../index.html#mstack.pairdistributionfunction.PdfPhase.add_phase">[docs]</a>    <span class="k">def</span> <span class="nf">add_phase</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">phase</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; update phase and merge up params &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;phase&#39;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">phase</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="k">if</span> <span class="n">phase</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">phase</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">phase</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="n">phase</span><span class="p">})</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">phase</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;only use one phase per PdfPhase object&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">lower_to_upper</span><span class="p">(</span><span class="s1">&#39;phase&#39;</span><span class="p">,</span> <span class="s1">&#39;params&#39;</span><span class="p">)</span></div>
+
+    <span class="c1"># ################## init ####################### #</span>
+<div class="viewcode-block" id="PdfPhase.__init__"><a class="viewcode-back" href="../../index.html#mstack.pairdistributionfunction.PdfPhase.__init__">[docs]</a>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">phase</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">delta1</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">delta2</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">spdiameter</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">sthick</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">mno</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">use</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                 <span class="n">sratio</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">rcut</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">stepcut</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">u&quot;&quot;&quot;</span>
+<span class="sd">        Args:</span>
+<span class="sd">            name (str): PdfPhase name</span>
+<span class="sd">            phase (structure.Phase): layer structure</span>
+<span class="sd">            scale (float | None): scale factor</span>
+<span class="sd">            delta1 (float): [Å] component in the broadening equation below</span>
+<span class="sd">            delta2 (float): [Å ** 2] component in the broadening equation below</span>
+<span class="sd">            spdiameter (float): [Å] particle diameter in analytic damping function for spherical nanoparticles.</span>
+<span class="sd">            sthick (float): [Å] sheet thickness (infinite lateral)</span>
+<span class="sd">            mno (float): [int] (int, int, int) supercell dimensions for expansion of structures</span>
+<span class="sd">            use (bool): use in refinement?</span>
+<span class="sd">            sratio (float): see diffpy documentation</span>
+<span class="sd">            rcut (float): see diffpy documentation</span>
+<span class="sd">            stepcut (float): see diffpy documentation</span>
+
+<span class="sd">        Note:</span>
+<span class="sd">            sratio, rcut, and stepcut are currently not implimented</span>
+
+<span class="sd">        Note: parameters may be instantiated as a value (float|int) or as a tuple</span>
+<span class="sd">        (value, min, max)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Parameters</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">lmfit</span><span class="o">.</span><span class="n">Parameters</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="s1">&#39;scale&#39;</span><span class="p">,</span> <span class="n">scale</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="s1">&#39;delta1&#39;</span><span class="p">,</span> <span class="n">delta1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="s1">&#39;delta2&#39;</span><span class="p">,</span> <span class="n">delta2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="s1">&#39;spdiameter&#39;</span><span class="p">,</span> <span class="n">spdiameter</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="s1">&#39;sthick&#39;</span><span class="p">,</span> <span class="n">sthick</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="s1">&#39;sratio&#39;</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="s1">&#39;rcut&#39;</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="s1">&#39;stepcut&#39;</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_phase</span><span class="p">(</span><span class="n">phase</span><span class="p">)</span>
+        <span class="c1"># catch not implemented</span>
+        <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="n">not_implemented</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+
+        <span class="c1"># not params</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mno</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_check_mno</span><span class="p">(</span><span class="n">mno</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">phase</span><span class="o">.</span><span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">use</span> <span class="o">=</span> <span class="n">use</span>
+
+        <span class="c1"># append name if none given so that parameter merging functions</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;new_phase&#39;</span></div>
+
+    <span class="c1"># ################# phases methods ############## #</span>
+<div class="viewcode-block" id="PdfPhase.to_models"><a class="viewcode-back" href="../../index.html#mstack.pairdistributionfunction.PdfPhase.to_models">[docs]</a>    <span class="k">def</span> <span class="nf">to_models</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        for struture for phase create pdf_models</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            self.models.update(models)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">rv</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">models</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="c1"># get supercells</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">inter</span> <span class="o">=</span> <span class="n">Interface</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">phase</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">mno</span><span class="p">)</span>
+        <span class="n">structures</span><span class="p">,</span> <span class="n">probabilities</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">attributegetter</span><span class="p">(</span><span class="s1">&#39;supercells&#39;</span><span class="p">,</span> <span class="s1">&#39;alpij&#39;</span><span class="p">)(</span><span class="bp">self</span><span class="o">.</span><span class="n">inter</span><span class="p">)[:]</span>
+        <span class="n">rv</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">structures</span><span class="p">)</span>  <span class="c1"># dict of diffpy.Structure instances</span>
+
+        <span class="c1"># make pdf_model instances</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">rv</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">rv</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="n">PdfModel</span><span class="p">(</span><span class="n">structure</span><span class="o">=</span><span class="n">v</span><span class="p">,</span>
+                                   <span class="n">name</span><span class="o">=</span><span class="n">k</span><span class="p">,</span>
+                                   <span class="n">scale</span><span class="o">=</span><span class="n">probabilities</span><span class="p">[</span><span class="n">k</span><span class="p">],</span>
+                                   <span class="n">delta1</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">delta1</span><span class="p">,</span>
+                                   <span class="n">delta2</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">delta2</span><span class="p">,</span>
+                                   <span class="n">spdiameter</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">spdiameter</span><span class="p">,</span>
+                                   <span class="n">sthick</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">sthick</span><span class="p">,</span>
+                                   <span class="n">sratio</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">sratio</span><span class="p">,</span>
+                                   <span class="n">rcut</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rcut</span><span class="p">,</span>
+                                   <span class="n">stepcut</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">stepcut</span><span class="p">,</span>
+                                   <span class="n">mno</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">mno</span><span class="p">,</span>
+                                   <span class="n">use</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">use</span><span class="p">)}</span>
+                      <span class="p">)</span>
+
+        <span class="c1"># ~! for debugging</span>
+        <span class="k">if</span> <span class="n">name_check</span><span class="p">(</span><span class="n">rv</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;check out naming conventions for phase-&gt;model&#39;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">rv</span><span class="p">)</span></div></div>
+
+<span class="c1"># End of PdfPhase ##############</span>
+
+<span class="c1"># ################################ PDF Refinement ########################### #</span>
+
+
+<div class="viewcode-block" id="PdfRefinement"><a class="viewcode-back" href="../../rst/pairdistributionfunction.html#mstack.pairdistributionfunction.PdfRefinement">[docs]</a><span class="k">class</span> <span class="nc">PdfRefinement</span><span class="p">(</span><span class="n">UpdateMethods</span><span class="p">,</span> <span class="n">MergeParams</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A pdf refinement is comprised of a structure model(s) and data to be fit against</span>
+
+<span class="sd">    Contains:</span>
+<span class="sd">        * structure_exchange- translate Structure object into diffpy.Structure.Structure object</span>
+<span class="sd">        * generator- subprocess call to diffpy.srreal.pdfcalculator</span>
+<span class="sd">        * residual_method- ojective function for minimization</span>
+<span class="sd">        * callback- tasks to be evaluated at each fit call</span>
+<span class="sd">        * lsq_minimize- least squares minimization wrapper for lmfit</span>
+<span class="sd">        * diffev_minimize- differential evolution minimization wrapper for lmfit</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1">###########################################################################</span>
+    <span class="c1">#        functions for managing initialization/updating                   #</span>
+    <span class="c1">###########################################################################</span>
+<div class="viewcode-block" id="PdfRefinement.update_data"><a class="viewcode-back" href="../../rst/pairdistributionfunction.html#mstack.pairdistributionfunction.PdfRefinement.update_data">[docs]</a>    <span class="k">def</span> <span class="nf">update_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        update data dictionary</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            data (list?)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">if</span> <span class="n">data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">u</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">d</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="n">d</span><span class="p">})</span>
+            <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;update_data requires PdfData instance&#39;</span><span class="p">)</span>
+        <span class="c1"># verbose</span>
+        <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="nb">print</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1"> data initialized:&#39;</span>
+            <span class="nb">print</span> <span class="s1">&#39;      </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">d</span>
+
+        <span class="c1"># merge up data parameters</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lower_to_upper</span><span class="p">(</span><span class="s1">&#39;data&#39;</span><span class="p">,</span> <span class="n">specifier</span><span class="o">=</span><span class="s1">&#39;params&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PdfRefinement.update_phases"><a class="viewcode-back" href="../../rst/pairdistributionfunction.html#mstack.pairdistributionfunction.PdfRefinement.update_phases">[docs]</a>    <span class="k">def</span> <span class="nf">update_phases</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">phases</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        update structure dict</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            phases (pairdistributionfunction.PdfPhase): layer phases</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">phases</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">if</span> <span class="n">phases</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">u</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="n">phases</span><span class="p">):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">phases</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">s</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="n">s</span><span class="p">})</span>
+            <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;update_phases requires PdfPhase instance&#39;</span><span class="p">)</span>
+        <span class="c1"># verbose</span>
+        <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">phases</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="nb">print</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1"> phases initialized:&#39;</span>
+            <span class="nb">print</span> <span class="s1">&#39;      </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">s</span>
+
+        <span class="c1"># merge up phase parameters</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lower_to_upper</span><span class="p">(</span><span class="s1">&#39;phases&#39;</span><span class="p">,</span> <span class="n">specifier</span><span class="o">=</span><span class="s1">&#39;params&#39;</span><span class="p">)</span></div>
+
+    <span class="c1">###########################################################################</span>
+    <span class="c1">#                               __init__                                  #</span>
+    <span class="c1">###########################################################################</span>
+
+<div class="viewcode-block" id="PdfRefinement.__init__"><a class="viewcode-back" href="../../rst/pairdistributionfunction.html#mstack.pairdistributionfunction.PdfRefinement.__init__">[docs]</a>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">phases</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Args:</span>
+<span class="sd">            name (str): PdfRefinement name</span>
+<span class="sd">            data (pairdistributionfunction.PdfData(s)): list|instance of PdfData</span>
+<span class="sd">            phases (pairdistributionfunction.PdfPhase(s)): list|instance of PdfPhase</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># name</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;new_pdf_refinement&#39;</span>
+
+        <span class="c1"># values</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">resd</span> <span class="o">=</span> <span class="p">{}</span>  <span class="c1"># ({data.name: np.array}) residual array for each data</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">res</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([])</span>  <span class="c1"># (np.array) residual array for</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hist</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># [(iter, Rwp), ...]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">DynamicPlot</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">DynamicPlot</span><span class="p">()</span>  <span class="c1"># dynamic plot instance for R vs. iter</span>
+
+        <span class="c1"># G(r) containers</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gr</span> <span class="o">=</span> <span class="p">{}</span>  <span class="c1"># {data_1: {phase_1: {model_1: gr_1, ...}, ...}, ...}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">GR</span> <span class="o">=</span> <span class="p">{}</span>  <span class="c1"># {data_1: {phase_1: G(r)_1, ...}, ...}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">composite</span> <span class="o">=</span> <span class="p">{}</span>  <span class="c1"># {data_1: G(r)_1, ...}</span>
+
+        <span class="c1"># parameterized</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">lmfit</span><span class="o">.</span><span class="n">Parameters</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update_data</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>  <span class="c1"># elevates data params to refinement</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update_phases</span><span class="p">(</span><span class="n">phases</span><span class="p">)</span>  <span class="c1"># elevates phase params to refinement</span></div>
+
+    <span class="c1">###########################################################################</span>
+    <span class="c1">#                               reversion                                 #</span>
+    <span class="c1">###########################################################################</span>
+
+<div class="viewcode-block" id="PdfRefinement.save"><a class="viewcode-back" href="../../rst/pairdistributionfunction.html#mstack.pairdistributionfunction.PdfRefinement.save">[docs]</a>    <span class="k">def</span> <span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">subdir</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create a pickled save state of the refinement.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            filename (str): filename.pkl or some such</span>
+<span class="sd">            subdir (str): directory</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">filename</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">filename</span> <span class="o">=</span> <span class="s1">&#39;_&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">re</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;[\ :]+&#39;</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">ctime</span><span class="p">()))</span>
+
+        <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span><span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">(),</span> <span class="n">subdir</span><span class="p">,</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">.dat&#39;</span> <span class="o">%</span> <span class="n">filename</span><span class="p">]</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">])</span>
+
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;w+b&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">cPickle</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PdfRefinement.reset"><a class="viewcode-back" href="../../rst/pairdistributionfunction.html#mstack.pairdistributionfunction.PdfRefinement.reset">[docs]</a>    <span class="k">def</span> <span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; use self.original to reset refined parameters to previous values &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">original</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">original</span><span class="p">[</span><span class="n">k</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="PdfRefinement.revert"><a class="viewcode-back" href="../../rst/pairdistributionfunction.html#mstack.pairdistributionfunction.PdfRefinement.revert">[docs]</a>    <span class="k">def</span> <span class="nf">revert</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; use self.backup to revert Parameters instance to last minimizer call &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">backup</span><span class="p">)</span></div>
+
+    <span class="c1">###########################################################################</span>
+    <span class="c1">#                               methods                                   #</span>
+    <span class="c1">###########################################################################</span>
+
+<div class="viewcode-block" id="PdfRefinement.apply_sheetcf"><a class="viewcode-back" href="../../rst/pairdistributionfunction.html#mstack.pairdistributionfunction.PdfRefinement.apply_sheetcf">[docs]</a>    <span class="k">def</span> <span class="nf">apply_sheetcf</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gr</span><span class="p">,</span> <span class="n">sthick</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Apply sheet cf to a 2xN numpy array containing G(r) in angstroms</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            gr (np.array): G(r) data array</span>
+<span class="sd">            sthick (float): sheet thickness</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            np.array: G(r) data array</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="n">gr</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="n">env</span> <span class="o">=</span> <span class="n">CF</span><span class="o">.</span><span class="n">sheetCF</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">sthick</span><span class="p">)</span>
+        <span class="n">grs</span> <span class="o">=</span> <span class="n">gr</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">env</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">((</span><span class="n">r</span><span class="p">,</span> <span class="n">grs</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="PdfRefinement.apply_sphericalcf"><a class="viewcode-back" href="../../rst/pairdistributionfunction.html#mstack.pairdistributionfunction.PdfRefinement.apply_sphericalcf">[docs]</a>    <span class="k">def</span> <span class="nf">apply_sphericalcf</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gr</span><span class="p">,</span> <span class="n">psize</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        apply spherical cf to a Nx2 shape numpy array containing G(r)</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            gr (np.array): G(r) data array</span>
+<span class="sd">            psize (float): spherical partical diameter</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            np.array: G(r) data array</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="n">gr</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="n">env</span> <span class="o">=</span> <span class="n">CF</span><span class="o">.</span><span class="n">sphericalCF</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">psize</span><span class="p">)</span>
+        <span class="n">grs</span> <span class="o">=</span> <span class="n">gr</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">env</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">((</span><span class="n">r</span><span class="p">,</span> <span class="n">grs</span><span class="p">))</span></div>
+
+    <span class="k">def</span> <span class="nf">_calculator</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get srreal PDF calculator instance. Makes calculator available at top level</span>
+<span class="sd">        for troubleshooting.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            model (pairdistributionfunction.PdfModel): expanded supercell model</span>
+<span class="sd">            data (pairdistributionfunction,PdfData): G(r) data</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            diffpy.srreal.pdfcalculator.PDFCalculator: PDF calculator</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># model attributes</span>
+        <span class="n">cfg</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;scale&#39;</span><span class="p">,</span> <span class="s1">&#39;delta1&#39;</span><span class="p">,</span> <span class="s1">&#39;delta2&#39;</span><span class="p">]:</span>
+            <span class="n">cfg</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span><span class="o">.</span><span class="n">value</span><span class="p">})</span>
+
+        <span class="c1"># data attributes</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;qmax&#39;</span><span class="p">,</span> <span class="s1">&#39;qmin&#39;</span><span class="p">,</span> <span class="s1">&#39;qdamp&#39;</span><span class="p">,</span> <span class="s1">&#39;qbroad&#39;</span><span class="p">,</span> <span class="s1">&#39;rmin&#39;</span><span class="p">,</span> <span class="s1">&#39;rmax&#39;</span><span class="p">,</span> <span class="s1">&#39;rstep&#39;</span><span class="p">]:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">cfg</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span><span class="o">.</span><span class="n">value</span><span class="p">})</span>
+            <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+                <span class="n">cfg</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">k</span><span class="p">)})</span>
+
+        <span class="c1"># some None|inf replacement</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">cfg</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="c1"># ~! print k, v, type(k), type(v)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">u</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">v</span><span class="p">):</span>
+                <span class="n">cfg</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="mi">0</span><span class="p">})</span>
+
+        <span class="k">return</span> <span class="n">PDFCalculator</span><span class="p">(</span><span class="o">**</span><span class="n">cfg</span><span class="p">)</span>
+
+<div class="viewcode-block" id="PdfRefinement.calculator"><a class="viewcode-back" href="../../rst/pairdistributionfunction.html#mstack.pairdistributionfunction.PdfRefinement.calculator">[docs]</a>    <span class="k">def</span> <span class="nf">calculator</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        real-space PDF calculation via srreal.pdfcalculator. Calculator built</span>
+<span class="sd">        from attributes of model and data.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            model (PdfModel): single instance</span>
+<span class="sd">                (structure, name=None, scale=None, delta1=None, delta2=None,</span>
+<span class="sd">                spdiameter=None, sratio=None, rcut=None, stepcut=None, mno=None)</span>
+<span class="sd">            data (PdfData): single instance</span>
+<span class="sd">                (data, name=None, qmax=None, qmin=None, qbroad=None, qdamp=None,</span>
+<span class="sd">                scale=None, rmin=None, rmax=None, rstep=None, use=True)</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Calculated (np.array())g(r) scaled by model_scale only</span>
+
+<span class="sd">        Note:</span>
+<span class="sd">            Final difference should be calculated from</span>
+<span class="sd">            **sum_i**{(*data_scale* \* data_i) - **sum_j**{*phase_scale_j* \* **sum_k**{g(r)_k}}}</span>
+
+<span class="sd">        Note:</span>
+<span class="sd">            No shape function applied to calculator result.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># initialize calculator</span>
+        <span class="n">grc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calculator</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+
+        <span class="c1"># crunch out PDF</span>
+        <span class="n">r</span><span class="p">,</span> <span class="n">gr</span> <span class="o">=</span> <span class="n">grc</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">structure</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">((</span><span class="n">r</span><span class="p">,</span> <span class="n">gr</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="PdfRefinement.merge_add"><a class="viewcode-back" href="../../rst/pairdistributionfunction.html#mstack.pairdistributionfunction.PdfRefinement.merge_add">[docs]</a>    <span class="k">def</span> <span class="nf">merge_add</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">A1</span><span class="p">,</span> <span class="n">A2</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Add A1 and A2, merging length to longest vector if unequal</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            A1, A2 (np.array, list)</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            np.array</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">rv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">A1</span><span class="p">,</span> <span class="n">A2</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>  <span class="c1"># add &#39;em up</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="n">long_</span> <span class="o">=</span> <span class="n">copy</span><span class="p">(</span><span class="nb">max</span><span class="p">((</span><span class="n">A1</span><span class="p">,</span> <span class="n">A2</span><span class="p">),</span> <span class="n">key</span><span class="o">=</span><span class="nb">len</span><span class="p">))</span>
+            <span class="n">short_</span> <span class="o">=</span> <span class="n">copy</span><span class="p">(</span><span class="nb">min</span><span class="p">((</span><span class="n">A1</span><span class="p">,</span> <span class="n">A2</span><span class="p">),</span> <span class="n">key</span><span class="o">=</span><span class="nb">len</span><span class="p">))</span>
+            <span class="n">short_</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="n">long_</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+            <span class="n">rv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">short_</span><span class="p">,</span> <span class="n">long_</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">rv</span></div>
+
+<div class="viewcode-block" id="PdfRefinement.model_composite"><a class="viewcode-back" href="../../rst/pairdistributionfunction.html#mstack.pairdistributionfunction.PdfRefinement.model_composite">[docs]</a>    <span class="k">def</span> <span class="nf">model_composite</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">phase</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Populate dict of model components for (PdfPhase)phase and (PdfData)data:</span>
+<span class="sd">            Model components: self.gr: {data_1: {phase_1: {model_1: g(r)_1, ...}, ...}, ...}</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            phase (pairdistributionfunction.PdfPhase):</span>
+<span class="sd">            data (pairdistributionfunction.PdfPhase):</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            phase_scale * sum_i{gr_i} | dtype=float</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># setup</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">gr</span><span class="p">[</span><span class="n">data</span><span class="o">.</span><span class="n">name</span><span class="p">][</span><span class="n">phase</span><span class="o">.</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">gr</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">data</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="p">{</span><span class="n">phase</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="p">{}}})</span>
+        <span class="n">phase</span><span class="o">.</span><span class="n">to_models</span><span class="p">()</span>
+        <span class="n">rv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">rmin</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">rmax</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">rstep</span><span class="p">))</span>
+        <span class="n">N</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="c1"># crunch G(r) * model_scale</span>
+        <span class="k">for</span> <span class="n">m_key</span><span class="p">,</span> <span class="n">mod</span> <span class="ow">in</span> <span class="n">phase</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">gr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculator</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>  <span class="c1"># calc gr</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">gr</span><span class="p">[</span><span class="n">data</span><span class="o">.</span><span class="n">name</span><span class="p">][</span><span class="n">phase</span><span class="o">.</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">m_key</span><span class="p">:</span> <span class="n">gr</span><span class="p">})</span>
+            <span class="n">rv</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_merge_add</span><span class="p">(</span><span class="n">rv</span><span class="p">,</span> <span class="n">gr</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">])</span>
+            <span class="n">N</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="c1"># normalize and scale and reshape</span>
+        <span class="n">rv</span> <span class="o">=</span> <span class="n">rv</span> <span class="o">/</span> <span class="n">N</span> <span class="o">*</span> <span class="n">phase</span><span class="o">.</span><span class="n">scale</span><span class="o">.</span><span class="n">value</span>  <span class="c1"># &lt;--- phase weight</span>
+        <span class="n">rv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">((</span><span class="n">gr</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">rv</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">rv</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PdfRefinement.phase_composite"><a class="viewcode-back" href="../../rst/pairdistributionfunction.html#mstack.pairdistributionfunction.PdfRefinement.phase_composite">[docs]</a>    <span class="k">def</span> <span class="nf">phase_composite</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">phases</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">recalc</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get sum of scaled model gr for data. We need to wade through three levels</span>
+<span class="sd">        to get to comprable patterns:</span>
+<span class="sd">            * Model components: self.gr: {data_1: {phase_1: {model_1: g(r)_1, ...}, ...}, ...}</span>
+<span class="sd">            * Phase components: self.GR: {data_1: {phase_1: G(r)_1, ...}, ...}</span>
+<span class="sd">            * Phase composite: self.composite: {data_1: G(r)_1, ...}</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            phases (dict): PdfPhases</span>
+<span class="sd">            data (pairdistributionfunction.PdfData): pdf data</span>
+<span class="sd">            recalc (bool): not implemented</span>
+
+<span class="sd">        Note:</span>
+<span class="sd">            * phases --&gt; dict({phase.name: phase}) (plural)</span>
+<span class="sd">            * data --&gt; (PdfData) (singular)</span>
+<span class="sd">            * shape function applied to each model_composite G(r)</span>
+<span class="sd">            * recalc(default=True) passed in | determined at objective function</span>
+
+<span class="sd">        Returns: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># setup</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">GR</span><span class="p">[</span><span class="n">data</span><span class="o">.</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">GR</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">data</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="p">{}})</span>
+        <span class="n">rv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">rmin</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">rmax</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">rstep</span><span class="p">))</span>
+        <span class="n">M</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="c1"># main loop</span>
+        <span class="k">for</span> <span class="n">p_key</span><span class="p">,</span> <span class="n">phase</span> <span class="ow">in</span> <span class="n">phases</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">phase</span><span class="o">.</span><span class="n">use</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>   <span class="c1"># option to turn off phases</span>
+                <span class="c1"># get model composite</span>
+                <span class="k">if</span> <span class="n">recalc</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>  <span class="c1"># speed up by skipping g(r) calc if no var change</span>
+                    <span class="n">gr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_composite</span><span class="p">(</span><span class="n">phase</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>  <span class="c1"># &lt;--- weighted phase PDF</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">GR</span><span class="p">[</span><span class="n">data</span><span class="o">.</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">p_key</span><span class="p">:</span> <span class="n">gr</span><span class="p">})</span>
+
+                <span class="c1"># apply shape function</span>
+                <span class="n">gr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">GR</span><span class="p">[</span><span class="n">data</span><span class="o">.</span><span class="n">name</span><span class="p">][</span><span class="n">p_key</span><span class="p">]</span>
+                <span class="k">for</span> <span class="n">env</span> <span class="ow">in</span> <span class="p">[</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">phase</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="k">if</span> <span class="nb">any</span><span class="p">(</span>
+                        <span class="n">k</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="n">j</span><span class="p">)</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;spdiameter&#39;</span><span class="p">,</span> <span class="s1">&#39;sthick&#39;</span><span class="p">])]:</span>
+                    <span class="k">if</span> <span class="n">env</span> <span class="o">==</span> <span class="s1">&#39;spdiameter&#39;</span> <span class="ow">and</span> <span class="n">u</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">phase</span><span class="o">.</span><span class="n">spdiameter</span><span class="o">.</span><span class="n">value</span><span class="p">):</span>
+                        <span class="n">psize</span> <span class="o">=</span> <span class="n">phase</span><span class="o">.</span><span class="n">spdiameter</span><span class="o">.</span><span class="n">value</span>
+                        <span class="n">gr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">apply_sphericalcf</span><span class="p">(</span><span class="n">gr</span><span class="p">,</span> <span class="n">psize</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">env</span> <span class="o">==</span> <span class="s1">&#39;sthick&#39;</span> <span class="ow">and</span> <span class="n">u</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">phase</span><span class="o">.</span><span class="n">sthick</span><span class="o">.</span><span class="n">value</span><span class="p">):</span>
+                        <span class="n">sthick</span> <span class="o">=</span> <span class="n">phase</span><span class="o">.</span><span class="n">sthick</span><span class="o">.</span><span class="n">value</span>
+                        <span class="n">gr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">apply_sheetcf</span><span class="p">(</span><span class="n">gr</span><span class="p">,</span> <span class="n">sthick</span><span class="p">)</span>
+                <span class="n">rv</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_merge_add</span><span class="p">(</span><span class="n">rv</span><span class="p">,</span> <span class="n">gr</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">])</span>
+                <span class="n">M</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="c1"># normalize and update</span>
+        <span class="n">rv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">divide</span><span class="p">(</span><span class="n">rv</span><span class="p">,</span> <span class="n">M</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">composite</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">data</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">((</span><span class="n">gr</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">rv</span><span class="p">))})</span>
+        <span class="n">exp</span><span class="p">,</span> <span class="n">calc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">map_exp_calc</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">composite</span><span class="p">[</span><span class="n">data</span><span class="o">.</span><span class="n">name</span><span class="p">],</span>
+                                      <span class="n">data</span><span class="o">.</span><span class="n">rmin</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">rmax</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">xo</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">yo</span> <span class="o">=</span> <span class="n">exp</span><span class="o">.</span><span class="n">T</span><span class="p">[:]</span>  <span class="c1"># need transpose because of axis convention</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">xc</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">yc</span> <span class="o">=</span> <span class="n">calc</span><span class="o">.</span><span class="n">T</span><span class="p">[:]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">yo</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">yo</span> <span class="o">*</span> <span class="n">data</span><span class="o">.</span><span class="n">scale</span><span class="o">.</span><span class="n">value</span>  <span class="c1"># scale yo</span>
+        <span class="k">return</span> <span class="kc">True</span></div>
+
+<div class="viewcode-block" id="PdfRefinement.map_exp_calc"><a class="viewcode-back" href="../../rst/pairdistributionfunction.html#mstack.pairdistributionfunction.PdfRefinement.map_exp_calc">[docs]</a>    <span class="k">def</span> <span class="nf">map_exp_calc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exp_data</span><span class="p">,</span> <span class="n">calc_data</span><span class="p">,</span> <span class="n">rmin</span><span class="p">,</span> <span class="n">rmax</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        map exp data, calc data onto same array dim and stride</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            exp_data (list array): experimental data</span>
+<span class="sd">            calc_data (list array): calculated data</span>
+<span class="sd">            rmin (float): min real space radius</span>
+<span class="sd">            rmax (float): max real space radius</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            np.array: exp_data, (np.array)calc_data</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">exp_data</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">interpolate_data</span><span class="p">(</span><span class="n">exp_data</span><span class="p">,</span> <span class="n">calc_data</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">array</span> <span class="ow">in</span> <span class="p">[</span><span class="n">calc_data</span><span class="p">,</span> <span class="n">exp_data</span><span class="p">]:</span>
+            <span class="n">array</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="n">array</span><span class="p">))</span>
+            <span class="k">while</span> <span class="n">array</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">rmin</span><span class="p">:</span>
+                <span class="k">del</span> <span class="n">array</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">while</span> <span class="n">array</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">rmax</span><span class="p">:</span>
+                <span class="k">del</span> <span class="n">array</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dim_check</span><span class="p">(</span><span class="n">calc_data</span><span class="p">,</span> <span class="n">exp_data</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">exp_data</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;float64&#39;</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">calc_data</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;float64&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PdfRefinement.dim_check"><a class="viewcode-back" href="../../rst/pairdistributionfunction.html#mstack.pairdistributionfunction.PdfRefinement.dim_check">[docs]</a>    <span class="k">def</span> <span class="nf">dim_check</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">calc_data</span><span class="p">,</span> <span class="n">exp_data</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns:</span>
+<span class="sd">            bool: len(calc_data) == len(exp_data)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="n">calc_data</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">exp_data</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PdfRefinement.plot_min_result"><a class="viewcode-back" href="../../rst/pairdistributionfunction.html#mstack.pairdistributionfunction.PdfRefinement.plot_min_result">[docs]</a>    <span class="k">def</span> <span class="nf">plot_min_result</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">12</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Plot the calculated, observed, background and difference curves</span>
+<span class="sd">        of the last computation. Executed at end of every minimization.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            sqrt_filter (bool): plot data scaled by (Yobs) ** 1/2</span>
+<span class="sd">            fontsize (float): font size</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            matplotlib.Figure</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># map calc_data onto exp_data, get arrays</span>
+        <span class="n">exp</span><span class="p">,</span> <span class="n">calc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">map_exp_calc</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">composite</span><span class="p">[</span><span class="n">data</span><span class="o">.</span><span class="n">name</span><span class="p">],</span>
+                                      <span class="n">data</span><span class="o">.</span><span class="n">rmin</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">rmax</span><span class="p">)</span>
+        <span class="n">xo</span><span class="p">,</span> <span class="n">yo</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">xo</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">yo</span>  <span class="c1"># exp.T[:]  # need transpose because of axis convention</span>
+        <span class="c1"># xc, yc = self.xo, self.yc  # calc.T[:]</span>
+        <span class="n">yc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">yo</span>
+        <span class="c1"># yo = yo * data.scale.value</span>
+        <span class="n">diff</span> <span class="o">=</span> <span class="n">yo</span> <span class="o">-</span> <span class="n">yc</span>
+        <span class="n">baseline</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">yo</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">-</span> <span class="n">yo</span><span class="o">.</span><span class="n">min</span><span class="p">())</span>
+
+        <span class="c1"># get yer plot goin&#39;</span>
+        <span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+        <span class="n">ax</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">xo</span><span class="p">,</span> <span class="n">yo</span><span class="p">,</span> <span class="s1">&#39;o&#39;</span><span class="p">,</span> <span class="n">mfc</span><span class="o">=</span><span class="s1">&#39;none&#39;</span><span class="p">,</span> <span class="n">mec</span><span class="o">=</span><span class="s1">&#39;b&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">r&#39;$G(r)_</span><span class="si">{obs}</span><span class="s1">$&#39;</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">xo</span><span class="p">,</span> <span class="n">yc</span><span class="p">,</span> <span class="s1">&#39;r-&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">r&#39;$G(r)_</span><span class="si">{calc}</span><span class="s1">$&#39;</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">xo</span><span class="p">,</span> <span class="n">diff</span> <span class="o">+</span> <span class="n">baseline</span><span class="p">,</span> <span class="s1">&#39;g-&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;$difference$&#39;</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">xo</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">xo</span><span class="p">)</span> <span class="o">+</span> <span class="n">baseline</span><span class="p">,</span> <span class="s1">&#39;k:&#39;</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">r&#39;$r \/ [\AA]$&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;fontsize&#39;</span><span class="p">:</span> <span class="n">fontsize</span><span class="p">})</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">r&#39;$G(r)\/[\AA^{-2}]$&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;fontsize&#39;</span><span class="p">:</span> <span class="n">fontsize</span><span class="p">})</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="n">xmin</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">xo</span><span class="o">.</span><span class="n">min</span><span class="p">()</span> <span class="o">*</span> <span class="mf">0.9</span><span class="p">),</span> <span class="n">xmax</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">xo</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">*</span> <span class="mf">1.1</span><span class="p">))</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">fontsize</span><span class="o">=</span><span class="n">fontsize</span><span class="p">)</span>
+
+        <span class="c1"># set more font sizes</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">xticks</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="n">fontsize</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">yticks</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="n">fontsize</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+        <span class="k">return</span></div>
+
+<div class="viewcode-block" id="PdfRefinement.report_refined"><a class="viewcode-back" href="../../rst/pairdistributionfunction.html#mstack.pairdistributionfunction.PdfRefinement.report_refined">[docs]</a>    <span class="k">def</span> <span class="nf">report_refined</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tabulate</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        report parameters with attribute vary == True</span>
+<span class="sd">        ~! moved to utilities</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">expr</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">p</span><span class="o">.</span><span class="n">vary</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+                <span class="n">p</span><span class="o">.</span><span class="n">vary</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">return</span> <span class="n">u</span><span class="o">.</span><span class="n">report_refined</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">,</span> <span class="n">tabulate</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PdfRefinement.filter_report"><a class="viewcode-back" href="../../rst/pairdistributionfunction.html#mstack.pairdistributionfunction.PdfRefinement.filter_report">[docs]</a>    <span class="k">def</span> <span class="nf">filter_report</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">variable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">constrained</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        print a limited portion of the lmfit minimizer fit report</span>
+<span class="sd">        ~! moved to utilities</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">rv</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">filter_report</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">variable</span><span class="p">,</span> <span class="n">constrained</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">rv</span></div>
+
+    <span class="c1">###########################################################################</span>
+    <span class="c1">#                          minimizer methods                              #</span>
+    <span class="c1">###########################################################################</span>
+<div class="viewcode-block" id="PdfRefinement.generic_update"><a class="viewcode-back" href="../../rst/pairdistributionfunction.html#mstack.pairdistributionfunction.PdfRefinement.generic_update">[docs]</a>    <span class="k">def</span> <span class="nf">generic_update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        generic update method passes parameters to subordinate objects</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            params (lmfit.Parameters)</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            bool: True</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">params</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">params</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">value</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">value</span>
+
+        <span class="c1"># make sure dependent variables are updated</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">update</span><span class="p">()</span>
+
+        <span class="c1"># push new values down to PdfPhases, PdfData objects</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;phases&#39;</span><span class="p">,</span> <span class="s1">&#39;data&#39;</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">upper_to_lower</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">specifier</span><span class="o">=</span><span class="s1">&#39;params&#39;</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="c1"># push new values down to Phase object</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">phases</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">v</span><span class="o">.</span><span class="n">upper_to_lower</span><span class="p">(</span><span class="s1">&#39;phase&#39;</span><span class="p">,</span> <span class="n">specifier</span><span class="o">=</span><span class="s1">&#39;params&#39;</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="c1"># push values down to Structure and Transition objects</span>
+            <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">v</span><span class="o">.</span><span class="n">phase</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+                <span class="n">s</span><span class="o">.</span><span class="n">phase_to_trans</span><span class="p">()</span>
+                <span class="n">s</span><span class="o">.</span><span class="n">phase_to_structure</span><span class="p">()</span>
+        <span class="k">return</span> <span class="kc">True</span></div>
+
+<div class="viewcode-block" id="PdfRefinement.residual_method"><a class="viewcode-back" href="../../rst/pairdistributionfunction.html#mstack.pairdistributionfunction.PdfRefinement.residual_method">[docs]</a>    <span class="k">def</span> <span class="nf">residual_method</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>  <span class="c1"># , **kwargs):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        For each phase in refinement, get DIFFaX pattern and calculate residual</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            params (lmfit.Parameters)</span>
+<span class="sd">            kws: see below</span>
+
+<span class="sd">        kws:</span>
+<span class="sd">            subdir: subdirectory</span>
+<span class="sd">            plot_resid: real-time residual plotting (pass thru to callback)</span>
+<span class="sd">            sqrt_filter: sounds silly, actually just compare sqrt intensities</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            np.array: residual with length of data</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># get members of interest</span>
+        <span class="c1"># ~! migrated to phase_composite method</span>
+
+        <span class="c1"># get difference</span>
+        <span class="n">diff</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">subtract</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">yo</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">yc</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">resd</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">data</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">diff</span><span class="p">)})</span>
+        <span class="k">return</span> <span class="kc">True</span></div>
+
+<div class="viewcode-block" id="PdfRefinement.rwp"><a class="viewcode-back" href="../../rst/pairdistributionfunction.html#mstack.pairdistributionfunction.PdfRefinement.rwp">[docs]</a>    <span class="k">def</span> <span class="nf">rwp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        calculate rwp for the refinement (utilities method)</span>
+<span class="sd">        Note:</span>
+<span class="sd">            ~! not suitable for multiple data</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">rv</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">rwp</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">rv</span></div>
+
+<div class="viewcode-block" id="PdfRefinement.objective_function"><a class="viewcode-back" href="../../rst/pairdistributionfunction.html#mstack.pairdistributionfunction.PdfRefinement.objective_function">[docs]</a>    <span class="k">def</span> <span class="nf">objective_function</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Note:</span>
+<span class="sd">            individual residuals aren&#39;t returned for each data set. I&#39;m not</span>
+<span class="sd">            sure how to introduce a weighting scheme yet (all data equally</span>
+<span class="sd">            weighted).</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            params (lmfit.Parameters)</span>
+<span class="sd">            kwargs: see below</span>
+
+<span class="sd">        kwargs:</span>
+<span class="sd">            -subdir: subdirectory</span>
+<span class="sd">            -plot_resid: real-time residual plotting (pass thru to callback)</span>
+
+<span class="sd">        Returns: **sum_i**{residual_i} for i in phases</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># self.generic_update(params)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">generic_update</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+
+        <span class="c1"># ~! Future feature: gr skipping if no relevant var change</span>
+        <span class="n">recalc</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="c1"># get phase composites and residuals</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">res</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([])</span>
+        <span class="k">for</span> <span class="n">d_key</span><span class="p">,</span> <span class="n">dat</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">dat</span><span class="o">.</span><span class="n">use</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">phase_composite</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">phases</span><span class="p">,</span> <span class="n">dat</span><span class="p">,</span> <span class="n">recalc</span><span class="p">)</span>  <span class="c1"># get new G(r)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">residual_method</span><span class="p">(</span><span class="n">dat</span><span class="p">)</span>  <span class="c1"># get residual array</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_merge_add</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">resd</span><span class="p">[</span><span class="n">dat</span><span class="o">.</span><span class="n">name</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">res</span><span class="p">)</span>  <span class="c1"># self.res +=</span>
+
+        <span class="c1"># print type(self.res), sum(self.res ** 2)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">res</span></div>
+
+<div class="viewcode-block" id="PdfRefinement.callback"><a class="viewcode-back" href="../../rst/pairdistributionfunction.html#mstack.pairdistributionfunction.PdfRefinement.callback">[docs]</a>    <span class="k">def</span> <span class="nf">callback</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="nb">iter</span><span class="p">,</span> <span class="n">resid</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Add residual point to dynamic plot, model history</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            params (lmfit.Parameters):</span>
+<span class="sd">            iter (int): iteration number</span>
+<span class="sd">            resid (array): residual array</span>
+<span class="sd">            kws (dict): mostly ignored. use &quot;plot_resid&quot;(bool) to initiate</span>
+<span class="sd">                dynamic plot of residual vs. iteration</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            None</span>
+
+<span class="sd">        Note:</span>
+<span class="sd">            Return type is important in this case. I believe a return type of</span>
+<span class="sd">            True causes the minimization to abort.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># ~!</span>
+        <span class="c1"># print iter</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">iter</span> <span class="o">=</span> <span class="nb">iter</span>
+
+        <span class="c1"># add R-value to refinement.hist</span>
+        <span class="n">average_length</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">average</span><span class="p">([</span><span class="nb">len</span><span class="p">(</span><span class="n">k</span><span class="o">.</span><span class="n">data</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">values</span><span class="p">()])</span>
+        <span class="n">redchi</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">resid</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">/</span> <span class="p">(</span><span class="n">average_length</span> <span class="o">-</span>
+                     <span class="nb">len</span><span class="p">([</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">vary</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">])))</span>
+        <span class="c1"># self.Rwp = np.sqrt(sum(resid **2) / sum(w_m * [self.data.values()[0].data[:, 1] **2])</span>
+
+        <span class="c1"># append history</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">hist</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">hist</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">redchi</span><span class="p">))</span>
+        <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">hist</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="nb">iter</span><span class="p">,</span> <span class="n">redchi</span><span class="p">))</span>
+
+        <span class="c1"># ocassionally announce redchi</span>
+        <span class="c1"># if iter % 10 == 0:</span>
+        <span class="nb">print</span> <span class="s1">&#39;redchi(</span><span class="si">%0d</span><span class="s1">): </span><span class="si">%.4E</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="nb">iter</span><span class="p">,</span> <span class="n">redchi</span><span class="p">)</span>
+
+        <span class="c1"># acccept kwarg to toggle residual plotting on (expensive, timewise)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;plot_resid&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">iter</span> <span class="o">%</span> <span class="mi">1</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>  <span class="c1"># don&#39;t mind the sillyness</span>
+                    <span class="c1"># dynamic plot iter, R-value</span>
+                    <span class="n">A</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hist</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">DynamicPlot</span><span class="p">(</span><span class="n">A</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">A</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">])</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="c1"># not required</span>
+            <span class="k">pass</span>
+
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        # ~! rv = True aborts minimization</span>
+<span class="sd">        if iter == 1:</span>
+<span class="sd">            return True</span>
+<span class="sd">        &#39;&#39;&#39;</span></div>
+
+<div class="viewcode-block" id="PdfRefinement.lsq_minimize"><a class="viewcode-back" href="../../rst/pairdistributionfunction.html#mstack.pairdistributionfunction.PdfRefinement.lsq_minimize">[docs]</a>    <span class="k">def</span> <span class="nf">lsq_minimize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subdir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">plot_resid</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                     <span class="n">epsfcn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">xtol</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">sqrt_filter</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                     <span class="n">method</span><span class="o">=</span><span class="s1">&#39;leastsq&#39;</span><span class="p">,</span> <span class="n">minkws</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Wrapper for lmfit least_squares method (Levenberg-Marquardt)</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            subdir (str): directory to put the DIFFaX input/output into.</span>
+<span class="sd">            plot_resid (bool): toggle dynamic plotting of R vs. iter.</span>
+<span class="sd">            epsfcn (float): \(default = 1e-02\) if step-length is too small the</span>
+<span class="sd">                mininimizer may not progress as no Jacobian is calculated.</span>
+<span class="sd">            xtol (float): \(default = 1e-04\) convergence criterion for the approximate solution.</span>
+<span class="sd">            method (str): \(default = leastsq\) optimizer method (i.e. leastsq, nelder, lbfgsb)</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            np.array([(yo-yc)])</span>
+
+<span class="sd">        Note:</span>
+<span class="sd">            See the SciPy minimizer documentation for full list of minimizer methods.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># kws to pass</span>
+        <span class="n">kws</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;subdir&#39;</span><span class="p">:</span> <span class="n">subdir</span><span class="p">,</span> <span class="s1">&#39;plot_resid&#39;</span><span class="p">:</span> <span class="n">plot_resid</span><span class="p">,</span> <span class="s1">&#39;sqrt_filter&#39;</span><span class="p">:</span> <span class="n">sqrt_filter</span><span class="p">}</span>
+        <span class="n">minkws</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="k">if</span> <span class="n">method</span> <span class="o">==</span> <span class="s1">&#39;leastsq&#39;</span><span class="p">:</span>
+            <span class="c1"># set step-length</span>
+            <span class="k">if</span> <span class="n">epsfcn</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">epsfcn</span> <span class="o">=</span> <span class="n">epsfcn</span>
+            <span class="k">elif</span> <span class="n">epsfcn</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">epsfcn</span> <span class="o">=</span> <span class="mi">1</span><span class="n">e</span><span class="o">-</span><span class="mi">02</span>
+
+            <span class="c1"># set convergence criterion</span>
+            <span class="k">if</span> <span class="n">xtol</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">xtol</span> <span class="o">=</span> <span class="n">xtol</span>
+            <span class="k">elif</span> <span class="n">xtol</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">xtol</span> <span class="o">=</span> <span class="mi">1</span><span class="n">e</span><span class="o">-</span><span class="mi">04</span>
+
+            <span class="n">minkws</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;epsfcn&#39;</span><span class="p">:</span> <span class="n">epsfcn</span><span class="p">,</span> <span class="s1">&#39;xtol&#39;</span><span class="p">:</span> <span class="n">xtol</span><span class="p">})</span>
+        <span class="c1"># minimizer kws</span>
+        <span class="n">minkws</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">minkws</span><span class="p">)</span>
+
+        <span class="c1"># begin minimization</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">start</span> <span class="o">=</span> <span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%c</span><span class="s1">&#39;</span><span class="p">)</span>  <span class="c1"># initial time</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">original</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">report_refined</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>  <span class="c1"># copy original param values</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">backup</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>  <span class="c1"># copy original params instance</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">result</span> <span class="o">=</span> <span class="n">lmfit</span><span class="o">.</span><span class="n">minimize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">objective_function</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">,</span>
+                                     <span class="n">kws</span><span class="o">=</span><span class="n">kws</span><span class="p">,</span> <span class="n">iter_cb</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">callback</span><span class="p">,</span>
+                                     <span class="n">method</span><span class="o">=</span><span class="n">method</span><span class="p">,</span> <span class="o">**</span><span class="n">minkws</span><span class="p">)</span>
+
+        <span class="c1"># end of minimization</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">end</span> <span class="o">=</span> <span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%c</span><span class="s1">&#39;</span><span class="p">)</span>  <span class="c1"># end time</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">final</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">report_refined</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">result</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>  <span class="c1"># final values</span>
+        <span class="k">for</span> <span class="n">d_key</span><span class="p">,</span> <span class="n">dat</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">plot_min_result</span><span class="p">(</span><span class="n">dat</span><span class="p">)</span>  <span class="c1"># plot of result</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">report</span> <span class="o">=</span> <span class="n">lmfit</span><span class="o">.</span><span class="n">fit_report</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">result</span><span class="p">,</span> <span class="n">min_correl</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>  <span class="c1"># fit report</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">filter_report</span><span class="p">(</span><span class="n">variable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">constrained</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>  <span class="c1"># contracted version</span>
+
+        <span class="c1"># output cif file for inspection (overwritten each minimization call)</span>
+        <span class="k">for</span> <span class="n">pha</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">phases</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">pha</span><span class="o">.</span><span class="n">phase</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+                <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">p</span><span class="o">.</span><span class="n">structures</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                    <span class="n">p</span><span class="o">.</span><span class="n">pub_cif</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">rwp</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="PdfRefinement.validate_diffev"><a class="viewcode-back" href="../../rst/pairdistributionfunction.html#mstack.pairdistributionfunction.PdfRefinement.validate_diffev">[docs]</a>    <span class="k">def</span> <span class="nf">validate_diffev</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Differential evolution requires min/max values to be supplied for all</span>
+<span class="sd">        variables, not just those that are refined.</span>
+
+<span class="sd">        This function coerces min/max values from supplied information if none</span>
+<span class="sd">        are given by the user.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            True</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># check for None in .values</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">k</span><span class="o">.</span><span class="n">value</span> <span class="o">==</span> <span class="n">s</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="s1">&#39;-inf&#39;</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="s1">&#39;inf&#39;</span><span class="p">),</span> <span class="kc">None</span><span class="p">]):</span>
+                <span class="n">k</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="mf">0.0</span>
+                <span class="c1"># ~! print k.name, k.value</span>
+
+        <span class="c1"># set min/max arbitrarily at +/- 25% if values not supplied</span>
+        <span class="k">for</span> <span class="n">par</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">par</span><span class="o">.</span><span class="n">value</span>
+            <span class="n">m</span> <span class="o">=</span> <span class="p">[</span><span class="n">value</span> <span class="o">*</span> <span class="mf">0.75</span><span class="p">,</span> <span class="n">value</span> <span class="o">*</span> <span class="mf">1.25</span><span class="p">]</span>
+            <span class="n">expr</span> <span class="o">=</span> <span class="n">par</span><span class="o">.</span><span class="n">expr</span>
+            <span class="c1"># ~! print k, m</span>
+            <span class="k">if</span> <span class="nb">min</span><span class="p">(</span><span class="n">m</span><span class="p">)</span> <span class="o">==</span> <span class="nb">max</span><span class="p">(</span><span class="n">m</span><span class="p">):</span>  <span class="c1"># as in the case of value = 0.0</span>
+                <span class="n">m</span> <span class="o">=</span> <span class="p">[</span><span class="nb">min</span><span class="p">(</span><span class="n">m</span><span class="p">),</span> <span class="nb">min</span><span class="p">(</span><span class="n">m</span><span class="p">)</span> <span class="o">+</span> <span class="mf">0.0001</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">par</span><span class="o">.</span><span class="n">min</span> <span class="o">==</span> <span class="n">s</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="s1">&#39;-inf&#39;</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="s1">&#39;inf&#39;</span><span class="p">),</span> <span class="kc">None</span><span class="p">]):</span>
+                <span class="n">par</span><span class="o">.</span><span class="n">min</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">m</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">par</span><span class="o">.</span><span class="n">max</span> <span class="o">==</span> <span class="n">s</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="s1">&#39;-inf&#39;</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="s1">&#39;inf&#39;</span><span class="p">),</span> <span class="kc">None</span><span class="p">]):</span>
+                <span class="n">par</span><span class="o">.</span><span class="n">max</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">m</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">par</span><span class="o">.</span><span class="n">expr</span> <span class="o">!=</span> <span class="n">expr</span><span class="p">:</span>
+                <span class="n">par</span><span class="o">.</span><span class="n">expr</span> <span class="o">=</span> <span class="n">expr</span>
+
+        <span class="c1"># screen for infinities</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">u</span><span class="o">.</span><span class="n">report_refined</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">min</span> <span class="o">==</span> <span class="n">s</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="s1">&#39;-inf&#39;</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="s1">&#39;inf&#39;</span><span class="p">),</span> <span class="kc">None</span><span class="p">]):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">dump_params</span><span class="p">(</span><span class="n">u</span><span class="o">.</span><span class="n">report_refined</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">))</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;variables must be bounded for differential evolution&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">max</span> <span class="o">==</span> <span class="n">s</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="s1">&#39;-inf&#39;</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="s1">&#39;inf&#39;</span><span class="p">),</span> <span class="kc">None</span><span class="p">]):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">dump_params</span><span class="p">(</span><span class="n">u</span><span class="o">.</span><span class="n">report_refined</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">))</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;variables must be bounded for differential evolution&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">min</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;refinement.validate_diffev still not correcting min == max&#39;</span><span class="p">)</span>
+
+        <span class="c1"># if everything passes, return True</span>
+        <span class="c1"># ~! print &#39;\n\n\n\n\n\n\n end of validate diffev \n\n\n\n\n\n\n&#39;</span>
+        <span class="c1"># push updated variables</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">generic_update</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">True</span></div>
+
+<div class="viewcode-block" id="PdfRefinement.diffev_minimize"><a class="viewcode-back" href="../../rst/pairdistributionfunction.html#mstack.pairdistributionfunction.PdfRefinement.diffev_minimize">[docs]</a>    <span class="k">def</span> <span class="nf">diffev_minimize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subdir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">plot_resid</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">sqrt_filter</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                        <span class="n">disp</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">popsize</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">mutation</span><span class="o">=</span><span class="p">(</span><span class="mf">0.4</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">),</span>
+                        <span class="n">recombination</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">polish</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">u&quot;&quot;&quot;</span>
+<span class="sd">        Wrapper for lmfit differential_evolution method (global minimization).</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            subdir (str):  directory to stash output files</span>
+<span class="sd">            plot_resid (bool): plot residual vs. iteration</span>
+<span class="sd">            sqrt_filter (bool): plot data scaled by (Yobs) ** 1/2</span>
+<span class="sd">            disp (bool): I forget</span>
+<span class="sd">            popsize (int): see below</span>
+<span class="sd">            tol (float): see below</span>
+<span class="sd">            mutation (tuple): see below</span>
+<span class="sd">            recombination (float): see below</span>
+<span class="sd">            seed (lmfit.Parameter?): see below</span>
+<span class="sd">            polish (bool): follow DIFFEV opt by least squares</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            * np.array([sqrt(yo) - sqrt(yc)]) if sqrt_filter is True</span>
+<span class="sd">            * np.array([yo-yc]) if sqrt_filter is False</span>
+
+<span class="sd">        see scipy.optimize.differential_evolution for compete list of minimizer keys &amp; descriptions</span>
+
+<span class="sd">        Notes:</span>
+<span class="sd">            Differential evolution is a stochastic population based method that is useful for</span>
+<span class="sd">            global optimization problems. At each pass through the population the algorithm</span>
+<span class="sd">            mutates each candidate solution by mixing with other candidate solutions to create</span>
+<span class="sd">            a trial candidate. There are several strategies [R141] for creating trial candidates,</span>
+<span class="sd">            which suit some problems more than others. The ‘best1bin’ strategy is a good</span>
+<span class="sd">            starting point for many systems. In this strategy two members of the population are</span>
+<span class="sd">            randomly chosen. Their difference is used to mutate the best member</span>
+<span class="sd">            (the best in best1bin), b0, so far:</span>
+
+
+<span class="sd">            b’ = b0 + mutation \∗ (population[rand0] − population[rand1])</span>
+
+<span class="sd">            A trial vector is then constructed. Starting with a randomly chosen ‘i’th parameter</span>
+<span class="sd">            the trial is sequentially filled (in modulo) with parameters from b’ or the original</span>
+<span class="sd">            candidate. The choice of whether to use b’ or the original candidate is made</span>
+<span class="sd">            with a binomial distribution  (the ‘bin’ in ‘best1bin’) - a random number in [0, 1)</span>
+<span class="sd">            is generated. If this number is less than the recombination constant then the parameter</span>
+<span class="sd">            is loaded from b’, otherwise it is loaded from the original candidate. The final parameter</span>
+<span class="sd">            is always loaded from b’. Once the trial candidate is built its fitness is assessed.</span>
+<span class="sd">            If the trial is better than the original candidate then it takes its place.</span>
+<span class="sd">            If it is also better than the best overall candidate it also replaces that.</span>
+<span class="sd">            To improve your chances of finding a global minimum use higher popsize values,</span>
+<span class="sd">            with higher mutation and (dithering), but lower recombination values.</span>
+<span class="sd">            This has the effect of widening the search radius, but slowing convergence.</span>
+
+<span class="sd">            [R140]: Storn, R and Price, K, \&quot;Differential Evolution - a Simple and Efficient Heuristic for Global \</span>
+<span class="sd">                    Optimization over Continuous Spaces,\&quot; *Journal of Global Optimization* 11, 341 - 359 (1997).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">kws</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;subdir&#39;</span><span class="p">:</span> <span class="n">subdir</span><span class="p">,</span> <span class="s1">&#39;plot_resid&#39;</span><span class="p">:</span> <span class="n">plot_resid</span><span class="p">,</span> <span class="s1">&#39;sqrt_filter&#39;</span><span class="p">:</span> <span class="n">sqrt_filter</span><span class="p">}</span>
+
+        <span class="c1"># begin minimization</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">validate_diffev</span><span class="p">()</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">start</span> <span class="o">=</span> <span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%c</span><span class="s1">&#39;</span><span class="p">)</span>  <span class="c1"># initial time</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">original</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">report_refined</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>  <span class="c1"># copy original param values</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">backup</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>  <span class="c1"># copy original params instance</span>
+
+            <span class="c1"># (func, params [, args [, kws [, method [, scale_covar [, iter_cb [, **fit_kws]]]]]])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">result</span> <span class="o">=</span> <span class="n">lmfit</span><span class="o">.</span><span class="n">minimize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">objective_function</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">,</span>
+                                         <span class="n">kws</span><span class="o">=</span><span class="n">kws</span><span class="p">,</span> <span class="n">iter_cb</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">callback</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">&#39;differential_evolution&#39;</span><span class="p">,</span>
+                                         <span class="o">**</span><span class="p">{</span><span class="s1">&#39;disp&#39;</span><span class="p">:</span> <span class="n">disp</span><span class="p">,</span> <span class="s1">&#39;popsize&#39;</span><span class="p">:</span> <span class="n">popsize</span><span class="p">,</span> <span class="s1">&#39;tol&#39;</span><span class="p">:</span> <span class="n">tol</span><span class="p">,</span>
+                                            <span class="s1">&#39;mutation&#39;</span><span class="p">:</span> <span class="n">mutation</span><span class="p">,</span> <span class="s1">&#39;recombindation&#39;</span><span class="p">:</span> <span class="n">recombination</span><span class="p">,</span>
+                                            <span class="s1">&#39;seed&#39;</span><span class="p">:</span> <span class="n">seed</span><span class="p">,</span> <span class="s1">&#39;polish&#39;</span><span class="p">:</span> <span class="n">polish</span><span class="p">})</span>
+
+            <span class="c1"># end of minimization</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">end</span> <span class="o">=</span> <span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%c</span><span class="s1">&#39;</span><span class="p">)</span>  <span class="c1"># end time</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">final</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">report_refined</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">result</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>  <span class="c1"># final values</span>
+            <span class="k">for</span> <span class="n">d_key</span><span class="p">,</span> <span class="n">dat</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">plot_min_result</span><span class="p">(</span><span class="n">dat</span><span class="p">)</span>  <span class="c1"># plot of result</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">report</span> <span class="o">=</span> <span class="n">lmfit</span><span class="o">.</span><span class="n">fit_report</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">result</span><span class="p">,</span> <span class="n">min_correl</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>  <span class="c1"># fit report</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">filter_report</span><span class="p">(</span><span class="n">variable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">constrained</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>  <span class="c1"># contracted version</span>
+
+            <span class="c1"># output cif file for inspection (overwritten each minimization call)</span>
+            <span class="k">for</span> <span class="n">pha</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">phases</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+                <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">pha</span><span class="o">.</span><span class="n">phase</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+                    <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">p</span><span class="o">.</span><span class="n">structures</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                        <span class="n">p</span><span class="o">.</span><span class="n">pub_cif</span><span class="p">(</span><span class="n">s</span><span class="p">)</span></div></div>
+
+    <span class="c1"># End of PdfRefinement ##########</span>
+
+<span class="c1"># EOF ##########################</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Peter C Metz.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.5.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.9</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

@@ -1,0 +1,156 @@
+\indexentry{mstack.background (module)|hyperpage}{5}
+\indexentry{inv\_x\_plus\_poly3() (in module mstack.background)|hyperpage}{5}
+\indexentry{mstack.interface (module)|hyperpage}{5}
+\indexentry{Interface (class in mstack.interface)|hyperpage}{5}
+\indexentry{\_\_init\_\_() (mstack.interface.Interface method)|hyperpage}{5}
+\indexentry{add() (mstack.interface.Interface method)|hyperpage}{5}
+\indexentry{expand\_supercell() (mstack.interface.Interface method)|hyperpage}{5}
+\indexentry{is\_Uiso() (mstack.interface.Interface method)|hyperpage}{6}
+\indexentry{to\_cif() (mstack.interface.Interface method)|hyperpage}{6}
+\indexentry{update\_phases() (mstack.interface.Interface method)|hyperpage}{6}
+\indexentry{is\_dict() (in module mstack.interface)|hyperpage}{6}
+\indexentry{mstack.pairdistributionfunction (module)|hyperpage}{6}
+\indexentry{not\_implemented() (in module mstack.pairdistributionfunction)|hyperpage}{6}
+\indexentry{name\_check() (in module mstack.pairdistributionfunction)|hyperpage}{6}
+\indexentry{load() (in module mstack.pairdistributionfunction)|hyperpage}{6}
+\indexentry{PdfData (class in mstack.pairdistributionfunction)|hyperpage}{6}
+\indexentry{\_\_init\_\_() (mstack.pairdistributionfunction.PdfData method)|hyperpage}{7}
+\indexentry{update\_data() (mstack.pairdistributionfunction.PdfData method)|hyperpage}{7}
+\indexentry{PdfModel (class in mstack.pairdistributionfunction)|hyperpage}{7}
+\indexentry{\_\_init\_\_() (mstack.pairdistributionfunction.PdfModel method)|hyperpage}{7}
+\indexentry{PdfRefinement (class in mstack.pairdistributionfunction)|hyperpage}{8}
+\indexentry{\_\_init\_\_() (mstack.pairdistributionfunction.PdfRefinement method)|hyperpage}{8}
+\indexentry{apply\_sheetcf() (mstack.pairdistributionfunction.PdfRefinement method)|hyperpage}{8}
+\indexentry{apply\_sphericalcf() (mstack.pairdistributionfunction.PdfRefinement method)|hyperpage}{9}
+\indexentry{calculator() (mstack.pairdistributionfunction.PdfRefinement method)|hyperpage}{9}
+\indexentry{callback() (mstack.pairdistributionfunction.PdfRefinement method)|hyperpage}{9}
+\indexentry{diffev\_minimize() (mstack.pairdistributionfunction.PdfRefinement method)|hyperpage}{9}
+\indexentry{dim\_check() (mstack.pairdistributionfunction.PdfRefinement method)|hyperpage}{10}
+\indexentry{filter\_report() (mstack.pairdistributionfunction.PdfRefinement method)|hyperpage}{10}
+\indexentry{generic\_update() (mstack.pairdistributionfunction.PdfRefinement method)|hyperpage}{10}
+\indexentry{lsq\_minimize() (mstack.pairdistributionfunction.PdfRefinement method)|hyperpage}{11}
+\indexentry{map\_exp\_calc() (mstack.pairdistributionfunction.PdfRefinement method)|hyperpage}{11}
+\indexentry{merge\_add() (mstack.pairdistributionfunction.PdfRefinement method)|hyperpage}{11}
+\indexentry{model\_composite() (mstack.pairdistributionfunction.PdfRefinement method)|hyperpage}{11}
+\indexentry{objective\_function() (mstack.pairdistributionfunction.PdfRefinement method)|hyperpage}{11}
+\indexentry{phase\_composite() (mstack.pairdistributionfunction.PdfRefinement method)|hyperpage}{12}
+\indexentry{plot\_min\_result() (mstack.pairdistributionfunction.PdfRefinement method)|hyperpage}{12}
+\indexentry{report\_refined() (mstack.pairdistributionfunction.PdfRefinement method)|hyperpage}{12}
+\indexentry{reset() (mstack.pairdistributionfunction.PdfRefinement method)|hyperpage}{12}
+\indexentry{residual\_method() (mstack.pairdistributionfunction.PdfRefinement method)|hyperpage}{13}
+\indexentry{revert() (mstack.pairdistributionfunction.PdfRefinement method)|hyperpage}{13}
+\indexentry{rwp() (mstack.pairdistributionfunction.PdfRefinement method)|hyperpage}{13}
+\indexentry{save() (mstack.pairdistributionfunction.PdfRefinement method)|hyperpage}{13}
+\indexentry{update\_data() (mstack.pairdistributionfunction.PdfRefinement method)|hyperpage}{13}
+\indexentry{update\_phases() (mstack.pairdistributionfunction.PdfRefinement method)|hyperpage}{13}
+\indexentry{validate\_diffev() (mstack.pairdistributionfunction.PdfRefinement method)|hyperpage}{13}
+\indexentry{mstack.refinement (module)|hyperpage}{13}
+\indexentry{load() (in module mstack.refinement)|hyperpage}{14}
+\indexentry{Refinement (class in mstack.refinement)|hyperpage}{14}
+\indexentry{\_\_init\_\_() (mstack.refinement.Refinement method)|hyperpage}{14}
+\indexentry{callback() (mstack.refinement.Refinement method)|hyperpage}{15}
+\indexentry{diffev\_minimize() (mstack.refinement.Refinement method)|hyperpage}{15}
+\indexentry{filter\_report() (mstack.refinement.Refinement method)|hyperpage}{16}
+\indexentry{flag() (mstack.refinement.Refinement method)|hyperpage}{16}
+\indexentry{generic\_update() (mstack.refinement.Refinement method)|hyperpage}{16}
+\indexentry{lsq\_minimize() (mstack.refinement.Refinement method)|hyperpage}{16}
+\indexentry{map\_calc\_exp\_background() (mstack.refinement.Refinement method)|hyperpage}{17}
+\indexentry{plot\_min\_result() (mstack.refinement.Refinement method)|hyperpage}{17}
+\indexentry{preview() (mstack.refinement.Refinement method)|hyperpage}{17}
+\indexentry{pub\_control() (mstack.refinement.Refinement method)|hyperpage}{17}
+\indexentry{pub\_input() (mstack.refinement.Refinement method)|hyperpage}{17}
+\indexentry{report\_constrained() (mstack.refinement.Refinement method)|hyperpage}{17}
+\indexentry{report\_refined() (mstack.refinement.Refinement method)|hyperpage}{17}
+\indexentry{reset() (mstack.refinement.Refinement method)|hyperpage}{17}
+\indexentry{residual\_method() (mstack.refinement.Refinement method)|hyperpage}{18}
+\indexentry{revert() (mstack.refinement.Refinement method)|hyperpage}{18}
+\indexentry{rwp() (mstack.refinement.Refinement method)|hyperpage}{18}
+\indexentry{save() (mstack.refinement.Refinement method)|hyperpage}{18}
+\indexentry{update\_background() (mstack.refinement.Refinement method)|hyperpage}{18}
+\indexentry{update\_broadening() (mstack.refinement.Refinement method)|hyperpage}{18}
+\indexentry{update\_phase() (mstack.refinement.Refinement method)|hyperpage}{18}
+\indexentry{update\_phase\_params() (mstack.refinement.Refinement method)|hyperpage}{18}
+\indexentry{update\_theta\_range() (mstack.refinement.Refinement method)|hyperpage}{19}
+\indexentry{update\_weights() (mstack.refinement.Refinement method)|hyperpage}{19}
+\indexentry{validate\_diffev() (mstack.refinement.Refinement method)|hyperpage}{19}
+\indexentry{weighted\_composite() (mstack.refinement.Refinement method)|hyperpage}{19}
+\indexentry{mstack.structure (module)|hyperpage}{19}
+\indexentry{build\_cif() (in module mstack.structure)|hyperpage}{19}
+\indexentry{Atom (class in mstack.structure)|hyperpage}{20}
+\indexentry{\_\_init\_\_() (mstack.structure.Atom method)|hyperpage}{20}
+\indexentry{Structure (class in mstack.structure)|hyperpage}{20}
+\indexentry{\_\_init\_\_() (mstack.structure.Structure method)|hyperpage}{20}
+\indexentry{get\_all\_par() (mstack.structure.Structure method)|hyperpage}{21}
+\indexentry{get\_atom\_par() (mstack.structure.Structure method)|hyperpage}{21}
+\indexentry{lattice\_angles() (mstack.structure.Structure method)|hyperpage}{21}
+\indexentry{lattice\_params() (mstack.structure.Structure method)|hyperpage}{21}
+\indexentry{merge\_adp() (mstack.structure.Structure method)|hyperpage}{21}
+\indexentry{parameters() (mstack.structure.Structure method)|hyperpage}{21}
+\indexentry{Phase (class in mstack.structure)|hyperpage}{22}
+\indexentry{\_\_init\_\_() (mstack.structure.Phase method)|hyperpage}{22}
+\indexentry{initialize\_structure\_params() (mstack.structure.Phase method)|hyperpage}{22}
+\indexentry{pub\_control() (mstack.structure.Phase method)|hyperpage}{22}
+\indexentry{pub\_input() (mstack.structure.Phase method)|hyperpage}{22}
+\indexentry{report\_refined() (mstack.structure.Phase method)|hyperpage}{23}
+\indexentry{toggle() (mstack.structure.Phase method)|hyperpage}{23}
+\indexentry{update\_mcl() (mstack.structure.Phase method)|hyperpage}{23}
+\indexentry{update\_structures() (mstack.structure.Phase method)|hyperpage}{23}
+\indexentry{update\_transitions() (mstack.structure.Phase method)|hyperpage}{23}
+\indexentry{mstack.supercell (module)|hyperpage}{23}
+\indexentry{pub\_cif() (in module mstack.supercell)|hyperpage}{23}
+\indexentry{pub\_xyz() (in module mstack.supercell)|hyperpage}{23}
+\indexentry{supercell() (in module mstack.supercell)|hyperpage}{24}
+\indexentry{Transition (class in mstack.transition)|hyperpage}{24}
+\indexentry{\_\_init\_\_() (mstack.transition.Transition method)|hyperpage}{24}
+\indexentry{generic() (mstack.transition.Transition method)|hyperpage}{25}
+\indexentry{scale\_cij() (mstack.transition.Transition method)|hyperpage}{25}
+\indexentry{update\_alpij() (mstack.transition.Transition method)|hyperpage}{25}
+\indexentry{update\_cij() (mstack.transition.Transition method)|hyperpage}{25}
+\indexentry{update\_vector() (mstack.transition.Transition method)|hyperpage}{25}
+\indexentry{Transitions (class in mstack.transition)|hyperpage}{25}
+\indexentry{\_\_init\_\_() (mstack.transition.Transitions method)|hyperpage}{25}
+\indexentry{pub\_trans() (mstack.transition.Transitions method)|hyperpage}{26}
+\indexentry{row\_normal() (mstack.transition.Transitions method)|hyperpage}{26}
+\indexentry{todict() (mstack.transition.Transitions method)|hyperpage}{26}
+\indexentry{update\_transitions() (mstack.transition.Transitions method)|hyperpage}{26}
+\indexentry{validate\_transitions() (mstack.transition.Transitions method)|hyperpage}{26}
+\indexentry{mstack.utilities (module)|hyperpage}{26}
+\indexentry{DynamicPlot (class in mstack.utilities)|hyperpage}{26}
+\indexentry{\_\_init\_\_() (mstack.utilities.DynamicPlot method)|hyperpage}{26}
+\indexentry{on\_launch() (mstack.utilities.DynamicPlot method)|hyperpage}{26}
+\indexentry{on\_running() (mstack.utilities.DynamicPlot method)|hyperpage}{26}
+\indexentry{MergeParams (class in mstack.utilities)|hyperpage}{26}
+\indexentry{add\_set\_params() (mstack.utilities.MergeParams method)|hyperpage}{27}
+\indexentry{exists() (mstack.utilities.MergeParams method)|hyperpage}{27}
+\indexentry{lower\_to\_upper() (mstack.utilities.MergeParams method)|hyperpage}{27}
+\indexentry{param\_finder() (mstack.utilities.MergeParams method)|hyperpage}{27}
+\indexentry{upper\_to\_lower() (mstack.utilities.MergeParams method)|hyperpage}{27}
+\indexentry{UpdateMethods (class in mstack.utilities)|hyperpage}{27}
+\indexentry{initialize() (mstack.utilities.UpdateMethods method)|hyperpage}{28}
+\indexentry{update() (mstack.utilities.UpdateMethods method)|hyperpage}{28}
+\indexentry{update\_with\_limits() (mstack.utilities.UpdateMethods method)|hyperpage}{28}
+\indexentry{update\_with\_lmfit() (mstack.utilities.UpdateMethods method)|hyperpage}{28}
+\indexentry{attributegetter() (in module mstack.utilities)|hyperpage}{28}
+\indexentry{checkequal() (in module mstack.utilities)|hyperpage}{28}
+\indexentry{filter\_report() (in module mstack.utilities)|hyperpage}{28}
+\indexentry{flatten() (in module mstack.utilities)|hyperpage}{28}
+\indexentry{interpolate\_data() (in module mstack.utilities)|hyperpage}{28}
+\indexentry{isfinite() (in module mstack.utilities)|hyperpage}{28}
+\indexentry{not\_header() (in module mstack.utilities)|hyperpage}{29}
+\indexentry{plot() (in module mstack.utilities)|hyperpage}{29}
+\indexentry{print\_table() (in module mstack.utilities)|hyperpage}{29}
+\indexentry{read\_data() (in module mstack.utilities)|hyperpage}{29}
+\indexentry{report\_refined() (in module mstack.utilities)|hyperpage}{29}
+\indexentry{rwp() (in module mstack.utilities)|hyperpage}{30}
+\indexentry{DynamicPlot (class in mstack.utilities)|hyperpage}{30}
+\indexentry{\_\_init\_\_() (mstack.utilities.DynamicPlot method)|hyperpage}{30}
+\indexentry{on\_launch() (mstack.utilities.DynamicPlot method)|hyperpage}{30}
+\indexentry{on\_running() (mstack.utilities.DynamicPlot method)|hyperpage}{30}
+\indexentry{DynamicPlot (class in mstack.utilities)|hyperpage}{30}
+\indexentry{\_\_init\_\_() (mstack.utilities.DynamicPlot method)|hyperpage}{30}
+\indexentry{on\_launch() (mstack.utilities.DynamicPlot method)|hyperpage}{30}
+\indexentry{on\_running() (mstack.utilities.DynamicPlot method)|hyperpage}{30}
+\indexentry{DynamicPlot (class in mstack.utilities)|hyperpage}{30}
+\indexentry{\_\_init\_\_() (mstack.utilities.DynamicPlot method)|hyperpage}{31}
+\indexentry{on\_launch() (mstack.utilities.DynamicPlot method)|hyperpage}{31}
+\indexentry{on\_running() (mstack.utilities.DynamicPlot method)|hyperpage}{31}

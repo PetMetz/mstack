@@ -1,0 +1,849 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>pairdistributionfunction &#8212; MStack 0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="refinement" href="refinement.html" />
+    <link rel="prev" title="interface" href="interface.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body role="document">
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="module-pairdistributionfunction">
+<span id="pairdistributionfunction"></span><h1>pairdistributionfunction<a class="headerlink" href="#module-pairdistributionfunction" title="Permalink to this headline">¶</a></h1>
+<p>Created on Tue Apr 19 13:20:59 2016</p>
+<p>Designed to integrate lmfit/scipy differential evolution, existing structure
+tools, and diffpy PDF generator for global minimization of complex stacking
+disorered PDF data.</p>
+<p>&#64;author: Peter C Metz</p>
+<dl class="function">
+<dt id="pairdistributionfunction.not_implemented">
+<code class="descclassname">pairdistributionfunction.</code><code class="descname">not_implemented</code><span class="sig-paren">(</span><em>parameter</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pairdistributionfunction.html#not_implemented"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pairdistributionfunction.not_implemented" title="Permalink to this definition">¶</a></dt>
+<dd><p>raise exception if</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="pairdistributionfunction.name_check">
+<code class="descclassname">pairdistributionfunction.</code><code class="descname">name_check</code><span class="sig-paren">(</span><em>iteritem</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pairdistributionfunction.html#name_check"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pairdistributionfunction.name_check" title="Permalink to this definition">¶</a></dt>
+<dd><p>check if names in iteritem are unique</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="pairdistributionfunction.load">
+<code class="descclassname">pairdistributionfunction.</code><code class="descname">load</code><span class="sig-paren">(</span><em>filename</em>, <em>path=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pairdistributionfunction.html#load"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pairdistributionfunction.load" title="Permalink to this definition">¶</a></dt>
+<dd><p>load a pickled .dat file</p>
+<dl class="docutils">
+<dt>Note: if all modules needed by the refinement object are not imported at time of</dt>
+<dd>unpickling, there will likely be AttributeErrors thrown.</dd>
+<dt>~! actually, this is problematic. cPickle serializes class by reference, nor</dt>
+<dd>definition, so changinging the namespace (e.g. adding or removing modules
+to this program) will break the pickle.</dd>
+</dl>
+<p>upgrade to dill which serializes by definition</p>
+</dd></dl>
+
+<div class="section" id="pairdistributionfunction-pdfdata">
+<h2>pairdistributionfunction.PdfData<a class="headerlink" href="#pairdistributionfunction-pdfdata" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="pairdistributionfunction.PdfData">
+<em class="property">class </em><code class="descclassname">pairdistributionfunction.</code><code class="descname">PdfData</code><span class="sig-paren">(</span><em>name=None</em>, <em>data=None</em>, <em>qmax=None</em>, <em>qmin=None</em>, <em>qbroad=None</em>, <em>qdamp=None</em>, <em>scale=None</em>, <em>rmin=None</em>, <em>rmax=None</em>, <em>rstep=None</em>, <em>use=True</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pairdistributionfunction.html#PdfData"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pairdistributionfunction.PdfData" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="utilities.html#utilities.UpdateMethods" title="utilities.UpdateMethods"><code class="xref py py-class docutils literal"><span class="pre">utilities.UpdateMethods</span></code></a>, <a class="reference internal" href="utilities.html#utilities.MergeParams" title="utilities.MergeParams"><code class="xref py py-class docutils literal"><span class="pre">utilities.MergeParams</span></code></a></p>
+<p>A container for G(r) data which aggregates the miscellaneous necessary values.</p>
+<dl class="method">
+<dt id="pairdistributionfunction.PdfData.__init__">
+<code class="descname">__init__</code><span class="sig-paren">(</span><em>name=None</em>, <em>data=None</em>, <em>qmax=None</em>, <em>qmin=None</em>, <em>qbroad=None</em>, <em>qdamp=None</em>, <em>scale=None</em>, <em>rmin=None</em>, <em>rmax=None</em>, <em>rstep=None</em>, <em>use=True</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pairdistributionfunction.html#PdfData.__init__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pairdistributionfunction.PdfData.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>name</strong> (<em>*</em>) &#8211; as string</li>
+<li><strong>data</strong> (<em>*</em>) &#8211; as filepath or (filepath, column) or np.array</li>
+<li><strong>qmax</strong> (<em>*</em>) &#8211; as Å ** -1</li>
+<li><strong>qmin</strong> (<em>*</em>) &#8211; as Å ** -1</li>
+<li><strong>qbroad</strong> (<em>*</em>) &#8211; as Å?? look it up</li>
+<li><strong>qdamp</strong> (<em>*</em>) &#8211; as Å?? look it up</li>
+<li><strong>scale</strong> (<em>*</em>) &#8211; data scale factor</li>
+<li><strong>fit_min</strong> (<em>*</em>) &#8211; minimum r value for refinement as Å</li>
+<li><strong>fit_max</strong> (<em>*</em>) &#8211; maximum r value for refinement as Å</li>
+<li><strong>sampling</strong> (<em>*</em>) &#8211; sampling interval as float or &#8216;Nyquist&#8217;</li>
+<li><strong>use</strong> (<em>*</em>) &#8211; boolean flag for refinment</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pairdistributionfunction.PdfData.update_data">
+<code class="descname">update_data</code><span class="sig-paren">(</span><em>data</em>, <em>column=1</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pairdistributionfunction.html#PdfData.update_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pairdistributionfunction.PdfData.update_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>add/upate data  to data object</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>data</strong> (<em>*</em>) &#8211; file path or data array</li>
+<li><strong>column</strong> (<em>*</em>) &#8211; if read, read from column</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"><ul class="simple">
+<li>None</li>
+</ul>
+</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="pairdistributionfunction-pdfmodel">
+<h2>pairdistributionfunction.PdfModel<a class="headerlink" href="#pairdistributionfunction-pdfmodel" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="pairdistributionfunction.PdfModel">
+<em class="property">class </em><code class="descclassname">pairdistributionfunction.</code><code class="descname">PdfModel</code><span class="sig-paren">(</span><em>name=None</em>, <em>structure=None</em>, <em>scale=None</em>, <em>delta1=None</em>, <em>delta2=None</em>, <em>spdiameter=None</em>, <em>sthick=None</em>, <em>mno=None</em>, <em>use=True</em>, <em>sratio=None</em>, <em>rcut=None</em>, <em>stepcut=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pairdistributionfunction.html#PdfModel"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pairdistributionfunction.PdfModel" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="utilities.html#utilities.UpdateMethods" title="utilities.UpdateMethods"><code class="xref py py-class docutils literal"><span class="pre">utilities.UpdateMethods</span></code></a>, <a class="reference internal" href="utilities.html#utilities.MergeParams" title="utilities.MergeParams"><code class="xref py py-class docutils literal"><span class="pre">utilities.MergeParams</span></code></a></p>
+<p>A pdf_model is a single structure and the associated envelope parameters.
+(i.e. scale, Qres, spdiameter, correlated motion delta1|delta2).</p>
+<p>In the calculation sequence, model+data attributes spawn calculators by passing
+config dicts (i.e. PDFcalculator(<a href="#id1"><span class="problematic" id="id2">**</span></a>cfg)) which act on the contained diffpy.Structure
+to produce a PDF.</p>
+<p>pdf_models are subordinate to pdf_phases which are the corresponding object to
+reciprocal space objects</p>
+<dl class="method">
+<dt id="pairdistributionfunction.PdfModel.__init__">
+<code class="descname">__init__</code><span class="sig-paren">(</span><em>name=None</em>, <em>structure=None</em>, <em>scale=None</em>, <em>delta1=None</em>, <em>delta2=None</em>, <em>spdiameter=None</em>, <em>sthick=None</em>, <em>mno=None</em>, <em>use=True</em>, <em>sratio=None</em>, <em>rcut=None</em>, <em>stepcut=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pairdistributionfunction.html#PdfModel.__init__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pairdistributionfunction.PdfModel.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>name</strong> (<em>*</em>) &#8211; model name</li>
+<li><strong>structure</strong> (<em>*</em>) &#8211; a supercell generated from interface</li>
+<li><strong>scale</strong> (<em>*</em>) &#8211; scale factor</li>
+<li><strong>delta1</strong> (<em>*</em>) &#8211; [Å] component in the broadening equation below</li>
+<li><strong>delta2</strong> (<em>*</em>) &#8211; [Å ** 2] component in the broadening equation below</li>
+<li><strong>spdiameter</strong> (<em>*</em>) &#8211; [Å] particle diameter in analytic damping function for spherical nanoparticles.</li>
+<li><strong>sthick</strong> (<em>*</em>) &#8211; [Å] sheet thickness in analytic damping function (infinite width)</li>
+<li><strong>mno</strong> (<em>*</em>) &#8211; [int] (int, int, int) supercell dimensions for expansion of structures</li>
+<li><strong>use</strong> (<em>*</em>) &#8211; include in refinement?</li>
+<li><strong>sratio</strong> (<em>*</em>) &#8211; [-] sigma ratio for bonded atoms- peak sharpening due to correlated motion</li>
+<li><strong>rcut</strong> (<em>*</em>) &#8211; [Å] radius cutoff for application of sratio</li>
+<li><strong>stepcut</strong> (<em>*</em>) &#8211; [Å] distance above which G(r) is truncated</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<dl class="last docutils">
+<dt>peak width is given by the Jeong peak width model:</dt>
+<dd>σ_ij = σ&#8217;_ij * sqrt(1 - δ_1 / r_ij - δ_2 / r^2_ij + Q^2_broad * r^2_ij)</dd>
+</dl>
+</div>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="pairdistributionfunction-pdfrefinement">
+<h2>pairdistributionfunction.PdfRefinement<a class="headerlink" href="#pairdistributionfunction-pdfrefinement" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="pairdistributionfunction.PdfRefinement">
+<em class="property">class </em><code class="descclassname">pairdistributionfunction.</code><code class="descname">PdfRefinement</code><span class="sig-paren">(</span><em>name=None</em>, <em>data=None</em>, <em>phases=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pairdistributionfunction.html#PdfRefinement"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pairdistributionfunction.PdfRefinement" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="utilities.html#utilities.UpdateMethods" title="utilities.UpdateMethods"><code class="xref py py-class docutils literal"><span class="pre">utilities.UpdateMethods</span></code></a>, <a class="reference internal" href="utilities.html#utilities.MergeParams" title="utilities.MergeParams"><code class="xref py py-class docutils literal"><span class="pre">utilities.MergeParams</span></code></a></p>
+<p>A pdf refinement is comprised of a structure model(s) and data to be fit against</p>
+<dl class="docutils">
+<dt>Contains:</dt>
+<dd><ul class="first last simple">
+<li>structure_exchange- translate Structure object into diffpy.Structure.Structure object</li>
+<li>generator- subprocess call to diffpy.srreal.pdfcalculator</li>
+<li>residual_method- ojective function for minimization</li>
+<li>callback- tasks to be evaluated at each fit call</li>
+<li>lsq_minimize- least squares minimization wrapper for lmfit</li>
+<li>diffev_minimize- differential evolution minimization wrapper for lmfit</li>
+</ul>
+</dd>
+</dl>
+<dl class="method">
+<dt id="pairdistributionfunction.PdfRefinement.__init__">
+<code class="descname">__init__</code><span class="sig-paren">(</span><em>name=None</em>, <em>data=None</em>, <em>phases=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pairdistributionfunction.html#PdfRefinement.__init__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pairdistributionfunction.PdfRefinement.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>name</strong> (<em>*</em>) &#8211; PdfRefinement name</li>
+<li><strong>data</strong> (<em>*</em>) &#8211; list|instance of PdfData</li>
+<li><strong>phases</strong> (<em>*</em>) &#8211; list|instance of PdfPhase</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pairdistributionfunction.PdfRefinement.apply_sheetcf">
+<code class="descname">apply_sheetcf</code><span class="sig-paren">(</span><em>gr</em>, <em>sthick</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pairdistributionfunction.html#PdfRefinement.apply_sheetcf"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pairdistributionfunction.PdfRefinement.apply_sheetcf" title="Permalink to this definition">¶</a></dt>
+<dd><p>Apply sheet cf to a 2xN numpy array containing G(r) in angstroms</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>gr</strong> (<em>*</em>) &#8211; G(r) data array</li>
+<li><strong>sthick</strong> (<em>*</em>) &#8211; sheet thickness</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">G(r) data array</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">np.array</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pairdistributionfunction.PdfRefinement.apply_sphericalcf">
+<code class="descname">apply_sphericalcf</code><span class="sig-paren">(</span><em>gr</em>, <em>psize</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pairdistributionfunction.html#PdfRefinement.apply_sphericalcf"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pairdistributionfunction.PdfRefinement.apply_sphericalcf" title="Permalink to this definition">¶</a></dt>
+<dd><p>apply spherical cf to a Nx2 shape numpy array containing G(r)</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>gr</strong> (<em>*</em>) &#8211; G(r) data array</li>
+<li><strong>psize</strong> (<em>*</em>) &#8211; spherical partical diameter</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">G(r) data array</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">np.array</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pairdistributionfunction.PdfRefinement.calculator">
+<code class="descname">calculator</code><span class="sig-paren">(</span><em>model</em>, <em>data</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pairdistributionfunction.html#PdfRefinement.calculator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pairdistributionfunction.PdfRefinement.calculator" title="Permalink to this definition">¶</a></dt>
+<dd><p>real-space PDF calculation via srreal.pdfcalculator. Calculator built
+from attributes of model and data.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>model</strong> (<em>*</em>) &#8211; single instance
+(structure, name=None, scale=None, delta1=None, delta2=None,
+spdiameter=None, sratio=None, rcut=None, stepcut=None, mno=None)</li>
+<li><strong>data</strong> (<em>*</em>) &#8211; single instance
+(data, name=None, qmax=None, qmin=None, qbroad=None, qdamp=None,
+scale=None, rmin=None, rmax=None, rstep=None, use=True)</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Calculated (np.array())g(r) scaled by model_scale only</p>
+</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p>Final difference should be calculated from</p>
+<div class="last math">
+\[\sum_i{(data_scale * data_i)} - \sum_j{phase_scale_j * \sum_k{g(r)_k}}}\]</div>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">No shape function applied to calculator result.</p>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="pairdistributionfunction.PdfRefinement.callback">
+<code class="descname">callback</code><span class="sig-paren">(</span><em>params</em>, <em>iter</em>, <em>resid</em>, <em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pairdistributionfunction.html#PdfRefinement.callback"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pairdistributionfunction.PdfRefinement.callback" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add residual point to dynamic plot, model history</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>params</strong> (<em>*</em>) &#8211; </li>
+<li><strong>iter</strong> (<em>*</em>) &#8211; iteration number</li>
+<li><strong>resid</strong> (<em>*</em>) &#8211; residual array</li>
+<li><strong>kws</strong> (<em>*</em>) &#8211; mostly ignored. use &#8220;plot_resid&#8221;(bool) to initiate
+dynamic plot of residual vs. iteration</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Return type is important in this case. I believe a return type of
+True causes the minimization to abort.</p>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="pairdistributionfunction.PdfRefinement.diffev_minimize">
+<code class="descname">diffev_minimize</code><span class="sig-paren">(</span><em>subdir=None</em>, <em>plot_resid=False</em>, <em>sqrt_filter=False</em>, <em>disp=True</em>, <em>popsize=5</em>, <em>tol=0.1</em>, <em>mutation=(0.4</em>, <em>0.8)</em>, <em>recombination=0.8</em>, <em>seed=None</em>, <em>polish=False</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pairdistributionfunction.html#PdfRefinement.diffev_minimize"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pairdistributionfunction.PdfRefinement.diffev_minimize" title="Permalink to this definition">¶</a></dt>
+<dd><p>Wrapper for lmfit differential_evolution method (global minimization).</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>subdir</strong> (<em>*</em>) &#8211; directory to stash output files</li>
+<li><strong>plot_resid</strong> (<em>*</em>) &#8211; plot residual vs. iteration</li>
+<li><strong>sqrt_filter</strong> (<em>*</em>) &#8211; plot data scaled by (Yobs) ** 1/2</li>
+<li><strong>disp</strong> (<em>*</em>) &#8211; I forget</li>
+<li><strong>pops    size</strong> (<em>*</em>) &#8211; see below</li>
+<li><strong>tol</strong> (<em>*</em>) &#8211; see below</li>
+<li><strong>mutation</strong> (<em>*</em>) &#8211; see below</li>
+<li><strong>recombination</strong> (<em>*</em>) &#8211; see below</li>
+<li><strong>seed</strong> (<em>*</em>) &#8211; see below</li>
+<li><strong>polish</strong> (<em>*</em>) &#8211; follow DIFFEV opt by least squares</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"><ul class="simple">
+<li>np.array([sqrt(yo) - sqrt(yc)]) if sqrt_filter is True</li>
+<li>np.array([yo-yc]) if sqrt_filter is False</li>
+</ul>
+</p>
+</td>
+</tr>
+</tbody>
+</table>
+<p>see scipy.optimize.differential_evolution for compete list of minimizer keys &amp; descriptions</p>
+<dl class="docutils">
+<dt>Notes (from SciPy doc):</dt>
+<dd><p class="first">Differential evolution is a stochastic population based method that is useful for
+global optimization problems. At each pass through the population the algorithm
+mutates each candidate solution by mixing with other candidate solutions to create
+a trial candidate. There are several strategies [R141] for creating trial candidates,
+which suit some problems more than others. The ‘best1bin’ strategy is a good
+starting point for many systems. In this strategy two members of the population are
+randomly chosen. Their difference is used to mutate the best member
+(the best in best1bin), b0, so far:</p>
+<p>b’ = b0 + mutation ∗ (population[rand0] − population[rand1])</p>
+<p>A trial vector is then constructed. Starting with a randomly chosen ‘i’th parameter
+the trial is sequentially filled (in modulo) with parameters from b’ or the original
+candidate. The choice of whether to use b’ or the original candidate is made
+with a binomial distribution  (the ‘bin’ in ‘best1bin’) - a random number in [0, 1)
+is generated. If this number is less than the recombination constant then the parameter
+is loaded from b’, otherwise it is loaded from the original candidate. The final parameter
+is always loaded from b’. Once the trial candidate is built its fitness is assessed.
+If the trial is better than the original candidate then it takes its place.
+If it is also better than the best overall candidate it also replaces that.
+To improve your chances of finding a global minimum use higher popsize values,
+with higher mutation and (dithering), but lower recombination values.
+This has the effect of widening the search radius, but slowing convergence.</p>
+<p class="last">[R140]: Storn, R and Price, K, &#8220;Differential Evolution - a Simple and Efficient Heuristic for Global                     Optimization over Continuous Spaces,&#8221; <em>Journal of Global Optimization</em> 11, 341 - 359 (1997).</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="pairdistributionfunction.PdfRefinement.dim_check">
+<code class="descname">dim_check</code><span class="sig-paren">(</span><em>calc_data</em>, <em>exp_data</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pairdistributionfunction.html#PdfRefinement.dim_check"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pairdistributionfunction.PdfRefinement.dim_check" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">len(calc_data) == len(exp_data)</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body">bool</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pairdistributionfunction.PdfRefinement.filter_report">
+<code class="descname">filter_report</code><span class="sig-paren">(</span><em>variable=True</em>, <em>constrained=False</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pairdistributionfunction.html#PdfRefinement.filter_report"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pairdistributionfunction.PdfRefinement.filter_report" title="Permalink to this definition">¶</a></dt>
+<dd><p>print a limited portion of the lmfit minimizer fit report
+~! moved to utilities</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pairdistributionfunction.PdfRefinement.generic_update">
+<code class="descname">generic_update</code><span class="sig-paren">(</span><em>params</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pairdistributionfunction.html#PdfRefinement.generic_update"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pairdistributionfunction.PdfRefinement.generic_update" title="Permalink to this definition">¶</a></dt>
+<dd><p>generic update method passes parameters to subordinate objects</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>params</strong> (<em>*</em>) &#8211; </td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">True</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">bool</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pairdistributionfunction.PdfRefinement.lsq_minimize">
+<code class="descname">lsq_minimize</code><span class="sig-paren">(</span><em>subdir=None</em>, <em>plot_resid=False</em>, <em>epsfcn=None</em>, <em>xtol=None</em>, <em>sqrt_filter=False</em>, <em>method='leastsq'</em>, <em>minkws=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pairdistributionfunction.html#PdfRefinement.lsq_minimize"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pairdistributionfunction.PdfRefinement.lsq_minimize" title="Permalink to this definition">¶</a></dt>
+<dd><p>Wrapper for lmfit least_squares method (Levenberg-Marquardt)</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>subdir</strong> (<em>*</em>) &#8211; directory to put the DIFFaX input/output into.</li>
+<li><strong>plot_resid</strong> (<em>*</em>) &#8211; toggle dynamic plotting of R vs. iter.</li>
+<li><strong>epsfcn</strong> (<em>*</em>) &#8211; (default = 1e-02) if step-length is too small the
+mininimizer may not progress as no Jacobian is calculated.</li>
+<li><strong>xtol</strong> (<em>*</em>) &#8211; (default = 1e-04) convergence criterion for the approximate solution.</li>
+<li><strong>method</strong> (<em>*</em>) &#8211; (default = leastsq) optimizer method (i.e. leastsq, nelder, lbfgsb)</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">np.array([(yo-yc)])</p>
+</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">See the SciPy minimizer documentation for full list of minimizer methods.</p>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="pairdistributionfunction.PdfRefinement.map_exp_calc">
+<code class="descname">map_exp_calc</code><span class="sig-paren">(</span><em>exp_data</em>, <em>calc_data</em>, <em>rmin</em>, <em>rmax</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pairdistributionfunction.html#PdfRefinement.map_exp_calc"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pairdistributionfunction.PdfRefinement.map_exp_calc" title="Permalink to this definition">¶</a></dt>
+<dd><p>map exp data, calc data onto same array dim and stride</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>exp_data</strong> (<em>*</em>) &#8211; experimental data</li>
+<li><strong>calc_data</strong> (<em>*</em>) &#8211; calculated data</li>
+<li><strong>rmin</strong> (<em>*</em>) &#8211; min real space radius</li>
+<li><strong>rmax</strong> (<em>*</em>) &#8211; max real space radius</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">exp_data, (np.array)calc_data</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">np.array</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pairdistributionfunction.PdfRefinement.merge_add">
+<code class="descname">merge_add</code><span class="sig-paren">(</span><em>A1</em>, <em>A2</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pairdistributionfunction.html#PdfRefinement.merge_add"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pairdistributionfunction.PdfRefinement.merge_add" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add A1 and A2, merging length to longest vector if unequal</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>A1</strong><strong>, </strong><strong>A2</strong> (<em>*</em>) &#8211; </td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">np.array(np.add(short, long), dtype=float)</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pairdistributionfunction.PdfRefinement.model_composite">
+<code class="descname">model_composite</code><span class="sig-paren">(</span><em>phase</em>, <em>data</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pairdistributionfunction.html#PdfRefinement.model_composite"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pairdistributionfunction.PdfRefinement.model_composite" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="docutils">
+<dt>Populate dict of model components for (PdfPhase)phase and (PdfData)data:</dt>
+<dd>Model components: self.gr: {data_1: {phase_1: {model_1: g(r)_1, ...}, ...}, ...}</dd>
+</dl>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>phase</strong> (<em>*</em>) &#8211; </li>
+<li><strong>data</strong> (<em>*</em>) &#8211; </li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">phase_scale * sum_i{gr_i} | dtype=float</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pairdistributionfunction.PdfRefinement.objective_function">
+<code class="descname">objective_function</code><span class="sig-paren">(</span><em>params</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pairdistributionfunction.html#PdfRefinement.objective_function"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pairdistributionfunction.PdfRefinement.objective_function" title="Permalink to this definition">¶</a></dt>
+<dd><div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">individual residuals aren&#8217;t returned for each data set. I&#8217;m not
+sure how to introduce a weighting scheme yet (all data equally
+weighted).</p>
+</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>params</strong> (<em>*</em>) &#8211; </li>
+<li><strong>kwargs</strong> (<em>*</em>) &#8211; see below</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="docutils">
+<dt>kwargs:</dt>
+<dd><ul class="first last simple">
+<li>subdir: subdirectory</li>
+<li>plot_resid: real-time residual plotting (pass thru to callback)</li>
+</ul>
+</dd>
+</dl>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"><a href="#id3"><span class="problematic" id="id4">**</span></a>sum_i**{residual_i} for i in phases</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pairdistributionfunction.PdfRefinement.phase_composite">
+<code class="descname">phase_composite</code><span class="sig-paren">(</span><em>phases</em>, <em>data</em>, <em>recalc=True</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pairdistributionfunction.html#PdfRefinement.phase_composite"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pairdistributionfunction.PdfRefinement.phase_composite" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get sum of scaled model gr for data. We need to wade through three levels
+to get to comprable patterns:</p>
+<blockquote>
+<div><ul class="simple">
+<li>Model components: self.gr: {data_1: {phase_1: {model_1: g(r)_1, ...}, ...}, ...}</li>
+<li>Phase components: self.GR: {data_1: {phase_1: G(r)_1, ...}, ...}</li>
+<li>Phase composite: self.composite: {data_1: G(r)_1, ...}</li>
+</ul>
+</div></blockquote>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>phases</strong> (<em>*</em>) &#8211; PdfPhases</li>
+<li><strong>data</strong> (<em>*</em>) &#8211; pdf data</li>
+<li><strong>recalc</strong> (<em>*</em>) &#8211; not implemented</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<ul class="last simple">
+<li>phases &#8211;&gt; dict({phase.name: phase}) (plural)</li>
+<li>data &#8211;&gt; (PdfData) (singular)</li>
+<li>shape function applied to each model_composite G(r)</li>
+<li>recalc(default=True) passed in | determined at objective function</li>
+</ul>
+</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">None</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pairdistributionfunction.PdfRefinement.plot_min_result">
+<code class="descname">plot_min_result</code><span class="sig-paren">(</span><em>data</em>, <em>fontsize=12</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pairdistributionfunction.html#PdfRefinement.plot_min_result"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pairdistributionfunction.PdfRefinement.plot_min_result" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot the calculated, observed, background and difference curves
+of the last computation. Executed at end of every minimization.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>sqrt_filter</strong> (<em>*</em>) &#8211; plot data scaled by (Yobs) ** 1/2</li>
+<li><strong>fontsize</strong> (<em>*</em>) &#8211; font size</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">matplotlib.Figure</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pairdistributionfunction.PdfRefinement.preview">
+<code class="descname">preview</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pairdistributionfunction.html#PdfRefinement.preview"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pairdistributionfunction.PdfRefinement.preview" title="Permalink to this definition">¶</a></dt>
+<dd><p>sneak peak of fit result for single data set</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pairdistributionfunction.PdfRefinement.report_refined">
+<code class="descname">report_refined</code><span class="sig-paren">(</span><em>tabulate=True</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pairdistributionfunction.html#PdfRefinement.report_refined"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pairdistributionfunction.PdfRefinement.report_refined" title="Permalink to this definition">¶</a></dt>
+<dd><p>report parameters with attribute vary == True
+~! moved to utilities</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pairdistributionfunction.PdfRefinement.reset">
+<code class="descname">reset</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pairdistributionfunction.html#PdfRefinement.reset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pairdistributionfunction.PdfRefinement.reset" title="Permalink to this definition">¶</a></dt>
+<dd><p>use self.original to reset refined parameters to previous values</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pairdistributionfunction.PdfRefinement.residual_method">
+<code class="descname">residual_method</code><span class="sig-paren">(</span><em>data</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pairdistributionfunction.html#PdfRefinement.residual_method"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pairdistributionfunction.PdfRefinement.residual_method" title="Permalink to this definition">¶</a></dt>
+<dd><p>For each phase in refinement, get DIFFaX pattern and calculate residual</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>params</strong> (<em>*</em>) &#8211; </li>
+<li><strong>kws</strong> (<em>*</em>) &#8211; see below</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="docutils">
+<dt>kws:</dt>
+<dd><ul class="first last simple">
+<li>subdir: subdirectory</li>
+<li>plot_resid: real-time residual plotting (pass thru to callback)</li>
+<li>sqrt_filter: sounds silly, actually just compare sqrt intensities</li>
+</ul>
+</dd>
+</dl>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">residual with length of data</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body">np.array</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pairdistributionfunction.PdfRefinement.revert">
+<code class="descname">revert</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pairdistributionfunction.html#PdfRefinement.revert"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pairdistributionfunction.PdfRefinement.revert" title="Permalink to this definition">¶</a></dt>
+<dd><p>use self.backup to revert Parameters instance to last minimizer call</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pairdistributionfunction.PdfRefinement.rwp">
+<code class="descname">rwp</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pairdistributionfunction.html#PdfRefinement.rwp"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pairdistributionfunction.PdfRefinement.rwp" title="Permalink to this definition">¶</a></dt>
+<dd><p>calculate rwp for the refinement (utilities method)
+.. note:: ~! not suitable for multiple data</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pairdistributionfunction.PdfRefinement.save">
+<code class="descname">save</code><span class="sig-paren">(</span><em>filename=None</em>, <em>subdir=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pairdistributionfunction.html#PdfRefinement.save"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pairdistributionfunction.PdfRefinement.save" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a pickled save state of the refinement.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>filename</strong> (<em>*</em>) &#8211; filename.pkl or some such</li>
+<li><strong>subdir</strong> (<em>*</em>) &#8211; directory</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">True</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pairdistributionfunction.PdfRefinement.update_data">
+<code class="descname">update_data</code><span class="sig-paren">(</span><em>data</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pairdistributionfunction.html#PdfRefinement.update_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pairdistributionfunction.PdfRefinement.update_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>update data dictionary</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>data</strong> (<em>*</em>) &#8211; data(s)</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">True</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">bool</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pairdistributionfunction.PdfRefinement.update_phases">
+<code class="descname">update_phases</code><span class="sig-paren">(</span><em>phases</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pairdistributionfunction.html#PdfRefinement.update_phases"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pairdistributionfunction.PdfRefinement.update_phases" title="Permalink to this definition">¶</a></dt>
+<dd><p>update structure dict</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>phases</strong> (<em>*</em>) &#8211; layer phases</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">True</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">bool</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pairdistributionfunction.PdfRefinement.validate_diffev">
+<code class="descname">validate_diffev</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pairdistributionfunction.html#PdfRefinement.validate_diffev"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pairdistributionfunction.PdfRefinement.validate_diffev" title="Permalink to this definition">¶</a></dt>
+<dd><p>Differential evolution requires min/max values to be supplied for all
+variables, not just those that are refined.</p>
+<p>This function coerces min/max values from supplied information if none
+are given by the user.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">True</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">pairdistributionfunction</a><ul>
+<li><a class="reference internal" href="#pairdistributionfunction-pdfdata">pairdistributionfunction.PdfData</a></li>
+<li><a class="reference internal" href="#pairdistributionfunction-pdfmodel">pairdistributionfunction.PdfModel</a></li>
+<li><a class="reference internal" href="#pairdistributionfunction-pdfrefinement">pairdistributionfunction.PdfRefinement</a></li>
+</ul>
+</li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="interface.html" title="previous chapter">interface</a></li>
+      <li>Next: <a href="refinement.html" title="next chapter">refinement</a></li>
+  </ul></li>
+</ul>
+</div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/rst/pairdistributionfunction.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Peter C Metz.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.5.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.9</a>
+      
+      |
+      <a href="../_sources/rst/pairdistributionfunction.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

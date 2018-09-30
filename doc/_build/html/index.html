@@ -1,0 +1,188 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>MStack: stacking disorder tools for Python &#8212; MStack 0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="background" href="rst/background.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body role="document">
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="mstack-stacking-disorder-tools-for-python">
+<h1><em>MStack</em>: stacking disorder tools for <em>Python</em><a class="headerlink" href="#mstack-stacking-disorder-tools-for-python" title="Permalink to this headline">¶</a></h1>
+<div class="line-block">
+<div class="line">Peter C. Metz*</div>
+<div class="line"><em>Inamori School of Engineering, Alfred University, 2 Pine St., Alfred, NY 14802</em></div>
+<div class="line"><em>*Contact: pcm1&#64;alfred.edu | (315) 350 1585</em></div>
+</div>
+<div class="section" id="abstract">
+<h2>Abstract:<a class="headerlink" href="#abstract" title="Permalink to this headline">¶</a></h2>
+<p>In order to refine stacking disorder models in real and reciprocal space, MSTACK has been written to
+extend two established profile generators: DIFFaX, a reciprocal space intensity distribution calculator
+built on a stochastic stacking disorder model description; and DiffPy-CMI, a suite of tools including pair
+distribution function calculators. MSTACK includes tools to expand the stochastic stacking model parameters
+typical of DIFFaX into supercell models suitable for calculation of stacking disordered pair distribution function
+data, and to drive refinement of layer structure models from real and reciprocal space data.</p>
+<p>MSTACK has been designed with advanced refinement tools in mind. MSTACK is built on the code lmfit which
+permits the user to include arbitrary constraint equations enabling parametric refinement. Further, MSTACK
+is designed to be compatible with any minimizer method in the SciPy package, enabling the application of
+global minimization techniques. Currently implemented minimization methods include the L-BFGS-B non-linear
+optimization algorithm and the Differential Evolution algorithm. Finally, lmfit and MSTACK enable the user to
+apply Markov-Chain Monte Carlo analysis, via the package emcee, to the resulting fit. This Bayesian statistical
+analysis tool has been used predominantly in the astronomical community to interpret data with substantial noise
+where the error in the data is uncertain. Application of this tool to PDF data suggests many model parameters are
+not normally distributed- an insight that is expected to have substantial impact on the future of scattering analysis
+of nanostructured material.</p>
+</div>
+<div class="section" id="acknowldgements">
+<h2>Acknowldgements:<a class="headerlink" href="#acknowldgements" title="Permalink to this headline">¶</a></h2>
+<p>This software is based upon work supported by the National Science Foundation under
+Grant No. DMR-1409102. Example data, where indicated, was collected using the resources
+of the Advanced Photon Source, a U.S. Department of Energy (DOE) Office of Science User
+Facility operated for the DOE Office of Science by Argonne National Laboratory under
+Contract No. DE-AC02-06CH11357.</p>
+</div>
+<div class="section" id="contents">
+<h2>Contents:<a class="headerlink" href="#contents" title="Permalink to this headline">¶</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="rst/background.html">background</a></li>
+<li class="toctree-l1"><a class="reference internal" href="rst/interface.html">interface</a></li>
+<li class="toctree-l1"><a class="reference internal" href="rst/pairdistributionfunction.html">pairdistributionfunction</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="rst/pairdistributionfunction.html#pairdistributionfunction-pdfdata">pairdistributionfunction.PdfData</a></li>
+<li class="toctree-l2"><a class="reference internal" href="rst/pairdistributionfunction.html#pairdistributionfunction-pdfmodel">pairdistributionfunction.PdfModel</a></li>
+<li class="toctree-l2"><a class="reference internal" href="rst/pairdistributionfunction.html#pairdistributionfunction-pdfrefinement">pairdistributionfunction.PdfRefinement</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="rst/refinement.html">refinement</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="rst/refinement.html#refinement-refinement">refinement.Refinement</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="rst/structure.html">structure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="rst/structure.html#structure-atom">structure.Atom</a></li>
+<li class="toctree-l2"><a class="reference internal" href="rst/structure.html#structure-structure">structure.Structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="rst/structure.html#structure-phase">structure.Phase</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="rst/supercell.html">supercell</a></li>
+<li class="toctree-l1"><a class="reference internal" href="rst/transition.html">transition</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="rst/transition.html#transition-transition">transition.Transition</a></li>
+<li class="toctree-l2"><a class="reference internal" href="rst/transition.html#transition-transitions">transition.Transitions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="rst/utilities.html">utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="rst/utilities.html#utilities-dynamicplot">utilities.DynamicPlot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="rst/utilities.html#utilities-mergeparams">utilities.MergeParams</a></li>
+<li class="toctree-l2"><a class="reference internal" href="rst/utilities.html#utilities-updatemethods">utilities.UpdateMethods</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="section" id="indices-and-tables">
+<h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this headline">¶</a></h1>
+<ul class="simple">
+<li><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></li>
+<li><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a></li>
+<li><a class="reference internal" href="search.html"><span class="std std-ref">Search Page</span></a></li>
+</ul>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="#">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#"><em>MStack</em>: stacking disorder tools for <em>Python</em></a><ul>
+<li><a class="reference internal" href="#abstract">Abstract:</a></li>
+<li><a class="reference internal" href="#acknowldgements">Acknowldgements:</a></li>
+<li><a class="reference internal" href="#contents">Contents:</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#indices-and-tables">Indices and tables</a></li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#">Documentation overview</a><ul>
+      <li>Next: <a href="rst/background.html" title="next chapter">background</a></li>
+  </ul></li>
+</ul>
+</div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/index.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Peter C Metz.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.5.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.9</a>
+      
+      |
+      <a href="_sources/index.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

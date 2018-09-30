@@ -1,0 +1,150 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>supercell &#8212; MStack 0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="transition" href="transition.html" />
+    <link rel="prev" title="structure" href="structure.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body role="document">
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="module-supercell">
+<span id="supercell"></span><h1>supercell<a class="headerlink" href="#module-supercell" title="Permalink to this headline">¶</a></h1>
+<p>Created on Wed Mar 02 11:34:35 2016</p>
+<p>quick script to translate Structure instances into supercells
+-copy/shift asymmetric unit according to single vector
+-accept user dimension (N-units along c-vector) or default to MCL
+-dump .xyz file and/or .cif (P1) file for visualization and supercell PDF</p>
+<dl class="attribute">
+<dt>
+<code class="descname">* pub_cif</code></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt>
+<code class="descname">* pub_xyz</code></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt>
+<code class="descname">* supercell</code></dt>
+<dd></dd></dl>
+
+<p>&#64;author: Peter C. Metz</p>
+<dl class="function">
+<dt id="supercell.supercell">
+<code class="descclassname">supercell.</code><code class="descname">supercell</code><span class="sig-paren">(</span><em>struct</em>, <em>vector</em>, <em>N=None</em>, <em>cif=True</em>, <em>xyz=False</em>, <em>path=None</em>, <em>filename=None</em>, <em>debug=False</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/supercell.html#supercell"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#supercell.supercell" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dump a supercell model for input structure and vector with dim 1x1xN.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>struct</strong> (<a class="reference internal" href="structure.html#structure.Structure" title="structure.Structure"><em>structure.Structure</em></a>) &#8211; layer structure</li>
+<li><strong>vector</strong> (<em>list</em><em>, </em><em>dict</em>) &#8211; layer vector in fractional values</li>
+<li><strong>N</strong> (<em>bool | None</em>) &#8211; supercell dimension</li>
+<li><strong>cif</strong> (<em>bool| True</em>) &#8211; output cif?</li>
+<li><strong>xyz</strong> (<em>bool | False</em>) &#8211; output xyz?</li>
+<li><strong>path</strong> (<em>str|None</em>) &#8211; directory</li>
+<li><strong>filename</strong> (<em>str|None</em>) &#8211; filename</li>
+<li><strong>debug</strong> (<em>bool|False</em>) &#8211; return expanded asymmetric unit</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="structure.html" title="previous chapter">structure</a></li>
+      <li>Next: <a href="transition.html" title="next chapter">transition</a></li>
+  </ul></li>
+</ul>
+</div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/rst/supercell.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Peter C Metz.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.5.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.9</a>
+      
+      |
+      <a href="../_sources/rst/supercell.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

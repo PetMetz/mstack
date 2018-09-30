@@ -1,0 +1,353 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>transition &#8212; MStack 0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="utilities" href="utilities.html" />
+    <link rel="prev" title="supercell" href="supercell.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body role="document">
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <blockquote>
+<div></div></blockquote>
+<div class="section" id="transition">
+<h1>transition<a class="headerlink" href="#transition" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="transition-transition">
+<h2>transition.Transition<a class="headerlink" href="#transition-transition" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="transition.Transition">
+<em class="property">class </em><code class="descclassname">transition.</code><code class="descname">Transition</code><span class="sig-paren">(</span><em>i</em>, <em>j</em>, <em>alpij=None</em>, <em>vector=None</em>, <em>cij=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/transition.html#Transition"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#transition.Transition" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>instantiate a transition to create empty variables that satisfy the
+program requirements of DIFFaX. Parameters include transition index n,
+transition probability alphaij, vector R, and uncertainty cij</p>
+<dl class="attribute">
+<dt>
+<code class="descname">* generic</code></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt>
+<code class="descname">* scale_cij</code></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt>
+<code class="descname">* update_cij</code></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt>
+<code class="descname">* update_alpij</code></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt>
+<code class="descname">* update_vector</code></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="transition.Transition.__init__">
+<code class="descname">__init__</code><span class="sig-paren">(</span><em>i</em>, <em>j</em>, <em>alpij=None</em>, <em>vector=None</em>, <em>cij=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/transition.html#Transition.__init__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#transition.Transition.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Announce components of the nth transition. Defaults = 0.0.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>alpij</strong> (<em>float | tup</em>) &#8211; (value [, True|False [, min, max]])</li>
+<li><strong>vector</strong> (<em>dict</em>) &#8211; {&#8216;rx&#8217;: float, &#8216;ry&#8217;: float &#8216;rz&#8217;: float}</li>
+<li><strong>cij</strong> (<em>dict</em>) &#8211; {&#8216;c11&#8217;: float, &#8216;c22&#8217;: float, &#8216;c33&#8217;: float, &#8216;c12&#8217;: float, &#8216;c13&#8217;: float, &#8216;c23&#8217;: float}</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Pass additional information  as tuple, e.g.
+(value [, True|False [, min, max]])</p>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="transition.Transition.generic">
+<code class="descname">generic</code><span class="sig-paren">(</span><em>generic</em>, <em>name</em>, <em>min0=0.0</em>, <em>max0=1.0</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/transition.html#Transition.generic"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#transition.Transition.generic" title="Permalink to this definition">¶</a></dt>
+<dd><p>Method for updating params.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>generic</strong> (<em>*</em>) &#8211; {key: (value [, True|False [, min, max]]), ...}
+optional vary boolean, min, max as positional args</li>
+<li><strong>name</strong> (<em>*</em>) &#8211; alpij|cij|vector</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">sets parameter and updates appropriate attribute</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="transition.Transition.scale_cij">
+<code class="descname">scale_cij</code><span class="sig-paren">(</span><em>force=False</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/transition.html#Transition.scale_cij"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#transition.Transition.scale_cij" title="Permalink to this definition">¶</a></dt>
+<dd><p>scale cij by smaller corresponding cii to satisfy requirement that
+cij &lt;= cii</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>force</strong> (<em>bool</em>) &#8211; executes scaling whether or not self.scaled is True</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">True</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">bool</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="transition.Transition.update_alpij">
+<code class="descname">update_alpij</code><span class="sig-paren">(</span><em>alpij</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/transition.html#Transition.update_alpij"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#transition.Transition.update_alpij" title="Permalink to this definition">¶</a></dt>
+<dd><p>initialize/update transition probabilities (dim(n))</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="transition.Transition.update_cij">
+<code class="descname">update_cij</code><span class="sig-paren">(</span><em>cij</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/transition.html#Transition.update_cij"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#transition.Transition.update_cij" title="Permalink to this definition">¶</a></dt>
+<dd><p>initialize/update cij (fractions) and scaled_cij (appropriately scaled copy)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="transition.Transition.update_vector">
+<code class="descname">update_vector</code><span class="sig-paren">(</span><em>vector</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/transition.html#Transition.update_vector"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#transition.Transition.update_vector" title="Permalink to this definition">¶</a></dt>
+<dd><p>initialize/update vector</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="transition-transitions">
+<h2>transition.Transitions<a class="headerlink" href="#transition-transitions" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="transition.Transitions">
+<em class="property">class </em><code class="descclassname">transition.</code><code class="descname">Transitions</code><span class="sig-paren">(</span><em>nlayers=None</em>, <em>transitions=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/transition.html#Transitions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#transition.Transitions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Container for all the transitions specifying a stacking disorder problem.</p>
+<dl class="attribute">
+<dt>
+<code class="descname">* pub_trans</code></dt>
+<dd><p>method to publish transitions block in DIFFaX format. I.e.:
+{alpij     Rxj     Ryj     Rzj     (clm)}
+1.0000000000 0.3550 0.3550 1.0000 (10.0000 10.0000 2.0000 0.0000 0.0000 0.0000) {1-1}
+...</p>
+<blockquote>
+<div>{N-N}</div></blockquote>
+</dd></dl>
+
+<dl class="attribute">
+<dt>
+<code class="descname">* row_normal</code></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt>
+<code class="descname">* todict</code></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt>
+<code class="descname">* update_transitions</code></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt>
+<code class="descname">* validate_transitions</code></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="transition.Transitions.__init__">
+<code class="descname">__init__</code><span class="sig-paren">(</span><em>nlayers=None</em>, <em>transitions=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/transition.html#Transitions.__init__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#transition.Transitions.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>transitions</strong> (<em>*</em>) &#8211; list containing N**2 transition instances</li>
+<li><strong>nlayers</strong> (<em>*</em>) &#8211; number of layer types (N)</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="transition.Transitions.pub_trans">
+<code class="descname">pub_trans</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/transition.html#Transitions.pub_trans"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#transition.Transitions.pub_trans" title="Permalink to this definition">¶</a></dt>
+<dd><p>publish the transition information in DIFFaX suitable format, e.g.
+alpij Rx Ry Rz (Cijk) {i-j}</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">list of transitions in DIFFaX format (string lists) (0th element always empty)</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="transition.Transitions.row_normal">
+<code class="descname">row_normal</code><span class="sig-paren">(</span><em>row=0</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/transition.html#Transitions.row_normal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#transition.Transitions.row_normal" title="Permalink to this definition">¶</a></dt>
+<dd><p>row normalize entries in alpij</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="transition.Transitions.todict">
+<code class="descname">todict</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/transition.html#Transitions.todict"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#transition.Transitions.todict" title="Permalink to this definition">¶</a></dt>
+<dd><p>map numpy array as dict</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="transition.Transitions.update_transitions">
+<code class="descname">update_transitions</code><span class="sig-paren">(</span><em>transitions</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/transition.html#Transitions.update_transitions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#transition.Transitions.update_transitions" title="Permalink to this definition">¶</a></dt>
+<dd><p>initialize/update dictionary of transitions</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="transition.Transitions.validate_transitions">
+<code class="descname">validate_transitions</code><span class="sig-paren">(</span><em>force=False</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/transition.html#Transitions.validate_transitions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#transition.Transitions.validate_transitions" title="Permalink to this definition">¶</a></dt>
+<dd><div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p>Because empty fields are initialized with appropriate values except for probabilities,
+we really just need to confirm the user supplied probabilities and that they:</p>
+<blockquote>
+<div><ol class="arabic simple">
+<li>are row normalized.</li>
+<li>of uniform dimension (N x N)</li>
+</ol>
+</div></blockquote>
+<p class="last">These conditions are enforced (transitions are operated on) if not correct</p>
+</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>force</strong> (<em>bool | False</em>) &#8211; recompute scaled cij whether or not trans.scaled is True</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">True|False</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">Boolean</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">transition</a><ul>
+<li><a class="reference internal" href="#transition-transition">transition.Transition</a></li>
+<li><a class="reference internal" href="#transition-transitions">transition.Transitions</a></li>
+</ul>
+</li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="supercell.html" title="previous chapter">supercell</a></li>
+      <li>Next: <a href="utilities.html" title="next chapter">utilities</a></li>
+  </ul></li>
+</ul>
+</div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/rst/transition.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Peter C Metz.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.5.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.9</a>
+      
+      |
+      <a href="../_sources/rst/transition.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
