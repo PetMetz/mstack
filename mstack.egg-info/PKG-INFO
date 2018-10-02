@@ -1,13 +1,16 @@
 Metadata-Version: 1.1
 Name: mstack
-Version: 0.12.3
+Version: 0.12.5
 Summary: Stacking disorder tools for Python.
 Home-page: UNKNOWN
 Author: Peter C. Metz
 Author-email: pcm1@alfred.edu
 License: BSD-3-Clause
 Description-Content-Type: UNKNOWN
-Description: # MStack
+Description: # mstack
+        Not fit for public consumption. Currently refactoring. Please disregard.
+        
+        # mstack
         
         Stacking disorder tools for Python extending the [DiffPy-CMI](http://www.DiffPy.org/products/diffpycmi) 
         and [DIFFaX](http://www.public.asu.edu/~mtreacy/DIFFaX.html) profile generators.
@@ -39,8 +42,6 @@ Description: # MStack
         API has been compiled in .PDF and HTML formats.
         
         Please see the accompanying manual for further information.
-        
-        
 Platform: linux
 Classifier: Programming Language :: Python :: 2.7
 Classifier: Operating System :: POSIX
