@@ -21,6 +21,7 @@ from utilities import MergeParams, UpdateMethods
 from utilities import  abspath, absfpath
 from utilities import pub_cif as _pub_cif
 from utilities import pub_xyz as _pub_xyz
+from diffpy.Structure import loadStructure
 
 # globals
 cwd = os.getcwd()
@@ -89,7 +90,7 @@ def build_cif(filename, structure_name=None, layer_number=1, path=None):
             adp = 'Uiso'
             break
         elif n is not None:
-            adp = 'Biso'
+            adp = 'Bij'
             break
 
     if adp == '':
@@ -124,7 +125,7 @@ def build_cif(filename, structure_name=None, layer_number=1, path=None):
                        info['x'][i],            # x-coordinate
                        info['y'][i],            # y-coordinate
                        info['z'][i],            # z-coordinate
-                       info['equiv'][i],        # Uiso or Biso value
+                       info['equiv'][i],        # Uiso or Bij value
                        info['occupancy'][i],    # occupancy
                        adp                      # ADP type
                        ))
@@ -133,6 +134,48 @@ def build_cif(filename, structure_name=None, layer_number=1, path=None):
     return Structure(structure_name, *itemgetter('a', 'b', 'c', 'alpha', 'beta', 'gamma')(cell),
                      atoms=ai, number=layer_number)
 
+
+def cmi_load_cif(fname):
+    """
+    Parse .cif using diffpy.Structure.loadStructure
+    
+    Parameters:
+        * fname: like path/fname.cif
+    Returns:
+        diffpy.Structure instance
+    """
+    return loadStructure(abspath(fname))
+
+
+def cmi_build_struct(fname, sname):
+    """
+    Parse .cif using diffpy.Structure.loadStructure
+
+    Parameters:
+        * fname : like path/fname.cif
+        * sname : name for mstac.Structure instance
+    Returns:
+        mstack.Structure instance
+    """
+    stru = loadStructure(abspath(fname))
+    
+    # atoms
+    atoms = []
+    for ii, label in enumerate(stru.label):
+        at = re.split('[-+]?\d+', label)[0]
+        atoms.append(Atom(atom_name=at,  # specie, site number e.g. Uu5
+                          number=int(label.lstrip(at)),  
+                          x=stru.x[ii],   # x, y, z (frac.)
+                          y=stru.y[ii],
+                          z=stru.z[ii],
+                          Bij=stru.U[ii]*8*np.pi**2,   # Bij
+                          occ=stru.occupancy[ii],
+                          disp_type='Bij'
+                          )
+                    )
+    # (name a b c alp bet gam atoms number)
+    return Structure(sname, *stru.lattice.abcABG(), atoms=atoms, number=1)
+    
 # ##################### structure classes ################################# #
 
 
@@ -140,7 +183,7 @@ class Atom(object):
     """
     an atom instance contains its type (name) and number (of its kind) which define
     a unique label (i.e. O1, Nb5). x, y, & z are float fractional coordinates and
-    Uiso is the thermal displacement parameter (Biso =  8*pi**2*<u**2> = 8*pi**2*Uiso)
+    Uiso is the thermal displacement parameter (Bij =  8*pi**2*<u**2> = 8*pi**2*Uiso)
 
     Args:
         * atom_name (str): atom name
@@ -148,19 +191,20 @@ class Atom(object):
         * x, y, z (float): fractional coordinates
         * Uiso_or_equiv (float): isotropic thermal displacement parameter
         * occ (float): occupancy fractional
-        * disp_type (str | Uiso): 'Biso' or 'Uiso'
+        * disp_type (str | Uiso): 'Bij' or 'Uiso'
     """
 
-    def __init__(self, atom_name, number, x, y, z, Uiso_or_equiv,
-                 occ, disp_type='Uiso'):
+    def __init__(self, atom_name, number, x, y, z, Bij,
+                 occ, disp_type='Bij'):
         """
+        FIX Parameter propogation currently ends at Structure object
         Args:
             * atom_name (str): atom name
             * number (int): site number
             * x, y, z (float): fractional coordinates
-            * Uiso_or_equiv (float): isotropic thermal displacement parameter
+            * Bij (float or (3,3)np.array): thermal displacement parameter
             * occ (float): occupancy fractional
-            * disp_type (str | Uiso): 'Biso' or 'Uiso'
+            * disp_type (str | Uiso): 'Bij' or 'Uij'
         """
         self.name = str(atom_name)
         self.number = int(number)
@@ -169,11 +213,55 @@ class Atom(object):
         self.y = float(y)
         self.z = float(z)
         self.occ = float(occ)
+        self.disp_type = str(disp_type)
+        
+        setattr(self, disp_type, self._new_Bij())   # self.Bij = self._new_Bij()   # return dummy
+        if type(Bij) is float and len(Bij) == 1:  # if isotropic
+            self._set_isotropic(Bij)
+        elif hasattr(Bij, '__iter__'):   # elif tensor
+            try:
+                Bij = np.asarray(Bij)
+                self._set_therm_attr(Bij)
+            except IndexError:
+                raise
+        self._decl_therm_attr()
 
         #  FIX  This may create problems later, but initialize ADP's by name and value
-        setattr(self, 'disp_type', str(disp_type))
-        setattr(self, str(disp_type), float(Uiso_or_equiv))
+        # DEPRICATE setattr(self, str(disp_type), float(Bij))
+        
+        return
 
+    def _new_Bij(self):
+        """ as (3, 3) np.array """
+        return np.array(((0.25, 0, 0),(0, 0.25, 0),(0, 0, 0.25)), dtype=object)
+
+    def _set_therm_attr(self, Bij):
+        """ set Bij parameters """
+        blank = getattr(self, self.disp_type)
+        for ii in range(3):
+            for jj in range(3):
+                blank[ii, jj] = Bij[ii, jj]
+        return
+      
+    def _set_isotropic(self, Bij):
+        """ set Uij tensor if isotropic """
+        blank = getattr(self, self.disp_type)
+        for ii in range(3):
+            for jj in range(3):
+                if ii == jj:
+                    blank[ii, jj] = Bij
+                else:
+                    blank[ii, jj] = 0.0
+        return
+
+    def _decl_therm_attr(self):
+        """ make apparent at atom level"""
+        blank = getattr(self, self.disp_type)
+        char = self.disp_type[0]
+        for ii in range(3):
+            for jj in range(3):
+                setattr(self, '%s%s%s' % (char, ii + 1, jj + 1), blank[ii, jj])
+    
     # End of class atom
 
 
@@ -185,23 +273,22 @@ class Structure(UpdateMethods, MergeParams):
 
     def merge_adp(self, atoms):
         """
-        get list of atom ADPS in common ADP type (Biso)
+        get list of atom ADPS in common ADP type (Bij)
 
         Args:
             * atoms (structure.Atoms): list of atom instances
         """
         atoms = u.flatten(atoms)
         for at in atoms:
-            if at.disp_type == 'Uiso':
-                # Biso = 8 * pi ** 2 * Uiso
-                at.Uiso = 8 * np.pi ** 2 * at.Uiso  # scale value
-                setattr(at, 'Biso', at.Uiso)        # create attribute Biso
-                at.disp_type = 'Biso'               # update disp_type
-                del at.Uiso                         # remove former attribute Uiso
+            if at.disp_type == 'Uij':
+                # Bij = 8 * pi ** 2 * Uiso
+                at.Bij = 8 * np.pi ** 2 * at.Uij  # scale value
+                at.disp_type = 'Bij'               # update disp_type
+                del at.Uij                     # remove former attribute Uiso
 
-            elif at.disp_type == 'Biso':
+            elif at.disp_type == 'Bij':
                 pass
-
+       
     def __init__(self, name, a, b, c, alp=90, bet=90, gam=90, atoms=None, number=1):
         u"""
         Structure.__init__
@@ -235,9 +322,18 @@ class Structure(UpdateMethods, MergeParams):
             atoms = u.flatten(atoms)
             self.merge_adp(atoms)
             for i in range(len(atoms)):
-                self.atoms.update({'%s_%s' % (self.name, atoms[i].label): atoms[i]})
+                self.atoms.update({ atoms[i].label: atoms[i]})   # '%s_%s' % (self.name,
                 setattr(self, atoms[i].label, atoms[i])
+        
+        self.params = self.parameters(self.get_all_par().keys())  # create object parameters
 
+        for k in ['12', '13', '23']:   # constrain Bij == Bji
+            for at in self.atoms.keys():
+                self.params['%s_B%s' % (at, k[::-1])].set(expr='%s_B%s' % (at, k))
+        
+        return
+    
+    # TODO refactor this block
     def disp_type(self):
         ''' raise disp_type from atom to structure '''
         return self.atoms[self.atoms.keys()[0]].disp_type
@@ -246,14 +342,14 @@ class Structure(UpdateMethods, MergeParams):
         """ return lattice parameters as variables (dict)"""
         r = {}
         for k in ['a', 'b', 'c']:
-            r.update({self.name + '_%s' % k: self.__getattribute__(k)})
+            r.update({ k: self.__getattribute__(k)})   # self.name + '_%s' %
         return r
 
     def lattice_angles(self):
         """ return lattice angles as variables (dict) """
         r = {}
         for k in ['alp', 'bet', 'gam']:
-            r.update({self.name + '_%s' % k: self.__getattribute__(k)})
+            r.update({ k: self.__getattribute__(k)})   # self.name + '_%s' %
         return r
 
     def get_atom_par(self, par):
@@ -267,16 +363,20 @@ class Structure(UpdateMethods, MergeParams):
         """
         returns dictionary of all paramters stored in structure, e.g.:
             * lattice parameters (vector magnitudes and angles)
-            * atom parameters (x, y, z, occ, Uiso)
+            * atom parameters (x, y, z, occ, Uij)
 
         Returns:
             dict: {[atom.label]_[par]: value, ...}
         """
+        keys = ['x', 'y', 'z', 'occ']
+        for ii in range(3):
+            for jj in range(3):
+                keys.append('B%s%s' % (ii+1, jj+1))
         r = {}
         r.update(self.lattice_angles())
         r.update(self.lattice_params())
         for at in self.atoms.keys():
-            for par in ['x', 'y', 'z', 'occ', str(self.disp_type())]:
+            for par in keys:
                 r.update(self.get_atom_par(par))
         return r
 
@@ -304,9 +404,9 @@ class Structure(UpdateMethods, MergeParams):
         try_keys = u.flatten(valid_keys)
         strupar = self.get_all_par()
         existing_keys = strupar.keys()
+        report = []
 
         for k in try_keys:
-            report = []
             if k in existing_keys:
                 if type(strupar[k]) == str:
                     print 'Warning! type(%s) == str. This may create problems.' % k
@@ -329,7 +429,8 @@ class Structure(UpdateMethods, MergeParams):
             pass
 
         return parameters
-
+    
+    
     # End of class structure
 
 
@@ -381,8 +482,11 @@ class Phase(MergeParams, UpdateMethods):
         """
         if not hasattr(self, 'params'):
             self.params = lmfit.Parameters()
-        for item in u.flatten(stru):
-            self.params += item.parameters(item.get_all_par().keys())
+        for s in u.flatten(stru):
+            for k, v in s.params.items():
+                self.params.add('%s_%s' % (s.name, k),
+                                *u.attributegetter('value', 'vary', 'min', 'max')(v)
+                                )
 
     def update_mcl(self, mcl):
         """
@@ -453,60 +557,20 @@ class Phase(MergeParams, UpdateMethods):
         update transition instances from phase params (values only)
 
         Returns:
-            None
-
-        Note:
-            Depricated by utilities.MergeParams upper_to_lower method though
-            change has not been completely propagated in structure module.
+            True if no errors
         """
-        self.upper_to_lower('trans_dict')
+        return self.upper_to_lower('trans_dict') is True
 
-        '''
-        for trans in self.incorporated:  # these are like 'transition_#'
-            i = trans.split('_')[-1]     # but refered to in transition as #
-            # for key that starts with k
-            for trans_var in [s for s in self.params.keys() if s.startswith(trans)]:
-                var = filter(None, trans_var.split('%s_' % trans))[0]  # var like transition_#_var --> var
-                if self.trans_dict[i].params[var] != self.params[trans_var]:
-                    try:
-                        # overwrite phase in trans_dict, which shares pointer with transition instance
-                        self.trans_dict[str(i)].params[var].set(value=self.params[trans_var].value,
-                                                           vary=self.params[trans_var].vary,
-                                                           min=self.params[trans_var].min,
-                                                           max=self.params[trans_var].max)
-                        #  FIX  again need to include decatentation of expr if passed
-                    except KeyError:
-                        # this shouldn't be an issue at the phase - transition level
-                        print '%s not updated: see Structure.phase.phase_to_trans()' % trans_var
-                        pass
-
-        # update Transitions object with new params, validate parameters
-        self.trans.update_transitions(self.trans_dict.values())
-        '''
-        return True
 
     def phase_to_structure(self):
         """
         update structure instance(s) from phase params (values only)
 
         Returns:
-            None
-
-        Note:
-            Depricated by utilities.MergeParams upper_to_lower method though
-            change has not been completely propagated in structure module.
+            True if no errors
         """
-        for stru in self.structures.keys():
-            # update unit cell
-            for k in ['a', 'b', 'c', 'alp', 'bet', 'gam']:
-                setattr(self.structures[stru], k, self.params['%s_%s' % (stru, k)].value)
+        return self.upper_to_lower('structures') is True
 
-            # update asymmetric unit
-            for at in self.structures[stru].atoms.keys():
-                ADP = self.structures[stru].atoms[at].disp_type
-                for k in ['x', 'y', 'z', 'occ', ADP]:
-                    setattr(self.structures[stru].atoms[at], k, self.params['%s_%s' % (at, k)].value)
-        return True
 
     def pub_cif(self, structure_name, filename=None, path=None):  # , subdir='LSQ'):
         """
@@ -657,7 +721,7 @@ class Phase(MergeParams, UpdateMethods):
             # first layer using k from above
             f.write('LAYER %d\n' % (1))
             f.write('None {assumed layer symmetry (?)}\n')
-            f.write('{type  #   x   y   z   Biso  occ}\n')
+            f.write('{type  #   x   y   z   Bij_avg.  occ}\n')
 
             def last(s):
                 return int(re.findall(r'\d+', s)[-1])
@@ -674,7 +738,7 @@ class Phase(MergeParams, UpdateMethods):
                         self.params['%s_y' % at].value,
                         self.params['%s_z' % at].value,
                         #  FIX  conditional handle Uiso
-                        self.params['%s_Biso' % at].value,
+                        3 * np.average(self.params['%s_Bij' % at].value),  # TODO this is broken
                         self.params['%s_occ' % at].value))
 
             # cases for filling other n blocks
@@ -697,7 +761,7 @@ class Phase(MergeParams, UpdateMethods):
                     # write asymmetric unit to input file
                     f.write('LAYER %d\n' % (layer))
                     f.write('None {assumed layer symmetry (?)}\n')
-                    f.write('{type  #   x   y   z   Biso}\n')
+                    f.write('{type  #   x   y   z   Bij}\n')
                     for at in s:
                         f.write(' %s   %s  %s  %s  %s  %s  %s\n' % (
                                 self.structures[k].atoms[at].name,
@@ -706,7 +770,7 @@ class Phase(MergeParams, UpdateMethods):
                                 self.params['%s_y' % at].value,
                                 self.params['%s_z' % at].value,
                                 #  FIX  conditional handle Uiso
-                                self.params['%s_Biso' % at].value,
+                                self.params['%s_Bij' % at].value,
                                 self.params['%s_occ' % at].value))
 
             elif not any(len(self.structures) == k for k in [1, nlayers]):

@@ -513,6 +513,7 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
         self.params = lmfit.Parameters()
         self.update_data(data)  # elevates data params to refinement
         self.update_phases(phases)  # elevates phase params to refinement
+        self.Bij = u.fetch_thermals(self)
 
         return
 
