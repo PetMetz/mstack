@@ -21,8 +21,7 @@ from time import strftime
 from matplotlib import pyplot as plt
 from scipy.interpolate import interp1d
 from tabulate import tabulate
-from collections import OrderedDict as OD
-from operator import itemgetter
+from collections import OrderedDict as od
 
 # utility functions ##############################
 
@@ -68,7 +67,7 @@ def abspath(relative_path):
 
 
 def absfpath(relative_path=None, filename=None, extension=None):
-    """ FIX refactor this out of code return absolute path of rel_path/filename.extension"""
+    """ return absolute path of rel_path/filename.extension"""
 
     if relative_path is None:
         fpath = os.getcwd()
@@ -126,35 +125,6 @@ def checkequal(iterator):
         return True
 
 
-def fetch_thermals(Refinement):
-    """
-    fetch Bij tensors from Refinement.Parameters
-    
-    Arguments:
-        Refinement : (mstack.Refinement-like)
-    Returns:
-        OrderedDict of Bij tensors
-    """
-    odd = OD()
-    for k1, phase in Refinement.phases.items():   # for phase in refinment
-        odd.update({k1:{}})
-        for k2, layer in phase.phase.items():   # for layer in phase
-            odd[k1].update({k2:{}})
-            for k3, structure in layer.structures.items():   # for structure in layer
-                odd[k1][k2].update({k3:{}})
-                for k4, atom in structure.atoms.items():   # for asymmetric unit in layer
-                    fstr = '%s_%s_%s_%s' % (k1, k2, k3, k4) + '_B{i}{j}'
-                    fmater = lambda fstr, i: [fstr.format(i=i, j=idx) for idx in (1, 2, 3)]
-                    rv = np.array((
-                                   (itemgetter(*fmater(fstr, 1))(Refinement.params)),
-                                   (itemgetter(*fmater(fstr, 2))(Refinement.params)),
-                                   (itemgetter(*fmater(fstr, 3))(Refinement.params))
-                                  ), dtype=object
-                                 )
-                    odd[k1][k2][k3].update({k4: rv})   # package Bij tensor into OrderedDict
-    return odd
-
-
 def filter_report(refinement, variable=True, constrained=False,
                   _print=True, _text=False):
     """
@@ -197,17 +167,17 @@ def filter_report(refinement, variable=True, constrained=False,
                 print '\n'.join(v)
             if _text:
                 rv.extend(v)
-
+    
         if _print is True:
             print '\n {0} \n'.format(rwp(refinement))
-
+        
         if _text is True:
             rv.extend('\n{0}\n'.format(rwp(refinement)))
-
+    
     except AttributeError:
         print '%s.report does not exist. Have you run a minimization yet?'\
                 % refinement.name
-
+    
     return rv
 
 
@@ -248,7 +218,7 @@ def interpolate_data(Array1, Array2, *mesh):
     except Exception as e:
         print e
         print 'Array2 == [], looking for mesh'
-
+    
     """
     # some initialization
     return_array = []
@@ -278,8 +248,8 @@ def interpolate_data(Array1, Array2, *mesh):
     else:
         # get interpolated values valid for both arrays
         # data rejected if they lie outside the common maximal x-coordinates
-
-
+        
+        
         f = interp1d(x1, y1, kind='slinear')
         for x_coord in x2:
             try_to_interpolate(x_coord)
@@ -295,13 +265,13 @@ def interpolate_data(Array1, Array2, *mesh):
             raise Exception('Array2 and/or mesh not specified in utilities.interpolate_data')
     else:
         # get interpolated values valid for both arrays
-        # data rejected if they lie outside the common maximal x-coordinates
+        # data rejected if they lie outside the common maximal x-coordinates 
         y2 = interp1d(x1, y1, kind='slinear', bounds_error=False, fill_value=np.nan)(x2) # map f(x1, y1) on x2
-
+    
     rv = np.array((x2, y2)).T
     rv = rv[~np.isnan(rv[:,1])]  # <-- trim NAN
     # y2 = y2[~np.isnan(y2)]
-
+    
     return rv
 
 
@@ -342,7 +312,7 @@ def plot(*Array, **kwargs):
     """
     Takes a list of tuples [(x1,y1),...,(xn,yn)] and plots with line format
 
-     FIX  bug: axis determined on last loaded plot (could lead to truncation)
+    ~! bug: axis determined on last loaded plot (could lead to truncation)
 
     Args:
         Array (list, np.array): array(s) with shape (N,2)
@@ -572,7 +542,7 @@ def read_data(filename, path=None, column=1, lam=None, q=False, override=True):
                     line[i] = float(line[i])
                 clean.append(line)
             except ValueError:
-                # print '%s' % (line)  #  FIX 
+                # print '%s' % (line)  # ~!
                 if override:
                     pass
                 else:
@@ -652,7 +622,7 @@ def sort_expr(obj):
    obj containing lmfit.Parameters attribute to be sorted (in place)
    key = lambda par : par.expr is None
    reverse = True
-
+   
    [expr1=None, expr2=None,....,exprN='foo', exprN+1='bar',...]
    """
    catch = False   # <--- debugging/testing
@@ -673,7 +643,7 @@ def sort_expr(obj):
          catch = True
          pass
    return catch is False
-
+            
 
 def unique_flatlist(l):
     rv = []
@@ -697,12 +667,12 @@ def var_names(string):
     else:
         raise Exception('var_names expected None or str type.\n\
                          instead received:\n{}.'.format(type(string)))
-
+    
 def bubble_sort(param_dict):
     """ param_dict as OrderedDict() """
     # swap for type supporting replacement
     sd = param_dict.items()
-
+    
     # bubble sort
     for pnum in range(len(sd)-1, 0, -1):
         for i in range(pnum):
@@ -714,7 +684,7 @@ def bubble_sort(param_dict):
                 sd[i], sd[i+1] = sd[i+1], sd[i]
             elif any(x==y for x in l1 for y in l2):
                 sd[i], sd[i+1] = sd[i+1], sd[i]
-
+    
     return od(sd)
 
 
@@ -724,7 +694,7 @@ def reconstruct(obj):
     returns True if flawless
     """
     catch=False
-
+    
     for k, v in obj.__dict__.items():
         try:
             if type(v).__name__ == 'Parameters':
@@ -732,16 +702,16 @@ def reconstruct(obj):
                 symtab = v._asteval.symtable    # cache old symtab
                 setattr(obj, k, lmfit.parameter.Parameters()) # replace parameters instance
                 new_symtab = getattr(obj, k)._asteval.symtable
-
+                
                 for sym in symtab.keys(): # replace new symtab with cached
                     if not any(sym==x for x in new_symtab.keys()):
                         new_symtab.update({sym: symtab[sym]})
-
+                
                 getattr(obj, k).add_many(*sd.values())     # update parameters instance with sorted
-
+                        
         except Exception as e:
             catch = True
-
+    
     return catch == False
 
 ####################################################
@@ -870,14 +840,9 @@ class MergeParams(object):
 
     def upper_to_lower(self, top_attribute, specifier=None, debug=False):
         """
-        Parameters:
         * top_attribute: attribute name for dict of subordinate objects
             i.e. 'phases' --> refinement.phases = {'phase_1': <PairDistributionFunction.PdfPhase>}
         * specifier: name of parameters instance in subordinate object
-        
-        Returns:
-            True if no errors
-            list if debug is True
         """
         skipped = [('name', 'item_var', 'var')]  # for debugging
         # get bottom attribute Parameters instance
@@ -886,7 +851,7 @@ class MergeParams(object):
 
             # for name in getattr(self, 'incorporated_%s' % top_attribute):
             # this caused the parameter to be shadowed- i.e. wrong level of nesting here.
-            name = item  #  FIX 
+            name = item  # ~!
             for item_var in [k for k in self.params.keys() if k.startswith(name)]:
                 try:
                     # strip item header to retrieve original var name
@@ -903,8 +868,8 @@ class MergeParams(object):
         if debug is True:
             return skipped
         else:
-            return len(skipped) == 1
-        
+            return True
+
     # End of class MergeParams
 
 
@@ -1030,12 +995,6 @@ class UpdateMethods(object):
         reconstruct(self)
         return
 
-    def dump_params(self, keys):
-        """ print """
-        print '\nvariable  value  min  max expr\n'
-        for k in u.flatten(keys):
-            print k, self.params[k].value, self.params[k].min, self.params[k].max, self.params[k].expr        
-        
     # End of class UpdateMethods
 
 

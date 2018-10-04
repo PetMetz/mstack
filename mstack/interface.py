@@ -11,20 +11,19 @@ import structure as st
 import numpy as np
 from numpy import pi
 from copy import deepcopy
-from operator import itemgetter
 from diffpy.Structure import Structure, Atom, Lattice
 
 
 # interface functions #
 def is_dict(d):
-    """ TODO DEPRICATE returns boolean T|F if d passes type check """
+    """ returns boolean T|F if d passes type check """
     return type(d) == dict
 
 
 # interface class #
 class Interface(object):
     """
-    Interface mstack.Structure object with DiffPy Structure/Calculator objects
+    Interface DIFFaX-Py object with DiffPy Structure/Calculator objects
 
     _modules return *return self.attribute.update({stuff})* and are accessed
     from interface.attribute
@@ -40,34 +39,27 @@ class Interface(object):
         """
         Retrieve all lattice prms using Utilities.getattributes()
 
-        sets updated lattices as dict {phase: {stru: diffpy.Structure.Lattice, ...}, ...}
-
-        Returns:
-            True
+        **Returns:** {phase: {stru: diffpy.Structure.Lattice, ...}, ...}
         """
         self.add('lattices', {})
-
-        for k1, p in self.phases.items():
-            self.lattices.update({k1: {}})
-            for k2, s in p.structures.items():
-                self.lattices[k1].update({k2: Lattice(*ut.attributegetter('a', 'b', 'c', 'alp', 'bet', 'gam')(s))})
-
-        return True
+        rv = {}
+        for p in self.phases.keys():
+            rv.update({p: {}})
+            for s in self.phases[p].structures.keys():
+                rv[p].update({s: Lattice(*ut.attributegetter('a', 'b', 'c', 'alp', 'bet', 'gam')(
+                             getattr(self.phases[p], s)))})
+        return self.lattices.update(rv)
 
     # ###### assymetric unit ######
-    def _get_atom_Bij(self, stru, atomkey):
+    def is_Uiso(self, atom):
         """
-        Retrieve Uij tensor from lmfit.Parameters
-
-        Returns:
-            np.array(3,3)
+        requires atom as Structure.atom as input
+        returns boolean discriminating ADP type
         """
-        k = atomkey
-        return np.array((
-                        itemgetter('%s_B11'%k, '%s_B12'%k, '%s_B13'%k)(stru.params),
-                        itemgetter('%s_B21'%k, '%s_B22'%k, '%s_B23'%k)(stru.params),
-                        itemgetter('%s_B31'%k, '%s_B32'%k, '%s_B33'%k)(stru.params)
-                        ))
+        if not any(atom.disp_type == k for k in ['Biso', 'Uiso']):
+            raise Exception('expected atom to contain Uiso or Biso as \
+                            isotropic displacement parameter type')
+        return atom.disp_type == 'Uiso'
 
     def _get_atoms(self):
         """
@@ -78,25 +70,33 @@ class Interface(object):
         # O2 = Atom('O', xyz=(0.6666, 0.3333, 0.2), label='O2', occupancy=1., Uisoequiv=0.003)
         # (atype=None, xyz=None, label=None, occupancy=None, anisotropy=None, U=None, Uisoequiv=None, lattice=None)
         self.add('atoms', {})
-
-        for k1, p in self.phases.items():   # for phase in phases
-            self.atoms.update({k1: {}})
-            for k2, s in p.structures.items():  # for structure in structures
+        rv = {}
+        for p in self.phases.keys():
+            rv.update({p: {}})
+            for s in self.phases[p].structures.keys():
+                atoms = self.phases[p].structures[s].atoms
                 l = []
-                for k3, at in s.atoms.items():  # for atoms in structure
-                    XYZ = ut.attributegetter('x', 'y', 'z')(at)
+                for at in atoms.keys():
+                    if not self.is_Uiso(atoms[at]):
+                        ADP = atoms[at].Biso * (1 / (8.0 * pi * pi))
+                    elif self.is_Uiso(atoms[at]):
+                        ADP = atoms[at].Uiso
 
-                    l.append(Atom(atype=at.name,
+                    # ~! for some reason diffpy is creating Uij entries when anisotropy is False
+                    U = np.zeros((3, 3))
+                    for i in range(3):
+                        U[i, i] = ADP
+
+                    XYZ = ut.attributegetter('x', 'y', 'z')(atoms[at])
+                    l.append(Atom(atype=atoms[at].name,
                                   xyz=XYZ,
-                                  label=at.label,
-                                  occupancy=s.params['%s_occ' % k3].value,
-                                  U=self._get_atom_Bij(s, k3) * (1./(8.*np.pi**2))
-                                  )
-                            )
+                                  label=atoms[at].label,
+                                  occupancy=atoms[at].occ,
+                                  U=U))  # Uisoequiv=ADP))
 
-                self.atoms[k1].update({k2: l})  # append list of atoms in structure
+                rv[p].update({s: l})
 
-        return True
+        return self.atoms.update(rv)
 
     # ########## supercell expansion ##############
     def expand_supercell(self, lattice, atoms, trans, dim, label, debug=False):
@@ -187,7 +187,7 @@ class Interface(object):
 
         for p in self.phases.keys():
             strs = sorted(self.phases[p].structures.values(), key=str_number)
-            for i, s in enumerate(strs):
+            for i, s in enumerate(strs):               
                 for j in range(self.phases[p].trans.nlayers):
                     # lattice, atoms, trans, dim, label
                     lat = self.lattices[p][s.name]
@@ -209,7 +209,7 @@ class Interface(object):
 
         self.supercells.update(rv)
         self.alpij.update(alp)
-
+        
         return
 
     # ###### phases ########
