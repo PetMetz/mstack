@@ -18,6 +18,7 @@ import re
 # import string
 import time
 import cPickle
+from time import sleep
 from copy import copy, deepcopy
 from matplotlib import pyplot as plt
 from subprocess import call
@@ -688,7 +689,7 @@ class Refinement(MergeParams, UpdateMethods):
         redchi = sum(resid ** 2 / (len(self.exp_data) -
                      len([k for k in self.params if self.params[k].vary is True])))
         '''
-        rwp = self.rwp()
+        rwp = self.rwp(weights=kws['weights'])
         # append history
         try:
             self.hist.append((self.hist[-1][0] + 1, rwp))
@@ -743,6 +744,55 @@ class Refinement(MergeParams, UpdateMethods):
             phase.upper_to_lower('trans_dict', 'params')
 
         return True
+    
+    def call_diffax(self, subdir, timeout=None):
+        """
+        call DIFFaX on each phase in refinement, cleaning and writing appropriate 
+        input files.
+        
+        timeout handles OSError while file is open, which can happen for any number
+        of reasons. Why can't we get a decent recursion calculator that write to 
+        the memory!?!?!?!?
+        
+        Parameters:
+            subdir: fpath for diffax
+            timeout: (0.1 s) length of time to wait on system to close files
+        """
+        if timeout is None:
+            timeout = 0.1  # seconds
+        
+        time = 0.0
+        flag = False
+        while time <= timeout:
+            try:
+                # cleanup .spc* with matching phase names (permits multiple use of same diffax dir)
+                match = lambda x: os.path.split(filename)[-1].startswith(str(self.phases[p].name))
+                for p in self.phases.keys():
+                    for filename in glob(os.path.join(abspath(subdir), '*.spc*')):
+                        if match(filename) is True:
+                            os.remove(filename)
+        
+                # for each phase, make a DIFFaX call
+                for phase in self.phases:
+                    self.pub_control(path=subdir)
+                    self.pub_input(path=subdir)
+                if os.name =='nt':
+                    call(os.path.join(abspath(subdir), r'DIFFaX.exe'),
+                         cwd=abspath(subdir), creationflags=0x08000000)  
+                elif os.name == 'posix':
+                    call(r'./DIFFaX.sh', cwd=abspath(subdir))
+                else:
+                    raise Exception('I(Q) refinment runs on posix or windows only')
+                
+                flag = True
+
+            except OSError:   # refinement can choke if file isn't closing for any reason
+                sleep(0.025)
+                flag = False
+
+            if flag is True:
+                break
+        return
 
     def residual_method(self, params, **kws):  # subdir=None, path=cwd):
         """
@@ -763,39 +813,13 @@ class Refinement(MergeParams, UpdateMethods):
         """
         # update refinement parameters
         self.generic_update(params)
-        
-        # ''' ~!
-        # get kws subdir
-        try:
-            path = kws['path']
-        except:
-            path = os.getcwd()
-        # '''
-
         try:
             subdir = kws['subdir']
         except KeyError:
-            subdir = None
+            subdir = os.getcwd()
 
-        # cleanup .spc* with matching phase names (permits multiple use of same diffax dir)
-        for p in self.phases.keys():
-            for filename in glob(os.path.join(abspath(subdir), '*.spc*')):
-                match = lambda x: os.path.split(filename)[-1].startswith(
-                        str(self.phases[p].name))
-                if match(filename) is True:
-                    os.remove(filename)
-
-        # for each phase, make a DIFFaX call
-        for phase in self.phases:
-            self.pub_control(path=subdir)
-            self.pub_input(path=subdir)
-        if os.name =='nt':
-            call(os.path.join(abspath(subdir), r'DIFFaX.exe'),
-                 cwd=abspath(subdir), creationflags=0x08000000)  
-        elif os.name == 'posix':
-            call(r'./DIFFaX.sh', cwd=abspath(subdir))
-        else:
-            raise Exception('I(Q) refinment runs on posix or windows only')
+        # call DIFFaX
+        self.call_diffax(subdir=subdir, timeout=0.1)  # 0.1/0.025 attempts if file busy
 
         # check instrumental broadening
         column = 2
@@ -805,9 +829,7 @@ class Refinement(MergeParams, UpdateMethods):
         # I/O and cast calc onto xo
         self.calc_data = self.weighted_composite(path=subdir, column=column)
         self.calc_data = self.map_calc_exp_background(self.calc_data)
-        A = np.array(self.calc_data)
-        ywp = A[:, 1]
-        x = A[:, 0]
+        x, ywp = np.array(self.calc_data).T
 
         # calculate Yc = global_scale * (Ywp + Ybg)
         self.yc = (ywp + self.ybg)
@@ -818,19 +840,30 @@ class Refinement(MergeParams, UpdateMethods):
             self.resid = np.sqrt(self.yo) - np.sqrt(self.yc)
         else:
             self.resid = self.yo - self.yc 
+        
+        # add weights
+        weights = kws['weights']
+        if weights is None:
+            weights = np.ones_like(self.resid)
+            
+        if weights.shape != self.resid.shape:
+            raise Exception('Refinement.residual_method: residual and weight \
+                             vectors must have identical shape')
+        
+        self.resid = self.resid * weights
+        
+        return self.resid
 
-        return self.resid            
-
-    def preview(self, subdir=None, sqrt_filter=False):
+    def preview(self, subdir=None, sqrt_filter=False, weights=None):
         """ get peak at first calculated state """
-        kws = {'subdir': subdir, 'sqrt_filter': sqrt_filter}
-        resid = self.residual_method(self.params, **kws)
+        kws = {'subdir': subdir, 'sqrt_filter': sqrt_filter, 'weights':weights}
+        self.residual_method(self.params, **kws)
         self.plot_min_result(sqrt_filter=sqrt_filter)
-        print self.rwp() #   sum(resid)
+        print self.rwp(weights=weights) #   sum(resid)
         return
 
 
-    def lsq_minimize(self, subdir=None, plot_resid=False,
+    def lsq_minimize(self, subdir=None, plot_resid=False, weights=None,
                      epsfcn=None, xtol=None, sqrt_filter=False,
                      method='leastsq', minkws=None, cifout=False):
         """
@@ -851,9 +884,15 @@ class Refinement(MergeParams, UpdateMethods):
             See the SciPy minimizer documentation for full list of minimizer methods.
         """
         # kws to pass
-        kws = {'subdir': subdir, 'plot_resid': plot_resid, 'sqrt_filter': sqrt_filter}
-        minkws = {}
+        kws = {'subdir': subdir,
+               'plot_resid': plot_resid,
+               'sqrt_filter': sqrt_filter,
+               'weights': weights}
+        
+        if minkws is None:
+            minkws = {}
 
+        # FIXME this is clunky and unnecessary...
         if method == 'leastsq':
             # set step-length
             if epsfcn is not None:
@@ -1049,19 +1088,17 @@ class Refinement(MergeParams, UpdateMethods):
 
             return
 
-    def rwp(self, weight=None):
+    def rwp(self, weights=None):
         """
         calculate rwp for the model:
             Rwp = {sum_m(w_m * (Yo,m - Yc,m) ** 2) / sum_m(wm * Yo,m) ** 2} ** 1/2
-            wm = 1 / sigma ** 2
+            wm = 1 / sigma ** 2 == 1 / Yo,m
         weight (length == data)
-        #~! defalut weight: (Yo,m ** 1/2) ** -2
         """
-        if weight is None:
-            # weight = np.sqrt(self.yo ** 0.5) ** -2
-            weight = 1.
+        if weights is None:
+            weights = 1.
         resid = self.yo - self.yc
-        rv = np.sqrt(np.sum(weight * resid ** 2) / np.sum(weight * self.yo ** 2))
+        rv = np.sqrt(np.sum(weights * resid ** 2) / np.sum(weights * self.yo ** 2))
         return rv
 
     # End of class Refinement

@@ -167,16 +167,16 @@ class Transition(object):
                     if self.cij[k1].value == self.cij[k2].value == 0: # if all 0, leave it alone
                        pass
                     
-                    elif self.cij[k1].value > self.cij[k2]:  # else scale  cij by the smaller of cii or cjj
-                        self.scaled_cij[k].set(value=(self.cij[k].value * self.cij[k2].value), max=self.cij[k2].value)
+                    elif self.cij[k1].value > self.cij[k2]:  # else limit cij by the smaller of cii or cjj
+                        self.scaled_cij[k].set(value=(self.cij[k2].value)) # , max=self.cij[k2].value)  # self.cij[k].value * 
                     
                     elif self.cij[k2].value > self.cij[k1]:
-                        self.scaled_cij[k].set(value=(self.cij[k].value * self.cij[k1].value), max=self.cij[k1].value)
+                        self.scaled_cij[k].set(value=(self.cij[k1].value)) # , max=self.cij[k1].value)  # self.cij[k].value * 
     
                 except ValueError:
                     # error if cii == 0
                     if self.cij[k1].value == 0 or self.cij[k2].value == 0:
-                        self.scaled_cij[k].set(value=0, min=0.0, max=1e-06)
+                        self.scaled_cij[k].set(value=0)  # , min=0.0, max=1e-06)
                     else:
                         raise(Exception('hmmm there appears to be an issue originating from setting cij==0.\
                                 see Transition.scale_cij'))
