@@ -710,6 +710,35 @@ class Refinement(MergeParams, UpdateMethods):
             # not required
             pass
 
+    def cij_manager(self):
+        """
+        this is hacky...
+        
+        Maximum absolute value of off-diagonal Cij elements must be <= (Cii**2 + cjj**2)**1/2
+        
+        """
+        keys = map(lambda m: m.string, [re.match('.*_c\d+', k) for k in self.params.keys() if re.match('.*_c\d+', k) is not None])
+        keys.sort()
+        roots = u.unique_flatlist([re.split('_c\d+', k) for k in keys])
+        # for root in roots
+        for root in roots:
+            for ij in ('12', '13', '23'):
+                # compute (Cii**2 + cjj**2)**1/2
+                ii, jj = ij[0] * 2, ij[-1] * 2
+                prms = ['%s_c%s' % (root, idx) for idx in (ii, jj)]
+                viis = itemgetter(*prms)(self.params)
+                viis = np.array([v.value for v in viis], dtype=float)  # unpack cii's values
+                mij = np.sqrt(np.sum(viis**2))   # max absolute value
+                par = self.params['%s_c%s' % (root, ij)]
+                # if user bounds <= maximum bounds, leave it alone
+                if not par.min < -mij:
+                    par.min = -mij
+                if not par.max > mij:
+                    par.max = mij
+                
+        self.params.update(self.params)
+        return
+        
     def generic_update(self, params):   # , incomplete=False):
         """
         generic update method passes parameters to subordinate objects
@@ -726,6 +755,9 @@ class Refinement(MergeParams, UpdateMethods):
                 for attr in ['value', 'vary', 'min', 'max', 'expr']:
                     setattr(self.params[k], attr, getattr(v, attr))
 
+        # handle cij bounds
+        self.cij_manager()
+        
         # update background, weights, global scale, broadening with updated parameter instance
         # ~! why is this necessary?
         self.update_background(params=params)

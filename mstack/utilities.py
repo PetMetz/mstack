@@ -898,10 +898,12 @@ class DynamicPlot(object):
         self.ax.set_autoscaley_on(True)
 
         # plot self.hist
+        label = '$R_{wp}\/=\/\sqrt{\\frac{\Sigma_i \/ w_i \/ (Y_{o,m}-Y_{o,c})^2 }{ \Sigma_i\/w_i\/Y_{o,m}^2 }}$'
         self.lines, = self.ax.plot([], [], 'bo', mec='b', mfc='None', ms=5,
-                                   label='$\{\Sigma_i\/Y_{diff}^2\/ / \/ N_{d.o.f.}\}^{1/2}$')
+                                   label=label)
+                                   # label='$\{\Sigma_i\/Y_{diff}^2\/ / \/ N_{d.o.f.}\}^{1/2}$')
         self.ax.set_xlabel('$Iteration$', fontsize=self.fontsize)
-        self.ax.set_ylabel('$Reduced\/\chi^2$', fontsize=self.fontsize)
+        self.ax.set_ylabel('$R_{wp}\/\/[frac.]$', fontsize=self.fontsize)
         plt.legend()
         self.fig.canvas.draw()
 
