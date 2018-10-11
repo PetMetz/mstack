@@ -59,7 +59,7 @@ def supercell(struct, vector, N=None, cif=True, xyz=False,
             rx = vector['rx'].value
             ry = vector['ry'].value
             rz = vector['rz'].value
-        except TypeError or AttributeError:
+        except (TypeError, AttributeError):
             rx, ry, rz = vector.values()
     elif hasattr(vector, '__iter__'):
         rx, ry, rz = vector[:]
