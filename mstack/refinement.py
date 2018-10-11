@@ -845,6 +845,8 @@ class Refinement(MergeParams, UpdateMethods):
         """
         # update refinement parameters
         self.generic_update(params)
+
+        # get diffax directory
         try:
             subdir = kws['subdir']
         except KeyError:

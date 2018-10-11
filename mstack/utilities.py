@@ -25,6 +25,31 @@ from collections import OrderedDict as od
 
 # utility functions ##############################
 
+def iq_plot():
+    """ setup empty iq plot """
+    fig, ax = plt.subplots()
+    ax.set_xlabel('$Q \/\/ [\AA^{-1}]$')
+    ax.set_ylabel('$I(Q) \/\/ [counts]$')
+    return fig, ax
+
+
+def i2t_plot(wvl=None):
+    """ setup empty i2t plot """
+    if wvl is None:
+        wvl=1000
+    fig, ax = plt.subplots()
+    ax.set_xlabel('$\degree 2 \\vartheta \/\/ [\lambda\/=\/%1.4f]$' % wvl)
+    ax.set_ylabel('$I(\degree 2 \\vartheta ) \/\/ [counts]$')
+    return fig, ax
+
+
+def gr_plot():
+    """ setup empty G(r) plot """
+    fig, ax = plt.subplots()
+    ax.set_xlabel('$r \/\/ [\AA]$')
+    ax.set_ylabel('$G(r) \/\/ [\AA^{-2}]$')
+    return fig, ax
+
 
 def _save(obj, fname):
     """ dump pickle to fname """
