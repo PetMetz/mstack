@@ -152,7 +152,7 @@ def fetch_thermals(Refinement):
                                   ), dtype=object
                                  )
                     odd[k1][k2][k3].update({k4: rv})   # package Bij tensor into OrderedDict
-    return odd
+    return odd            
 
 
 def filter_report(refinement, variable=True, constrained=False,

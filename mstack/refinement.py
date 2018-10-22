@@ -374,8 +374,10 @@ class Refinement(MergeParams, UpdateMethods):
             self.update_phase_params(d)
 
         # merge to refinement params
-        # self.phase_to_refinement() # <-- depricated method moved to scrap
-        self.lower_to_upper('phases', 'params')  # <--- this might be problematic
+        self.lower_to_upper('phases', 'params')
+        
+        # get Bij
+        self.Bij = u.fetch_thermals(self)
 
         # miscellany ######################################################## #
         # history
