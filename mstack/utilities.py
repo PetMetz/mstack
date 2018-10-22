@@ -150,6 +150,35 @@ def checkequal(iterator):
         return True
 
 
+def fetch_thermals(Refinement):
+    """
+    fetch Bij tensors from Refinement.Parameters
+    
+    Arguments:
+        Refinement : (mstack.Refinement-like)
+    Returns:
+        OrderedDict of Bij tensors
+    """
+    odd = OD()
+    for k1, phase in Refinement.phases.items():   # for phase in refinment
+        odd.update({k1:{}})
+        for k2, layer in phase.phase.items():   # for layer in phase
+            odd[k1].update({k2:{}})
+            for k3, structure in layer.structures.items():   # for structure in layer
+                odd[k1][k2].update({k3:{}})
+                for k4, atom in structure.atoms.items():   # for asymmetric unit in layer
+                    fstr = '%s_%s_%s_%s' % (k1, k2, k3, k4) + '_B{i}{j}'
+                    fmater = lambda fstr, i: [fstr.format(i=i, j=idx) for idx in (1, 2, 3)]
+                    rv = np.array((
+                                   (itemgetter(*fmater(fstr, 1))(Refinement.params)),
+                                   (itemgetter(*fmater(fstr, 2))(Refinement.params)),
+                                   (itemgetter(*fmater(fstr, 3))(Refinement.params))
+                                  ), dtype=object
+                                 )
+                    odd[k1][k2][k3].update({k4: rv})   # package Bij tensor into OrderedDict
+    return odd            
+
+
 def filter_report(refinement, variable=True, constrained=False,
                   _print=True, _text=False):
     """
