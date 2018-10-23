@@ -60,7 +60,7 @@ def load(filename, path=None):
     Note: if all modules needed by the refinement object are not imported at time of
         unpickling, there will likely be AttributeErrors thrown.
 
-    ~! actually, this is problematic. cPickle serializes class by reference, nor
+     FIX  actually, this is problematic. cPickle serializes class by reference, nor
         definition, so changinging the namespace (e.g. adding or removing modules
         to this program) will break the pickle.
 
@@ -224,6 +224,7 @@ class PdfModel(UpdateMethods, MergeParams):
             * sthick (float): [Å] sheet thickness in analytic damping function (infinite width)
             * mno (int, list): [int] (int, int, int) supercell dimensions for expansion of structures
             * use (bool): include in refinement?
+            # FIX  unused
             * sratio: [-] sigma ratio for bonded atoms- peak sharpening due to correlated motion
             * rcut: [Å] radius cutoff for application of sratio
             * stepcut: [Å] distance above which G(r) is truncated
@@ -292,9 +293,9 @@ class PdfPhase(UpdateMethods, MergeParams):
 
     def _check_mno(self, mno):
         """ type enforcing. returns mno as len 3 tuple"""
-        if type(mno) is tuple and len(mno) is 3:
+        if type(mno) is tuple and len(mno) == 3:
             return mno
-        elif type(mno) is int and len(str(mno)) is 3:
+        elif type(mno) is int and len(str(mno)) == 3:
             return tuple([int(x) for x in str(mno)[:]])
         else:
             raise Exception('values of m|n|o greater than 9 must be entered\
@@ -397,7 +398,7 @@ class PdfPhase(UpdateMethods, MergeParams):
                                    use=self.use)}
                       )
 
-        # ~! for debugging
+        #  FIX  for debugging
         if name_check(rv.keys()) is False:
             raise Exception('check out naming conventions for phase->model')
 
@@ -512,6 +513,7 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
         self.params = lmfit.Parameters()
         self.update_data(data)  # elevates data params to refinement
         self.update_phases(phases)  # elevates phase params to refinement
+        self.Bij = u.fetch_thermals(self)
 
         return
 
@@ -617,7 +619,7 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
 
         # some None|inf replacement
         for k, v in cfg.items():
-            # ~! print k, v, type(k), type(v)
+            #  FIX  print k, v, type(k), type(v)
             if not u.isfinite(v):
                 cfg.update({k: 0})
 
@@ -702,15 +704,15 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
             self.gr[data.name].update({phase.name: {}})
         # get computable models
         phase.to_models()
-        #~! rv = np.zeros_like(np.linspace(data.rmin, data.rmax, data.rstep)) ~!
-        #~! rv = np.zeros((np.ceil((data.rmax - data.rmin) / data.rstep).astype(int),), dtype=float)
+        # FIX  rv = np.zeros_like(np.linspace(data.rmin, data.rmax, data.rstep))  FIX 
+        # FIX  rv = np.zeros((np.ceil((data.rmax - data.rmin) / data.rstep).astype(int),), dtype=float)
         rv = np.array([])
         N = 0
 
         # crunch G(r) * model_scale
         for m_key, mod in phase.models.items():
             gr = self.calculator(mod, data)  # calc gr
-            # ~! print data.name, phase.name, m_key
+            #  FIX  print data.name, phase.name, m_key
             self.gr[data.name][phase.name].update({m_key: gr})
             rv = self.merge_add(rv, gr[:, 1])
             N += 1
@@ -747,7 +749,7 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
             self.GR[data.name].keys()
         except KeyError:
             self.GR.update({data.name: {}})
-        #~! rv = np.zeros((np.ceil((data.rmax - data.rmin) / data.rstep).astype(int),), dtype=float)
+        # FIX  rv = np.zeros((np.ceil((data.rmax - data.rmin) / data.rstep).astype(int),), dtype=float)
         rv = np.array([])
         M = 0
 
@@ -756,7 +758,7 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
             if phase.use is True:   # option to turn off phases
                 # get model composite
                 if recalc is True:  # speed up by skipping g(r) calc if no var change
-                    # ~! print 'computing {}'.format(p_key)
+                    #  FIX  print 'computing {}'.format(p_key)
                     gr = self.model_composite(phase, data)  # <--- weighted phase PDF
                     self.GR[data.name].update({p_key: gr})
 
@@ -765,24 +767,24 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
                 for env in [k for k in phase.params.keys() if any(
                         k.endswith(j) for j in ['spdiameter', 'sthick'])]:
                     if env == 'spdiameter' and u.isfinite(phase.spdiameter.value):
-                        #~! print 'applying spdiameter'
+                        # FIX  print 'applying spdiameter'
                         psize = phase.spdiameter.value
                         gr = self.apply_sphericalcf(gr, psize)
                     if env == 'sthick' and u.isfinite(phase.sthick.value):
-                        #~! print 'applying sthick'
+                        # FIX  print 'applying sthick'
                         sthick = phase.sthick.value
                         gr = self.apply_sheetcf(gr, sthick)
                 rv = self.merge_add(rv, gr[:, 1])
                 M += 1
 
-                #~!
+                # FIX 
                 if not invalid_type(rv):
                     pass
 
 
         # normalize and update
         rv = np.divide(rv, M, dtype=float)
-        #~!
+        # FIX 
         if not invalid_type(rv):
             pass
 
@@ -877,7 +879,7 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
     def report_refined(self, tabulate=True):
         """
         report parameters with attribute vary == True
-        ~! moved to utilities
+         FIX  moved to utilities
         """
         for p in self.params.values():
             if p.expr is not None and p.vary is True:
@@ -887,7 +889,7 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
     def filter_report(self, variable=True, constrained=False):
         """
         print a limited portion of the lmfit minimizer fit report
-        ~! moved to utilities
+         FIX  moved to utilities
         """
         rv = u.filter_report(self, variable, constrained)
         return rv
@@ -944,7 +946,7 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
             np.array: residual with length of data
         """
         # get members of interest
-        # ~! migrated to phase_composite method
+        #  FIX  migrated to phase_composite method
 
         # get difference
         diff = np.subtract(self.yo, self.yc)
@@ -955,7 +957,7 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
         """
         calculate rwp for the refinement (utilities method)
         Note:
-            ~! not suitable for multiple data
+             FIX  not suitable for multiple data
         """
         rv = u.rwp(self)
         return rv
@@ -981,7 +983,7 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
         # self.generic_update(params)
         self.generic_update(params)
 
-        # ~! Future feature: gr skipping if no relevant var change
+        #  FIX  Future feature: gr skipping if no relevant var change
         recalc = True
 
         # get phase composites and residuals
@@ -1013,7 +1015,7 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
             Return type is important in this case. I believe a return type of
             True causes the minimization to abort.
         """
-        # ~!
+        #  FIX 
         # print iter
         self.iter = iter
 
@@ -1125,7 +1127,7 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
         This function coerces min/max values to *adjust* from supplied
         information if none are given by the user.
 
-        ~! this is a bit of a sticking point. Need to research scipy details.
+         FIX  this is a bit of a sticking point. Need to research scipy details.
         lmfit default
 
         Returns:
@@ -1135,7 +1137,7 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
         for k in self.params.values():
             if any(k.value == s for s in [float('-inf'), float('inf'), None]):
                 k.value = 0.0
-                # ~! print k.name, k.value
+                #  FIX  print k.name, k.value
 
         # set min/max arbitrarily at +/- 25% if values not supplied
         for par in self.params.values():
@@ -1143,7 +1145,7 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
             # m = [value * 0.75, value * 1.25]
             m = [-adjust * value, adjust * value]
             expr = par.expr
-            # ~! print k, m
+            #  FIX  print k, m
             if min(m) == max(m):  # as in the case of value = 0.0
                 m = [min(m), min(m) + 0.0001]
             if any(par.min == s for s in [float('-inf'), float('inf'), None]):
@@ -1165,7 +1167,7 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
                 raise Exception('refinement.validate_diffev still not correcting min == max')
 
         # if everything passes, return True
-        # ~! print '\n\n\n\n\n\n\n end of validate diffev \n\n\n\n\n\n\n'
+        #  FIX  print '\n\n\n\n\n\n\n end of validate diffev \n\n\n\n\n\n\n'
         # push updated variables
         self.generic_update(self.params)
         return True
