@@ -6,11 +6,11 @@ Transition module contains classes for describing layer transitions.
 
 @author: Peter C. Metz
 """
-from copy import deepcopy
+
 import lmfit
 import utilities as u
 import numpy as np
-
+from copy import deepcopy
 
 
 class Transition(object):
@@ -95,7 +95,7 @@ class Transition(object):
             self.generic({'c11': 0.0, 'c22': 0.0, 'c33': 0.0, 'c12': 0.0, 'c13': 0.0, 'c23': 0.0}, 'cij')
         # merge new on old
         self.generic(cij, 'cij', min0=0.0, max0=50.0)
-
+        
         if not hasattr(self, 'scaled_cij'):
             self.scaled_cij = deepcopy(self.cij)
         self.scale_cij(force=True)
@@ -122,9 +122,9 @@ class Transition(object):
         self.params = lmfit.Parameters()
 
         if alpij is None:
-            self.d = {'alp%s%s' % (self.i, self.j): 1.0}  #  FIX 
+            self.d = {'alp%s%s' % (self.i, self.j): 1.0}  # ~!
         else:
-            self.d = {'alp%s%s' % (self.i, self.j): alpij}  #  FIX 
+            self.d = {'alp%s%s' % (self.i, self.j): alpij}  # ~!
 
         self.update_alpij(self.d)
 
@@ -162,21 +162,21 @@ class Transition(object):
 
                 # set off-diagonal scaled elements
                 # if self.cij[k].value != 0.0:
-                #
+                # 
                 try:
                     if self.cij[k1].value == self.cij[k2].value == 0: # if all 0, leave it alone
                        pass
-
-                    elif self.cij[k1].value > self.cij[k2]:  # else scale  cij by the smaller of cii or cjj
-                        self.scaled_cij[k].set(value=(self.cij[k].value * self.cij[k2].value), max=self.cij[k2].value)
-
+                    
+                    elif self.cij[k1].value > self.cij[k2]:  # else limit cij by the smaller of cii or cjj
+                        self.scaled_cij[k].set(value=(self.cij[k2].value)) # , max=self.cij[k2].value)  # self.cij[k].value * 
+                    
                     elif self.cij[k2].value > self.cij[k1]:
-                        self.scaled_cij[k].set(value=(self.cij[k].value * self.cij[k1].value), max=self.cij[k1].value)
-
+                        self.scaled_cij[k].set(value=(self.cij[k1].value)) # , max=self.cij[k1].value)  # self.cij[k].value * 
+    
                 except ValueError:
                     # error if cii == 0
                     if self.cij[k1].value == 0 or self.cij[k2].value == 0:
-                        self.scaled_cij[k].set(value=0, min=0.0, max=1e-06)
+                        self.scaled_cij[k].set(value=0)  # , min=0.0, max=1e-06)
                     else:
                         raise(Exception('hmmm there appears to be an issue originating from setting cij==0.\
                                 see Transition.scale_cij'))

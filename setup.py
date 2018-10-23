@@ -14,7 +14,7 @@ setup_args = dict(
 	author = 'Peter C. Metz',
 	author_email = 'pcm1@alfred.edu',
 	description = 'Stacking disorder tools for Python.',
-	long_description = fread('README.md'),
+	long_description = fread('README.txt'),
 	install_requires = [
 		'scipy>=0.18.1',
 		'numpy>=1.12.0',
@@ -25,7 +25,7 @@ setup_args = dict(
         'schwimmbad>=0.3.0',
         'tabulate>=0.8.2',
         'dill>=0.2.7.1'
-
+        
 
 						],
 	classifiers = [
