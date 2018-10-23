@@ -1075,7 +1075,8 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
         """
         # kws to pass
         kws = {'subdir': subdir, 'plot_resid': plot_resid, 'sqrt_filter': sqrt_filter}
-        minkws = {}
+        if minkws is None:
+            minkws = {}
 
         if method == 'leastsq':
             # set step-length
