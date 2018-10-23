@@ -18,7 +18,6 @@ import re
 # import string
 import time
 import cPickle
-from time import sleep
 from copy import copy, deepcopy
 from matplotlib import pyplot as plt
 from subprocess import call
@@ -168,10 +167,10 @@ class Refinement(MergeParams, UpdateMethods):
             for k in order.keys():
                 try:
                     for attr in ['value', 'vary', 'min', 'max', 'expr']:
-                        # ~! print 'updating from params'
+                        #  FIX  print 'updating from params'
                         setattr(self.params[k], attr, getattr(params[k], attr))
                 except KeyError:
-                    # ~! print '%s not updated in background coefficients' % k
+                    #  FIX  print '%s not updated in background coefficients' % k
                     pass
 
         # (re)calculate background array
@@ -455,8 +454,8 @@ class Refinement(MergeParams, UpdateMethods):
                     raise Exception(' key %s does not appear to exist ' % e)
 
         # update phase objects
-        # self.refinement_to_phase()  # <-- ~! depricated by upper_to_lower
-        self.upper_to_lower('phases', 'params')  # <-- ~! this may be incorrect
+        # self.refinement_to_phase()  # <--  FIX  depricated by upper_to_lower
+        self.upper_to_lower('phases', 'params')  # <--  FIX  this may be incorrect
 
     def weighted_composite(self, path=None, individual=False, column=2):
         """
@@ -543,7 +542,7 @@ class Refinement(MergeParams, UpdateMethods):
                     f.write('\n')
                     f.write('0 {data dump}\n')
                     f.write('0 {atom pos dump}\n')
-                    # f.write('0 {sym eval dump}\n') ~! not required if prior is 0
+                    # f.write('0 {sym eval dump}\n')  FIX  not required if prior is 0
                     f.write('3 {powder diffraction}\n')
                     f.write('%6.4F %6.4F %6.4F\n' % (self.t_min, self.t_max, self.t_step))
                     f.write('1 {adaptive quadrature on diffuse}\n')
@@ -568,7 +567,7 @@ class Refinement(MergeParams, UpdateMethods):
             None
         """
         # write input files for phases
-        # ~! include Pseudo-Voight
+        #  FIX  include Pseudo-Voight
         for p in self.phases.keys():
             d = {'wvl': self.wvl,
                  'gau': self.gau.value,
@@ -651,7 +650,7 @@ class Refinement(MergeParams, UpdateMethods):
     def report_refined(self, tabulate=True):
         """
         report parameters with attribute vary == True
-        ~! moved to utilities
+         FIX  moved to utilities
         """
         rv = u.report_refined(self.params, tabulate)
 
@@ -660,7 +659,7 @@ class Refinement(MergeParams, UpdateMethods):
     def filter_report(self, variable=True, constrained=False):
         """
         print a limited portion of the lmfit minimizer fit report
-        ~! moved to utilities
+         FIX  moved to utilities
         """
         u.filter_report(self, variable, constrained)
 
@@ -686,12 +685,12 @@ class Refinement(MergeParams, UpdateMethods):
             Return type is important in this case. I believe a return type of
             True causes the minimization to abort.
         """
-        ''' ~!
+        '''  FIX 
         # add R-value to refinement.hist
         redchi = sum(resid ** 2 / (len(self.exp_data) -
                      len([k for k in self.params if self.params[k].vary is True])))
         '''
-        rwp = self.rwp(weights=kws['weights'])
+        rwp = self.rwp()
         # append history
         try:
             self.hist.append((self.hist[-1][0] + 1, rwp))
@@ -704,7 +703,7 @@ class Refinement(MergeParams, UpdateMethods):
         # acccept kwarg to toggle residual plotting on
         try:
             if kws['plot_resid'] is True:
-                if iter % 1 == 0:   # ~! 10
+                if iter % 1 == 0:   #  FIX  10
                     # dynamic plot iter, R-value
                     A = np.array(self.hist)
                     self.DynamicPlot(A[:, 0], A[:, 1])
@@ -712,35 +711,6 @@ class Refinement(MergeParams, UpdateMethods):
             # not required
             pass
 
-    def cij_manager(self):
-        """
-        this is hacky...
-        
-        Maximum absolute value of off-diagonal Cij elements must be <= (Cii**2 + cjj**2)**1/2
-        
-        """
-        keys = map(lambda m: m.string, [re.match('.*_c\d+', k) for k in self.params.keys() if re.match('.*_c\d+', k) is not None])
-        keys.sort()
-        roots = u.unique_flatlist([re.split('_c\d+', k) for k in keys])
-        # for root in roots
-        for root in roots:
-            for ij in ('12', '13', '23'):
-                # compute (Cii**2 + cjj**2)**1/2
-                ii, jj = ij[0] * 2, ij[-1] * 2
-                prms = ['%s_c%s' % (root, idx) for idx in (ii, jj)]
-                viis = itemgetter(*prms)(self.params)
-                viis = np.array([v.value for v in viis], dtype=float)  # unpack cii's values
-                mij = np.sqrt(np.sum(viis**2))   # max absolute value
-                par = self.params['%s_c%s' % (root, ij)]
-                # if user bounds <= maximum bounds, leave it alone
-                if not par.min < -mij:
-                    par.min = -mij
-                if not par.max > mij:
-                    par.max = mij
-                
-        self.params.update(self.params)
-        return
-        
     def generic_update(self, params):   # , incomplete=False):
         """
         generic update method passes parameters to subordinate objects
@@ -757,11 +727,8 @@ class Refinement(MergeParams, UpdateMethods):
                 for attr in ['value', 'vary', 'min', 'max', 'expr']:
                     setattr(self.params[k], attr, getattr(v, attr))
 
-        # handle cij bounds
-        self.cij_manager()
-        
         # update background, weights, global scale, broadening with updated parameter instance
-        # ~! why is this necessary?
+        #  FIX  why is this necessary?
         self.update_background(params=params)
         self.global_scale.value = self.params['global_scale'].value
         d = {}
@@ -769,64 +736,15 @@ class Refinement(MergeParams, UpdateMethods):
             d.update({p: self.params['%s_weight' % p]})
         self.update_weights(d)
 
-        # ~! include Pseudo-Voight
+        #  FIX  include Pseudo-Voight
 
         # update phase parameters
-        # self.refinement_to_phase()  #<-- ~! depricated by upper_to_lower
-        self.err = self.upper_to_lower('phases', 'params', debug=True)  # <--- ~! this may be broken
+        # self.refinement_to_phase()  #<--  FIX  depricated by upper_to_lower
+        self.err = self.upper_to_lower('phases', 'params', debug=True)  # <---  FIX  this may be broken
         for p, phase in self.phases.items():
             phase.upper_to_lower('trans_dict', 'params')
 
         return True
-    
-    def call_diffax(self, subdir, timeout=None):
-        """
-        call DIFFaX on each phase in refinement, cleaning and writing appropriate 
-        input files.
-        
-        timeout handles OSError while file is open, which can happen for any number
-        of reasons. Why can't we get a decent recursion calculator that write to 
-        the memory!?!?!?!?
-        
-        Parameters:
-            subdir: fpath for diffax
-            timeout: (0.1 s) length of time to wait on system to close files
-        """
-        if timeout is None:
-            timeout = 0.1  # seconds
-        
-        time = 0.0
-        flag = False
-        while time <= timeout:
-            try:
-                # cleanup .spc* with matching phase names (permits multiple use of same diffax dir)
-                match = lambda x: os.path.split(filename)[-1].startswith(str(self.phases[p].name))
-                for p in self.phases.keys():
-                    for filename in glob(os.path.join(abspath(subdir), '*.spc*')):
-                        if match(filename) is True:
-                            os.remove(filename)
-        
-                # for each phase, make a DIFFaX call
-                for phase in self.phases:
-                    self.pub_control(path=subdir)
-                    self.pub_input(path=subdir)
-                if os.name =='nt':
-                    call(os.path.join(abspath(subdir), r'DIFFaX.exe'),
-                         cwd=abspath(subdir), creationflags=0x08000000)  
-                elif os.name == 'posix':
-                    call(r'./DIFFaX.sh', cwd=abspath(subdir))
-                else:
-                    raise Exception('I(Q) refinment runs on posix or windows only')
-                
-                flag = True
-
-            except OSError:   # refinement can choke if file isn't closing for any reason
-                sleep(0.025)
-                flag = False
-
-            if flag is True:
-                break
-        return
 
     def residual_method(self, params, **kws):  # subdir=None, path=cwd):
         """
@@ -848,14 +766,37 @@ class Refinement(MergeParams, UpdateMethods):
         # update refinement parameters
         self.generic_update(params)
 
-        # get diffax directory
+        # '''  FIX 
+        # get kws subdir
+        try:
+            path = kws['path']
+        except:
+            path = os.getcwd()
+        # '''
+
         try:
             subdir = kws['subdir']
         except KeyError:
-            subdir = os.getcwd()
+            subdir = None
 
-        # call DIFFaX
-        self.call_diffax(subdir=subdir, timeout=0.1)  # 0.1/0.025 attempts if file busy
+        # cleanup .spc* with matching phase names (permits multiple use of same diffax dir)
+        for p in self.phases.keys():
+            for filename in glob(os.path.join(abspath(subdir), '*.spc*')):
+                match = lambda x: os.path.split(filename)[-1].startswith(
+                        str(self.phases[p].name))
+                if match(filename) is True:
+                    os.remove(filename)
+
+        # for each phase, make a DIFFaX call
+        for phase in self.phases:
+            self.pub_control(path=subdir)
+            self.pub_input(path=subdir)
+        if os.name =='nt':
+            call(absfpath(subdir, 'DIFFaX', 'exe'))  # r'DIFFaX.exe', cwd=abspath(subdir))
+        elif os.name == 'posix':
+            call(r'./DIFFaX.sh', cwd=abspath(subdir))
+        else:
+            raise Exception('I(Q) refinment runs on posix or windows only')
 
         # check instrumental broadening
         column = 2
@@ -865,41 +806,32 @@ class Refinement(MergeParams, UpdateMethods):
         # I/O and cast calc onto xo
         self.calc_data = self.weighted_composite(path=subdir, column=column)
         self.calc_data = self.map_calc_exp_background(self.calc_data)
-        x, ywp = np.array(self.calc_data).T
+        A = np.array(self.calc_data)
+        ywp = A[:, 1]
+        x = A[:, 0]
 
         # calculate Yc = global_scale * (Ywp + Ybg)
         self.yc = (ywp + self.ybg)
         self.calc_data = zip(x, self.yc)
-        
+
         # get residual array
         if kws['sqrt_filter'] is True:
             self.resid = np.sqrt(self.yo) - np.sqrt(self.yc)
         else:
-            self.resid = self.yo - self.yc 
-        
-        # add weights
-        weights = kws['weights']
-        if weights is None:
-            weights = np.ones_like(self.resid)
-            
-        if weights.shape != self.resid.shape:
-            raise Exception('Refinement.residual_method: residual and weight \
-                             vectors must have identical shape')
-        
-        self.resid = self.resid * weights
-        
+            self.resid = self.yo - self.yc
+
         return self.resid
 
-    def preview(self, subdir=None, sqrt_filter=False, weights=None):
+    def preview(self, subdir=None, sqrt_filter=False):
         """ get peak at first calculated state """
-        kws = {'subdir': subdir, 'sqrt_filter': sqrt_filter, 'weights':weights}
-        self.residual_method(self.params, **kws)
+        kws = {'subdir': subdir, 'sqrt_filter': sqrt_filter}
+        resid = self.residual_method(self.params, **kws)
         self.plot_min_result(sqrt_filter=sqrt_filter)
-        print self.rwp(weights=weights) #   sum(resid)
+        print self.rwp() #   sum(resid)
         return
 
 
-    def lsq_minimize(self, subdir=None, plot_resid=False, weights=None,
+    def lsq_minimize(self, subdir=None, plot_resid=False,
                      epsfcn=None, xtol=None, sqrt_filter=False,
                      method='leastsq', minkws=None, cifout=False):
         """
@@ -920,15 +852,9 @@ class Refinement(MergeParams, UpdateMethods):
             See the SciPy minimizer documentation for full list of minimizer methods.
         """
         # kws to pass
-        kws = {'subdir': subdir,
-               'plot_resid': plot_resid,
-               'sqrt_filter': sqrt_filter,
-               'weights': weights}
-        
-        if minkws is None:
-            minkws = {}
+        kws = {'subdir': subdir, 'plot_resid': plot_resid, 'sqrt_filter': sqrt_filter}
+        minkws = {}
 
-        # FIXME this is clunky and unnecessary...
         if method == 'leastsq':
             # set step-length
             if epsfcn is not None:
@@ -977,7 +903,7 @@ class Refinement(MergeParams, UpdateMethods):
             for p in self.phases.keys():
                 for s in self.phases[p].structures.keys():
                     self.phases[p].pub_cif(s)
-            
+
         return
 
     def validate_diffev(self, adjust=1e08):
@@ -988,10 +914,10 @@ class Refinement(MergeParams, UpdateMethods):
         This function coerces min/max values to *adjust* from supplied
         information if none are given by the user.
 
-        ~! this is a bit of a sticking point. Need to research scipy details.
+         FIX  this is a bit of a sticking point. Need to research scipy details.
         lmfit default
-        
-        ~! common to both PDF and IQ refinements. move to utilities.
+
+         FIX  common to both PDF and IQ refinements. move to utilities.
 
         Returns:
             True
@@ -1000,7 +926,7 @@ class Refinement(MergeParams, UpdateMethods):
         for k in self.params.values():
             if any(k.value == s for s in [float('-inf'), float('inf'), None]):
                 k.value = 0.0
-                # ~! print k.name, k.value
+                #  FIX  print k.name, k.value
 
         # set min/max arbitrarily at +/- 25% if values not supplied
         for par in self.params.values():
@@ -1008,7 +934,7 @@ class Refinement(MergeParams, UpdateMethods):
             # m = [value * 0.75, value * 1.25]
             m = [-adjust * value, adjust * value]
             expr = par.expr
-            # ~! print k, m
+            #  FIX  print k, m
             if min(m) == max(m):  # as in the case of value = 0.0
                 m = [min(m), min(m) + 0.0001]
             if any(par.min == s for s in [float('-inf'), float('inf'), None]):
@@ -1030,7 +956,7 @@ class Refinement(MergeParams, UpdateMethods):
                 raise Exception('refinement.validate_diffev still not correcting min == max')
 
         # if everything passes, return True
-        # ~! print '\n\n\n\n\n\n\n end of validate diffev \n\n\n\n\n\n\n'
+        #  FIX  print '\n\n\n\n\n\n\n end of validate diffev \n\n\n\n\n\n\n'
         # push updated variables
         self.generic_update(self.params)
         return True
@@ -1099,7 +1025,7 @@ class Refinement(MergeParams, UpdateMethods):
                                             'mutation': mutation, 'recombindation': recombination,
                                             'seed': seed, 'polish': polish})
 
-            # ~! copy stderr from result object to report or save state
+            #  FIX  copy stderr from result object to report or save state
 
             # end time
             self.end = time.strftime('%c')
@@ -1124,17 +1050,19 @@ class Refinement(MergeParams, UpdateMethods):
 
             return
 
-    def rwp(self, weights=None):
+    def rwp(self, weight=None):
         """
         calculate rwp for the model:
             Rwp = {sum_m(w_m * (Yo,m - Yc,m) ** 2) / sum_m(wm * Yo,m) ** 2} ** 1/2
-            wm = 1 / sigma ** 2 == 1 / Yo,m
+            wm = 1 / sigma ** 2
         weight (length == data)
+        # FIX  defalut weight: (Yo,m ** 1/2) ** -2
         """
-        if weights is None:
-            weights = 1.
+        if weight is None:
+            # weight = np.sqrt(self.yo ** 0.5) ** -2
+            weight = 1.
         resid = self.yo - self.yc
-        rv = np.sqrt(np.sum(weights * resid ** 2) / np.sum(weights * self.yo ** 2))
+        rv = np.sqrt(np.sum(weight * resid ** 2) / np.sum(weight * self.yo ** 2))
         return rv
 
     # End of class Refinement

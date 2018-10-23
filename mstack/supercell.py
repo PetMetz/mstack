@@ -54,14 +54,14 @@ def supercell(struct, vector, N=None, cif=True, xyz=False,
     if filename is None:
         filename = strftime('%d-%m-%y_%H.%M.%S')
 
-    if type(vector) is dict:   # pass as dict(k=lmfit.Parameter,...) or dict(k=v,...)
+    if type(vector) is dict:
         try:
             rx = vector['rx'].value
             ry = vector['ry'].value
             rz = vector['rz'].value
-        except (TypeError, AttributeError):
+        except TypeError:
             rx, ry, rz = vector.values()
-    elif hasattr(vector, '__iter__'):
+    elif type(vector) is list:
         rx, ry, rz = vector[:]
 
     # in future, this should be expanded to visualize more complex stacking using complete set
