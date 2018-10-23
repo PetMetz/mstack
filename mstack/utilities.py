@@ -24,6 +24,43 @@ from tabulate import tabulate
 from collections import OrderedDict as OD
 from operator import itemgetter
 
+# utility objects
+ciftemplate = \
+'''data_%(header_line)s
+_cell_length_a                    %(a)s
+_cell_length_b                    %(b)s
+_cell_length_c                    %(c)s
+_cell_angle_alpha                 %(alp)s
+_cell_angle_beta                  %(bet)s
+_cell_angle_gamma                 %(gam)s
+
+_symmetry_space_group_name_H-M    P1
+
+loop_
+_atom_site_label
+_atom_site_number
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+_atom_site_occupancy
+%(asymloop)s
+
+loop_
+_atom_site_aniso_label
+_atom_site_aniso_number
+_atom_site_aniso_B11
+_atom_site_aniso_B12
+_atom_site_aniso_B13
+_atom_site_aniso_B21
+_atom_site_aniso_B22
+_atom_site_aniso_B23
+_atom_site_aniso_B31
+_atom_site_aniso_B32
+_atom_site_aniso_B33
+%(anisoloop)s
+
+'''
+
 # utility functions ##############################
 
 
@@ -437,42 +474,24 @@ def pub_cif(a, b, c, gam, asym, path=None, filename=None):
     alp = 90
     bet = 90
 
-    template = '''data_%(header_line)s
-_cell_length_a                    %(a)s
-_cell_length_b                    %(b)s
-_cell_length_c                    %(c)s
-_cell_angle_alpha                 %(alp)s
-_cell_angle_beta                  %(bet)s
-_cell_angle_gamma                 %(gam)s
-_symmetry_space_group_name_H-M    P1
-loop_
-_atom_site_label
-_atom_site_number
-_atom_site_fract_x
-_atom_site_fract_y
-_atom_site_fract_z
-_atom_site_B_iso_or_equiv
-_atom_site_occupancy
-_atom_site_thermal_displace_type
+    template = ciftemplate  
+    sort_key = lambda x: x.split()[0] + x.split()[1]   # sort on site label
 
-'''
-
-    # %(asymmetric_block)s
-
-    def sort_key(line):
-        line = line.split()
-        return line[1]
-
-    l = []
+    asymloop = []   # build asymmetric unit block
     for k in asym.keys():
         name = asym[k].name
         number = asym[k].number
-        disp_type = asym[k].disp_type
         x, y, z = asym[k].x, asym[k].y, asym[k].z
-        ADP = getattr(asym[k], disp_type)
         occ = asym[k].occ
-        l.append('%s %s %s %s %s %s %s %s\n' % (name, number, x, y, z, ADP, occ, disp_type))
-    l.sort(key=sort_key)
+        asymloop.append(' '.join(map(str, (name, number, x, y, z, occ))))
+    asymloop.sort(key=sort_key)
+
+    # FIXME : Atoms prms not currently linked to top-level
+    # in refactor, switch to CMI IO methods
+    anisoloop = []   # build aniso values
+    for k, atom in asym.items():
+        anisoloop.append(' '.join(flatten((atom.name, str(atom.number), atom.Bij.astype(str).tolist()))))
+    anisoloop.sort(key=sort_key)
 
     keys = {'header_line': '%s_%s' % (filename, strftime('%d-%m-%y_%H.%M.%S')),
             'a': a,
@@ -480,12 +499,13 @@ _atom_site_thermal_displace_type
             'c': c,
             'alp': alp,
             'bet': bet,
-            'gam': gam}
+            'gam': gam,
+            'asymloop': '\n'.join(asymloop),
+            'anisoloop': '\n'.join(anisoloop)
+            }
 
     with open(fpath, 'w+') as f:
         f.write(template % keys)
-        for line in l:
-            f.write(line)
 
     return
 

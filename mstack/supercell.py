@@ -18,8 +18,8 @@ Attributes:
 from time import strftime
 import os
 import copy
-from utilities import pub_cif, pub_xyz
-import structure as st
+from mstack.utilities import pub_cif, pub_xyz
+import mstack.structure as st
 
 
 def supercell(struct, vector, N=None, cif=True, xyz=False,
@@ -72,26 +72,27 @@ def supercell(struct, vector, N=None, cif=True, xyz=False,
 
     # recast asymmetric cell in prime coordinates
     asym = {}
-    for at in struct.atoms.keys():
+    for at, atom in struct.atoms.items():
         asym.update({'%s_%0d' % (at, 0): copy.deepcopy(struct.atoms[at])})
         asym['%s_%0d' % (at, 0)].z = (struct.c / c_prime) * asym['%s_%0d' % (at, 0)].z
-        asym['%s_%0d' % (at, 0)].number = 0
+        asym['%s_%0d' % (at, 0)].number = str(0) + str(atom.number)
     rz_prime = 1. / N
     # print rz_prime
 
     # copy shift asym N times (0th layer accounted for)
     for i in range(N-1):
         i += 1
-        for at in struct.atoms.keys():
-            name = asym['%s_%0d' % (at, 0)].name
-            x_prime = asym['%s_%0d' % (at, 0)].x + i * rx
-            y_prime = asym['%s_%0d' % (at, 0)].y + i * ry
-            z_prime = asym['%s_%0d' % (at, 0)].z + i * rz_prime
-            disp_type = asym['%s_%0d' % (at, 0)].disp_type
-            ADP = getattr(asym['%s_%0d' % (at, 0)], disp_type)
-            occ = asym['%s_%0d' % (at, 0)].occ
-            asym.update({'%s_%0d' % (at, i):
-                         st.Atom(name, i, x_prime, y_prime, z_prime,
+        for k, at in struct.atoms.items():
+            name = asym['%s_%0d' % (k, 0)].name
+            number = str(i) + str(at.number)
+            x_prime = asym['%s_%0d' % (k, 0)].x + i * rx
+            y_prime = asym['%s_%0d' % (k, 0)].y + i * ry
+            z_prime = asym['%s_%0d' % (k, 0)].z + i * rz_prime
+            disp_type = asym['%s_%0d' % (k, 0)].disp_type
+            ADP = getattr(asym['%s_%0d' % (k, 0)], disp_type)
+            occ = asym['%s_%0d' % (k, 0)].occ
+            asym.update({'%s_%0d' % (k, i):
+                         st.Atom(name, number, x_prime, y_prime, z_prime,
                                      ADP, occ, disp_type)})
 
     # return asym
