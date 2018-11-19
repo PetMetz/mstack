@@ -85,11 +85,12 @@ class Interface(object):
                 l = []
                 for k3, at in s.atoms.items():  # for atoms in structure
                     XYZ = ut.attributegetter('x', 'y', 'z')(at)
+                    occ = at.occ
 
                     l.append(Atom(atype=at.name,
                                   xyz=XYZ,
                                   label=at.label,
-                                  occupancy=s.params['%s_occ' % k3].value,
+                                  occupancy=occ,
                                   U=self._get_atom_Bij(s, k3) * (1./(8.*np.pi**2))
                                   )
                             )

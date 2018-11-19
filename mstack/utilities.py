@@ -679,7 +679,7 @@ def sort_expr(obj):
    for k, v in obj.__dict__.items():
       try:
          if type(v).__name__ == 'Parameters':
-            sd = od(sorted(v.items(),
+            sd = OD(sorted(v.items(),
                            key=lambda x: x[1].expr is None,
                            reverse=True
                            ))
@@ -735,7 +735,7 @@ def bubble_sort(param_dict):
             elif any(x==y for x in l1 for y in l2):
                 sd[i], sd[i+1] = sd[i+1], sd[i]
 
-    return od(sd)
+    return OD(sd)
 
 
 def reconstruct(obj):
@@ -826,14 +826,14 @@ class MergeParams(object):
         """
         # get attribute parameters instance handle
         l = []
-        for k in dir(bottom_attribute):
-            if type(getattr(bottom_attribute, k)) is lmfit.Parameters:
+        for k, v in bottom_attribute.__dict__.items():
+            if isinstance(v, lmfit.Parameters):
                 l.append(k)
-        if len(l) != 1 and specifier is None:
+        if len(l) != 1 and specifier is None:  # if found no instance of Parameters
             raise Exception('unable to identify Bottom_Attribute.Parameters instance')
-        if len(l) == 1:
+        if len(l) == 1:   # if found one instance of Parameters
             bottom_params = getattr(bottom_attribute, l[0])
-        else:
+        else:   # if specified in call
             bottom_params = getattr(bottom_attribute, specifier)
 
         return bottom_params
@@ -872,6 +872,7 @@ class MergeParams(object):
                                                          bottom_params[var]))
             for var in bottom_params:
                 # therefore update expr with new item_varname format
+                # FIXME this overwrites by default, not necessarily desired when adding phases
                 if bottom_params[var].expr is not None:
                     inplace = bottom_params[var].expr
                     # print inplace
@@ -914,6 +915,7 @@ class MergeParams(object):
                     # update bottom attribute params instance
                     bottom_params[var].set(*attributegetter('value', 'vary',
                                            'min', 'max')(self.params[item_var]))
+                        
                 except KeyError:
                     # skip keys that belong to top level only
                     if debug is True:
@@ -1002,15 +1004,19 @@ class UpdateMethods(object):
     def initialize(self, attribute, value=None):
         """ default variable initialization"""
         if not hasattr(self, attribute):
-            if type(value) is lmfit.Parameter:
+            if type(value) is lmfit.Parameter: # as lmfit.Parameter
                 self.params.add(value)
-            elif type(value) is tuple:
-                self.params.add(attribute)
+                setattr(self, attribute, value)
+            elif type(value) is tuple:  # as tuple with limits
+                add = lmfit.Parameter(attribute, vary=False)
+                self.params.add(add)
                 self.update_with_limits(attribute, value)
-            else:
-                self.params.add(attribute, value)
-            setattr(self, attribute, value)
-        return
+                setattr(self, attribute, add)
+            else:   # as numeric / value only
+                add = lmfit.Parameter(attribute, value=value, vary=False)
+                self.params.add(add)
+                setattr(self, attribute, add)  # visible at instance
+        return self.params[attribute]
 
     def update(self, attribute, value=None):
         """ default update mode """
@@ -1053,7 +1059,7 @@ class UpdateMethods(object):
     def dump_params(self, keys):
         """ print """
         print '\nvariable  value  min  max expr\n'
-        for k in u.flatten(keys):
+        for k in flatten(keys):
             print k, self.params[k].value, self.params[k].min, self.params[k].max, self.params[k].expr        
         
     # End of class UpdateMethods

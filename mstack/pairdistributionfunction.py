@@ -437,20 +437,17 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
         Returns:
             bool: True
         """
-        self.data = {}
+        if not hasattr(self, 'data'):
+            self.data = {}
         if data is not None:
-            try:
-                for d in u.flatten(data):
-                    self.data.update({d.name: d})
-            except AttributeError:
-                raise Exception('update_data requires PdfData instance')
+            for d in u.flatten(data):
+                self.data.update({d.name: d})
+            # merge up data parameters
+            self.lower_to_upper('data', specifier='params')
         # verbose
+        print '\n data initialized:'
         for d in self.data.keys():
-            print '\n data initialized:'
             print '      %s' % d
-
-        # merge up data parameters
-        self.lower_to_upper('data', specifier='params')
 
         return True
 
@@ -464,20 +461,17 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
         Returns:
             bool: True
         """
-        self.phases = {}
+        if not hasattr(self, 'phases'):
+            self.phases = {}
         if phases is not None:
-            try:
-                for s in u.flatten(phases):
-                    self.phases.update({s.name: s})
-            except AttributeError:
-                raise Exception('update_phases requires PdfPhase instance')
+            for s in u.flatten(phases):
+                self.phases.update({s.name: s})
+            # merge up phase parameters
+            self.lower_to_upper('phases', specifier='params')
         # verbose
-        for s in self.phases.keys():
-            print '\n phases initialized:'
+        print '\n phases initialized:'
+        for s in self.phases.keys():    
             print '      %s' % s
-
-        # merge up phase parameters
-        self.lower_to_upper('phases', specifier='params')
 
         return True
 
