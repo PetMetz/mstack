@@ -21,6 +21,7 @@ from utilities import MergeParams, UpdateMethods
 from utilities import  abspath, absfpath
 from utilities import pub_cif as _pub_cif
 from utilities import pub_xyz as _pub_xyz
+from utilities import attributegetter
 from diffpy.Structure import loadStructure
 
 # globals
@@ -212,12 +213,16 @@ class Atom(UpdateMethods, MergeParams):
         self.name = str(atom_name)
         self.number = int(number)
         self.label = str(atom_name) + str(int(number))
+        self.disp_type = str(disp_type)
+        self.initialize('occ', occ)
+        
+        # vector
         self.initialize('x', x)
         self.initialize('y', y)
         self.initialize('z', z)
-        self.initialize('occ', occ)
-        self.disp_type = str(disp_type)
+        self.vector = np.array((self.x, self.y, self.z), dtype='object')
         
+        # thermals
         self._new_Bij()
         if any(type(Bij) is x for x in (float, int)):  # if isotropic
             self._set_isotropic(Bij)
@@ -323,6 +328,7 @@ class Structure(UpdateMethods, MergeParams):
         self.initialize('alp', alp)
         self.initialize('bet', bet)
         self.initialize('gam', gam)
+        self.cell = attributegetter('a', 'b', 'c', 'alp', 'bet', 'gam')(self)
         self.number = number
 
         # construct dict of atom instances from list of atom instances
@@ -494,8 +500,7 @@ class Phase(MergeParams, UpdateMethods):
         b = map(lambda st: st.upper_to_lower('atoms'), self.structures.values())
         return a and all(b)
 
-
-    def pub_cif(self, structure_name, filename=None, path=None):  # , subdir='LSQ'):
+    def pub_cif(self, structure_name, filename=None, path=None, debug=False):  # , subdir='LSQ'):
         """
         publish a .cif file from the refined structure model
 
@@ -507,19 +512,10 @@ class Phase(MergeParams, UpdateMethods):
         Returns:
             * bool: True
         """
-        asym = self.structures[structure_name].atoms  # asymmetric unit
+        struct = self.structures[structure_name]
+        asym = struct.atoms  # asymmetric unit
 
-        sn = structure_name  # shorten variable name
-
-        keys = {'header_line': time.strftime('%m-%d-%y_%H-%M-%S'),
-                'a': self.params['%s_a' % self.structures[sn].name].value,
-                'b': self.params['%s_b' % self.structures[sn].name].value,
-                'c': self.params['%s_c' % self.structures[sn].name].value,
-                'alp': self.params['%s_alp' % self.structures[sn].name].value,
-                'bet': self.params['%s_bet' % self.structures[sn].name].value,
-                'gam': self.params['%s_gam' % self.structures[sn].name].value}
-
-        _pub_cif(*itemgetter('a', 'b', 'c', 'gam')(keys),
+        _pub_cif(*struct.cell,
                  asym = asym,
                  path = path,
                  filename = filename
@@ -649,21 +645,26 @@ class Phase(MergeParams, UpdateMethods):
             def last(s):
                 return int(re.findall(r'\d+', s)[-1])
 
-            s = []
-            for at in self.structures[k].atoms.keys():
-                s.append(at)
-            s.sort(key=last)
-            for at in s:
+            def write_site(at):
                 f.write(' %s   %s  %s  %s  %s  %s  %s\n' % (
-                        self.structures[k].atoms[at].name,
-                        self.structures[k].atoms[at].number,
-                        self.params['%s_x' % at].value,
-                        self.params['%s_y' % at].value,
-                        self.params['%s_z' % at].value,
+                        
+                        at.name,  # self.structures[k].atoms[at].name,
+                        at.number,  # self.structures[k].atoms[at].number,
+                        at.x.value,  # self.params['%s_x' % at].value,
+                        at.y.value,  # self.params['%s_y' % at].value,
+                        at.z.value,  # self.params['%s_z' % at].value,
                         #  FIX  conditional handle Uiso
-                        3 * np.average(self.params['%s_Bij' % at].value),  # TODO this is broken
-                        self.params['%s_occ' % at].value))
+                        1/3. * np.trace(at.Bij),  # TODO this is broken  | self.params['%s_Bij' % at].value
+                        at.occ.value))  # self.params['%s_occ' % at].value))
+                return
 
+            s = []
+            for atk in self.structures[k].atoms.keys():
+                s.append(atk)
+            s.sort(key=last)
+            for atk in s:
+                write_site(self.structures[k].atoms[atk])
+                        
             # cases for filling other n blocks
             if len(self.structures) == 1:
                 ' use layer n = 1 for only 1 layer type '
@@ -686,15 +687,7 @@ class Phase(MergeParams, UpdateMethods):
                     f.write('None {assumed layer symmetry (?)}\n')
                     f.write('{type  #   x   y   z   Bij}\n')
                     for at in s:
-                        f.write(' %s   %s  %s  %s  %s  %s  %s\n' % (
-                                self.structures[k].atoms[at].name,
-                                self.structures[k].atoms[at].number,
-                                self.params['%s_x' % at].value,
-                                self.params['%s_y' % at].value,
-                                self.params['%s_z' % at].value,
-                                #  FIX  conditional handle Uiso
-                                self.params['%s_Bij' % at].value,
-                                self.params['%s_occ' % at].value))
+                        write_site(self.structures[k].atoms[at])
 
             elif not any(len(self.structures) == k for k in [1, nlayers]):
                 ' no handling for intermediate cases'

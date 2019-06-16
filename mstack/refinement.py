@@ -18,8 +18,10 @@ import re
 # import string
 import time
 import cPickle
+import inspect
 from copy import copy, deepcopy
 from matplotlib import pyplot as plt
+import subprocess
 from subprocess import call
 from operator import itemgetter
 from glob import glob
@@ -125,59 +127,70 @@ class Refinement(MergeParams, UpdateMethods):
             self.params['%s_weight' % w].set(value=(weights[w] / N))
             self.weights.update({'w': self.params['%s_weight' % w]})
 
-    def update_background(self, background_coefficients=None, params=None):
-        """
-        update background from list of coefficients or parameters instances
-        assumes a functional form ybg = A/x + B + C * x + D * x **2 + E * x ** 3
+# =============================================================================
+#     def update_background(self, background_coefficients=None, params=None):
+#         """
+#         update background from list of coefficients or parameters instances
+#         assumes a functional form ybg = A/x + B + C * x + D * x **2 + E * x ** 3
+# 
+#         Args:
+#             background_coefficients (list | None)
+#             params (lmfit.Parameters | None)
+# 
+#         Returns:
+#             None
+#         """
+#         order = {'a': 1, 'b': 2, 'c': 3, 'd': 4, 'e': 5}
+# 
+#         if background_coefficients is not None:
+#             # initialize
+#             if not hasattr(self, 'bg_coefficients'):
+#                 self.bg_coefficients = {}
+#                 # self.params.add_many(('a'), ('b'), ('c'), ('d'), ('e'))
+# 
+#             background = u.flatten(background_coefficients)
+#             order = {'a': 1, 'b': 2, 'c': 3, 'd': 4, 'e': 5}
+#             # add
+#             for i in range(len(order)):
+#                 k = sorted(order, key=order.__getitem__)[i]
+#                 if not any(k == s for s in self.params.keys()):
+#                     try:
+#                         self.params.add(k, value=background[i], vary=True)
+#                         self.bg_coefficients.update({k: self.params[k]})
+#                     except IndexError:
+#                         self.params.add(k, value=0, vary=False)
+#                         self.bg_coefficients.update({k: self.params[k]})
+# 
+#             # update
+#             for i in range(len(background)):
+#                 k = sorted(order, key=order.__getitem__)[i]  # returns key for the ith positional argument
+#                 self.params[k].set(value=background[i])  # issue with voiding bounds on update
+# 
+#         elif params is not None:
+#             for k in order.keys():
+#                 try:
+#                     for attr in ['value', 'vary', 'min', 'max', 'expr']:
+#                         #  FIX  print 'updating from params'
+#                         setattr(self.params[k], attr, getattr(params[k], attr))
+#                 except KeyError:
+#                     #  FIX  print '%s not updated in background coefficients' % k
+#                     pass
+# 
+#         # (re)calculate background array
+#         self.ybg = inv_x_plus_poly3(self.xo,
+#                                     *itemgetter(*sorted(order, key=order.__getitem__))
+#                                     (self.bg_coefficients))
+#         self.background = zip(self.xo, self.ybg)
+# =============================================================================
+    def update_background(self):
+        """ recompute background """
+        for k in self.bkgkeys:
+            if not k in self.params.keys():
+                self.params.add(k, value=0.0)
 
-        Args:
-            background_coefficients (list | None)
-            params (lmfit.Parameters | None)
-
-        Returns:
-            None
-        """
-        order = {'a': 1, 'b': 2, 'c': 3, 'd': 4, 'e': 5}
-
-        if background_coefficients is not None:
-            # initialize
-            if not hasattr(self, 'bg_coefficients'):
-                self.bg_coefficients = {}
-                # self.params.add_many(('a'), ('b'), ('c'), ('d'), ('e'))
-
-            background = u.flatten(background_coefficients)
-            order = {'a': 1, 'b': 2, 'c': 3, 'd': 4, 'e': 5}
-            # add
-            for i in range(len(order)):
-                k = sorted(order, key=order.__getitem__)[i]
-                if not any(k == s for s in self.params.keys()):
-                    try:
-                        self.params.add(k, value=background[i], vary=True)
-                        self.bg_coefficients.update({k: self.params[k]})
-                    except IndexError:
-                        self.params.add(k, value=0, vary=False)
-                        self.bg_coefficients.update({k: self.params[k]})
-
-            # update
-            for i in range(len(background)):
-                k = sorted(order, key=order.__getitem__)[i]  # returns key for the ith positional argument
-                self.params[k].set(value=background[i])  # issue with voiding bounds on update
-
-        elif params is not None:
-            for k in order.keys():
-                try:
-                    for attr in ['value', 'vary', 'min', 'max', 'expr']:
-                        #  FIX  print 'updating from params'
-                        setattr(self.params[k], attr, getattr(params[k], attr))
-                except KeyError:
-                    #  FIX  print '%s not updated in background coefficients' % k
-                    pass
-
-        # (re)calculate background array
-        self.ybg = inv_x_plus_poly3(self.xo,
-                                    *itemgetter(*sorted(order, key=order.__getitem__))
-                                    (self.bg_coefficients))
-        self.background = zip(self.xo, self.ybg)
+        self.ybg = self.background(self.xo, *[self.params[k].value for k in self.bkgkeys])
+        return
+        
 
     def update_broadening(self, broadening):
         """
@@ -229,12 +242,14 @@ class Refinement(MergeParams, UpdateMethods):
         # reset y-observed
         self.exp_data = copy(self.exp_back)
         self.xo, self.yo = np.array(self.exp_back)[:, 0], np.array(self.exp_back)[:, 1]
-        # reset background
-        order = {'a': 1, 'b': 2, 'c': 3, 'd': 4, 'e': 5}
-        self.ybg = inv_x_plus_poly3(self.xo,
-                                    *itemgetter(*sorted(order, key=order.__getitem__))
-                                    (self.bg_coefficients))
-        self.background = zip(self.xo, self.ybg)
+# =============================================================================
+#         # reset background
+#         order = {'a': 1, 'b': 2, 'c': 3, 'd': 4, 'e': 5}
+#         self.ybg = inv_x_plus_poly3(self.xo,
+#                                     *itemgetter(*sorted(order, key=order.__getitem__))
+#                                     (self.bg_coefficients))
+#         self.background = zip(self.xo, self.ybg)
+# =============================================================================
 
     def update_phase_params(self, phase_params):
         """
@@ -270,7 +285,7 @@ class Refinement(MergeParams, UpdateMethods):
     #                               __init__                                  #
     ###########################################################################
 
-    def __init__(self, wavelength=None, exp_data=None, t_range=None, broadening=None,
+    def __init__(self, diffaxpath=None, wavelength=None, exp_data=None, t_range=None, broadening=None,
                  background=None, phases=None, weights=None, global_scale=None,
                  lateral_broadening=None, phase_params=None, name=None):
         """
@@ -279,7 +294,8 @@ class Refinement(MergeParams, UpdateMethods):
             * exp_data: array like [(x1, y1), ..., (xn, yn)]
             * t_range: 2-theta range like [2T_min, 2T_max, 2T_step]
             * broadening: [gau] gaussian FWHM or [u, v, w, sigma] pseudo-voight parameters
-            * background: list of coefficients to yb = A/x + B + C*x + D*x**2 + E*x**2
+            * background: [function] default f(x) = A/x + B + C*x + D*x**2 + E*x**3 Signature(x, var 1, var 2,...., Var N)
+            * background: (Depricate) list of coefficients to yb = A/x + B + C*x + D*x**2 + E*x**3
             * phases: list of phase instance(s) like [<phase_1>, ... <phase_N>]
             * weights: dictionary of weight percents like {phase_1.name: weight_1, ..., phase_N.name, weight_N}
             * global_scale: global scale factor (float)
@@ -340,11 +356,21 @@ class Refinement(MergeParams, UpdateMethods):
 
         # Background ######################################################## #
 
-        if background is not None:
-            self.update_background(background)
+# =============================================================================
+#         if background is not None:
+#             self.update_background(background)
+#         else:
+#             self.update_background(background_coefficients=[0, 0, 0, 0, 0], params=None)
+# =============================================================================
+        if background is None:
+            self.background = inv_x_plus_poly3 # x as first positional arg
         else:
-            self.update_background(background_coefficients=[0, 0, 0, 0, 0], params=None)
-
+            self.background = background
+        # keys to pull parameters on computing
+        self.bkgkeys, _, _, _ = inspect.getargspec(self.background)
+        self.bkgkeys = self.bkgkeys[1:]  # pop xo arg
+        self.update_background()
+        
         # Phases ############################################################ #
         # phase instances in refinement
         if phases is not None:
@@ -377,9 +403,14 @@ class Refinement(MergeParams, UpdateMethods):
         self.lower_to_upper('phases', 'params')
         
         # get Bij
-        self.Bij = u.fetch_thermals(self)
+        # self.Bij = u.fetch_thermals(self)
 
         # miscellany ######################################################## #
+        # DIFFaX
+        if diffaxpath is None:
+            diffaxpath = os.getcwd()
+        self.diffaxpath = diffaxpath
+        
         # history
         self.hist = []  # list of tuples (iter, R)
 
@@ -506,10 +537,9 @@ class Refinement(MergeParams, UpdateMethods):
         Returns:
             list: [(x1, y1), ...]
         """
-        self.calc_data = u.interpolate_data(calc_data, self.background)
-
-        self.background = u.interpolate_data(self.background, self.calc_data)
-        self.ybg = np.array(self.background)[:, 1]
+        self.calc_data = u.interpolate_data(calc_data, zip(self.xo, self.ybg))
+        _, self.ybg = u.interpolate_data(zip(self.xo, self.ybg), self.calc_data).T
+        # ~! self.ybg = np.array(self.background)[:, 1]
 
         if len(self.yo) != len(calc_data):
             # trim to calc_data length
@@ -597,6 +627,17 @@ class Refinement(MergeParams, UpdateMethods):
         Returns:
             matplotlib.Figure
         """
+        if np.sum(self.resid ** 2) > self.best[0]:
+            print('setting params to best and recomputing')
+            for k, v in self.best[1].items():
+                self.params[k].set(value=v.value)
+            self.residual_method(self.params, **{'subdir': self.diffaxpath, 'plot_resid': False, 'sqrt_filter': False})
+        
+        return self.plot(sqrt_filter, fontsize)
+
+
+    def plot(self, sqrt_filter=False, fontsize=12):        
+        # FIXME there's no reason for this to be here.
         # map calc_data onto exp_data, get arrays
         diff = self.yo - self.yc
         baseline = -0.25 * (self.yo.max() - self.yo.min())
@@ -698,61 +739,94 @@ class Refinement(MergeParams, UpdateMethods):
             self.hist.append((iter, rwp))
         # ocassionally plot redchi
         if iter % 10 == 0:
-            print 'rwp(%0d): %.4E' % (iter, rwp)
+            print 'rwp(%0d): %.4E' % (iter, np.min(self.hist[-10:]))
 
         # acccept kwarg to toggle residual plotting on
         try:
             if kws['plot_resid'] is True:
-                if iter % 1 == 0:   #  FIX  10
+                if iter % 1 == 0:   #  FIXME  10
                     # dynamic plot iter, R-value
-                    A = np.array(self.hist)
-                    self.DynamicPlot(A[:, 0], A[:, 1])
+                    # A = np.array(self.hist)
+                    x, y = np.array(self.hist)[:, :2].T
+                    self.DynamicPlot(x, y)
         except KeyError:
             # not required
             pass
 
-    def generic_update(self, params):   # , incomplete=False):
+# =============================================================================
+#     def generic_update(self, params):   # , incomplete=False):
+#         """
+#         generic update method passes parameters to subordinate objects
+# 
+#         Args:
+#             params (lmfit.Parameters)
+# 
+#         Returns:
+#             bool: True
+#         """
+#         # allow merging of incomplete parameters set onto Refinement params
+#         for k, v in params.items():
+#             if self.deepcompare(v, self.params[k]) is False:
+#                 for attr in ['value', 'vary', 'min', 'max', 'expr']:
+#                     setattr(self.params[k], attr, getattr(v, attr))
+# 
+#         # update background, weights, global scale, broadening with updated parameter instance
+#         #  FIX  why is this necessary?
+#         self.update_background(params=params)
+#         self.global_scale.value = self.params['global_scale'].value
+#         d = {}
+#         for p in self.phases.keys():
+#             d.update({p: self.params['%s_weight' % p]})
+#         self.update_weights(d)
+# 
+#         #  FIX  include Pseudo-Voight
+# 
+#         # update phase parameters
+#         # self.refinement_to_phase()  #<--  FIX  depricated by upper_to_lower
+#         self.err = self.upper_to_lower('phases', 'params', debug=True)  # <---  FIX  this may be broken
+#         for p, phase in self.phases.items():
+#             phase.upper_to_lower('trans_dict', 'params')
+# 
+#         return True
+# =============================================================================
+    def generic_update(self, params):
         """
         generic update method passes parameters to subordinate objects
 
         Args:
-            params (lmfit.Parameters)
+            * params (lmfit.Parameters)
 
         Returns:
             bool: True
         """
-        # allow merging of incomplete parameters set onto Refinement params
-        for k, v in params.items():
-            if self.deepcompare(v, self.params[k]) is False:
-                for attr in ['value', 'vary', 'min', 'max', 'expr']:
-                    setattr(self.params[k], attr, getattr(v, attr))
+        # update parameter values
+        for k in params.keys():
+            if params[k].value != self.params[k].value:
+                # print 'changing {0}: {1} to {2}'.format(k, self.params[k].value, params[k].value)
+                self.params[k].value = params[k].value
 
-        # update background, weights, global scale, broadening with updated parameter instance
-        #  FIX  why is this necessary?
-        self.update_background(params=params)
-        self.global_scale.value = self.params['global_scale'].value
-        d = {}
-        for p in self.phases.keys():
-            d.update({p: self.params['%s_weight' % p]})
-        self.update_weights(d)
+        # make sure dependent variables are updated
+        self.params.update()
 
-        #  FIX  include Pseudo-Voight
+        # update bkg
+        # self.update_background(params=params)  # FIXME streamline
+        
+        # push new values down to PdfPhases, PdfData objects
+        self.upper_to_lower('phases', specifier='params', debug=True)
 
-        # update phase parameters
-        # self.refinement_to_phase()  #<--  FIX  depricated by upper_to_lower
-        self.err = self.upper_to_lower('phases', 'params', debug=True)  # <---  FIX  this may be broken
+        # push new values down 
         for p, phase in self.phases.items():
-            phase.upper_to_lower('trans_dict', 'params')
-
+            phase.phase_to_structure()
+            phase.phase_to_trans()
         return True
-
+    
     def residual_method(self, params, **kws):  # subdir=None, path=cwd):
         """
         For each phase in refinement, get DIFFaX pattern and calculate residual
 
         Args:
             params (lmfit.Parameters)
-            kws: see below
+            kws: see below  FIXME this is depracated in favor of setting class property diffaxpath
 
         kws:
             path: working directory
@@ -765,19 +839,7 @@ class Refinement(MergeParams, UpdateMethods):
         """
         # update refinement parameters
         self.generic_update(params)
-
-        # '''  FIX 
-        # get kws subdir
-        try:
-            path = kws['path']
-        except:
-            path = os.getcwd()
-        # '''
-
-        try:
-            subdir = kws['subdir']
-        except KeyError:
-            subdir = None
+        subdir = self.diffaxpath
 
         # cleanup .spc* with matching phase names (permits multiple use of same diffax dir)
         for p in self.phases.keys():
@@ -794,7 +856,7 @@ class Refinement(MergeParams, UpdateMethods):
         if os.name =='nt':
             call(absfpath(subdir, 'DIFFaX', 'exe'))  # r'DIFFaX.exe', cwd=abspath(subdir))
         elif os.name == 'posix':
-            call(r'./DIFFaX.sh', cwd=abspath(subdir))
+            call(r'./DIFFaX.sh', cwd=abspath(subdir), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         else:
             raise Exception('I(Q) refinment runs on posix or windows only')
 
@@ -805,28 +867,35 @@ class Refinement(MergeParams, UpdateMethods):
 
         # I/O and cast calc onto xo
         self.calc_data = self.weighted_composite(path=subdir, column=column)
+        self.update_background()
         self.calc_data = self.map_calc_exp_background(self.calc_data)
-        A = np.array(self.calc_data)
-        ywp = A[:, 1]
-        x = A[:, 0]
+        self.xc, self.yc = np.array(self.calc_data).T
+        # ~! ywp = A[:, 1]
+        # ~! x = A[:, 0]
 
         # calculate Yc = global_scale * (Ywp + Ybg)
-        self.yc = (ywp + self.ybg)
-        self.calc_data = zip(x, self.yc)
+        self.yc = (self.yc + self.ybg)
+        # ~! self.xc = x
+        self.calc_data = zip(self.xc, self.yc)
 
         # get residual array
-        if kws['sqrt_filter'] is True:
+        if len(kws) != 0 and kws['sqrt_filter'] is True:
             self.resid = np.sqrt(self.yo) - np.sqrt(self.yc)
         else:
             self.resid = self.yo - self.yc
 
+        # latch best
+        if not hasattr(self,'best'):
+            self.best = (np.inf,)
+        if np.sum(self.resid ** 2) < self.best[0]:
+            self.best = (np.sum(self.resid ** 2), dict([(k, v) for k, v in self.params.items() if v.vary is True]))
         return self.resid
 
     def preview(self, subdir=None, sqrt_filter=False):
         """ get peak at first calculated state """
         kws = {'subdir': subdir, 'sqrt_filter': sqrt_filter}
-        resid = self.residual_method(self.params, **kws)
-        self.plot_min_result(sqrt_filter=sqrt_filter)
+        self.residual_method(self.params, **kws)
+        self.plot(sqrt_filter=sqrt_filter)
         print self.rwp() #   sum(resid)
         return
 

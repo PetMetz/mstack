@@ -23,6 +23,10 @@ from scipy.interpolate import interp1d
 from tabulate import tabulate
 from collections import OrderedDict as OD
 from operator import itemgetter
+from diffpy.utils.parsers.loaddata import loadData
+
+# export
+__all__ = ['loadData']
 
 # utility objects
 ciftemplate = \
@@ -165,8 +169,11 @@ def checkequal(iterator):
 
 def fetch_thermals(Refinement):
     """
-    fetch Bij tensors from Refinement.Parameters
     
+    FIXME this isn't applicable to DIFFaX based refinement- need to refactor
+    
+    fetch Bij tensors from Refinement.Parameters
+
     Arguments:
         Refinement : (mstack.Refinement-like)
     Returns:
@@ -189,7 +196,7 @@ def fetch_thermals(Refinement):
                                   ), dtype=object
                                  )
                     odd[k1][k2][k3].update({k4: rv})   # package Bij tensor into OrderedDict
-    return odd            
+    return odd
 
 
 def filter_report(refinement, variable=True, constrained=False,
@@ -236,10 +243,10 @@ def filter_report(refinement, variable=True, constrained=False,
                 rv.extend(v)
 
         if _print is True:
-            print '\n {0} \n'.format(rwp(refinement))
+            print '\n {0:2.4f} \n'.format(rwp(refinement))
 
         if _text is True:
-            rv.extend('\n{0}\n'.format(rwp(refinement)))
+            rv.extend('\n{0:2.4f}\n'.format(rwp(refinement)))
 
     except AttributeError:
         print '%s.report does not exist. Have you run a minimization yet?'\
@@ -260,6 +267,12 @@ def flatten(iterable):
         else:
             l.append(el)
     return l
+
+
+def floatrep(array):
+    """ return floating point value of array(lmfit.Parameter) instance """
+    opp = np.vectorize(lambda prm: prm.value)
+    return opp(array)
 
 
 def interpolate_data(Array1, Array2, *mesh):
@@ -286,7 +299,7 @@ def interpolate_data(Array1, Array2, *mesh):
         print e
         print 'Array2 == [], looking for mesh'
 
-    """
+    """ FIXME
     # some initialization
     return_array = []
 
@@ -459,7 +472,7 @@ def print_table(dictionary=None, table=None, key=None, headers=None):
     return True
 
 
-def pub_cif(a, b, c, gam, asym, path=None, filename=None):
+def pub_cif(asym, cell=None, path=None, filename=None, debug=False):
     """
     publish a structure in .cif format.
 
@@ -470,44 +483,49 @@ def pub_cif(a, b, c, gam, asym, path=None, filename=None):
         filename (str): filname for dump (omit .cif)
     """
     fpath = absfpath(path, filename, 'cif')
+    cifkeys = {'header_line': '%s_%s' % (filename, strftime('%d-%m-%y_%H.%M.%S'))}
 
-    alp = 90
-    bet = 90
+    # define unit cell positionally
+    init = [lmfit.Parameter(x[0], x[1]) for x in (('a',1), ('b',1), ('c',1),
+                            ('alp',90), ('bet',90), ('gam',90))]
+    if cell is not None:
+        for idx, prm in enumerate(cell):
+            init[idx] = prm
+    cifkeys.update(dict(map(lambda prm: (prm.name, prm.value), init)))
 
-    template = ciftemplate  
+    # define asymmetric unit
     sort_key = lambda x: x.split()[0] + x.split()[1]   # sort on site label
-
-    asymloop = []   # build asymmetric unit block
-    for k in asym.keys():
-        name = asym[k].name
-        number = asym[k].number
-        x, y, z = asym[k].x, asym[k].y, asym[k].z
-        occ = asym[k].occ
-        asymloop.append(' '.join(map(str, (name, number, x, y, z, occ))))
+    asymloop = []
+    anisoloop = []
+    for k, atom  in asym.items():
+        # build asymmetric unit block
+        asymloop.append(' '.join(flatten((atom.name,
+                                          str(atom.number),
+                                          floatrep(atom.vector).astype(str),
+                                          str(atom.occ.value)
+                                          ))
+                                  )
+                        )
+        # build aniso values
+        anisoloop.append(' '.join(flatten((atom.name,
+                                           str(atom.number),
+                                           floatrep(atom.Bij).astype(str)
+                                           ))
+                                  )
+                         )
     asymloop.sort(key=sort_key)
-
-    # FIXME : Atoms prms not currently linked to top-level
-    # in refactor, switch to CMI IO methods
-    anisoloop = []   # build aniso values
-    for k, atom in asym.items():
-        anisoloop.append(' '.join(flatten((atom.name, str(atom.number), atom.Bij.astype(str).tolist()))))
     anisoloop.sort(key=sort_key)
-
-    keys = {'header_line': '%s_%s' % (filename, strftime('%d-%m-%y_%H.%M.%S')),
-            'a': a,
-            'b': b,
-            'c': c,
-            'alp': alp,
-            'bet': bet,
-            'gam': gam,
-            'asymloop': '\n'.join(asymloop),
-            'anisoloop': '\n'.join(anisoloop)
-            }
-
-    with open(fpath, 'w+') as f:
-        f.write(template % keys)
-
-    return
+    cifkeys.update({'asymloop': '\n'.join(asymloop),
+                    'anisoloop': '\n'.join(anisoloop)
+                    })
+    
+    if debug is True:
+        return ciftemplate % cifkeys
+    
+    else:
+        with open(fpath, 'w+') as f:
+            f.write(ciftemplate % cifkeys)
+        return
 
 
 def pub_xyz(a, b, c, gam, asym, path=None, filename=None):
@@ -555,6 +573,7 @@ def pub_xyz(a, b, c, gam, asym, path=None, filename=None):
 
 def read_data(filename, path=None, column=1, lam=None, q=False, override=True):
     """
+    FIXME: diffpy has more robust algorithm for this. see exported loadData
     Reads data from space delimited format. Default assumption is that (x, y) are in
     the first and second column, respectively. Use column argument to change elsewise.
     use argument 'q' if data is a function of scattering vector rather than 2theta.
@@ -592,7 +611,7 @@ def read_data(filename, path=None, column=1, lam=None, q=False, override=True):
                     line[i] = float(line[i])
                 clean.append(line)
             except ValueError:
-                # print '%s' % (line)  #  FIX 
+                # print '%s' % (line)  #  FIX
                 if override:
                     pass
                 else:
@@ -895,7 +914,7 @@ class MergeParams(object):
         * top_attribute: attribute name for dict of subordinate objects
             i.e. 'phases' --> refinement.phases = {'phase_1': <PairDistributionFunction.PdfPhase>}
         * specifier: name of parameters instance in subordinate object
-        
+
         Returns:
             True if no errors
             list if debug is True
@@ -907,7 +926,7 @@ class MergeParams(object):
 
             # for name in getattr(self, 'incorporated_%s' % top_attribute):
             # this caused the parameter to be shadowed- i.e. wrong level of nesting here.
-            name = item  #  FIX 
+            name = item  #  FIX
             for item_var in [k for k in self.params.keys() if k.startswith(name)]:
                 try:
                     # strip item header to retrieve original var name
@@ -915,7 +934,7 @@ class MergeParams(object):
                     # update bottom attribute params instance
                     bottom_params[var].set(*attributegetter('value', 'vary',
                                            'min', 'max')(self.params[item_var]))
-                        
+
                 except KeyError:
                     # skip keys that belong to top level only
                     if debug is True:
@@ -926,7 +945,7 @@ class MergeParams(object):
             return skipped
         else:
             return len(skipped) == 1
-        
+
     # End of class MergeParams
 
 
@@ -955,10 +974,10 @@ class DynamicPlot(object):
         self.ax.set_autoscaley_on(True)
 
         # plot self.hist
-        self.lines, = self.ax.plot([], [], 'bo', mec='b', mfc='None', ms=5,
-                                   label='$\{\Sigma_i\/Y_{diff}^2\/ / \/ N_{d.o.f.}\}^{1/2}$')
+        self.lines, = self.ax.plot([], [], 'bo', mec='b', mfc='None', ms=5)
+                                   # label='$\{\Sigma_i\/Y_{diff}^2\/ / \/ N_{d.o.f.}\}^{1/2}$')
         self.ax.set_xlabel('$Iteration$', fontsize=self.fontsize)
-        self.ax.set_ylabel('$Reduced\/\chi^2$', fontsize=self.fontsize)
+        self.ax.set_ylabel('$R_{wp}$', fontsize=self.fontsize)
         plt.legend()
         self.fig.canvas.draw()
 
@@ -1060,8 +1079,8 @@ class UpdateMethods(object):
         """ print """
         print '\nvariable  value  min  max expr\n'
         for k in flatten(keys):
-            print k, self.params[k].value, self.params[k].min, self.params[k].max, self.params[k].expr        
-        
+            print k, self.params[k].value, self.params[k].min, self.params[k].max, self.params[k].expr
+
     # End of class UpdateMethods
 
 

@@ -87,14 +87,14 @@ class Transition(object):
             self.generic({'rx': 0.0, 'ry': 0.0, 'rz': 0.0}, 'vector')
 
         # merge new on old
-        self.generic(vector, 'vector', min0=0.0, max0=1.0)
+        self.generic(vector, 'vector', min0=0.0, max0=np.inf)
 
     def update_cij(self, cij):
         """initialize/update cij (fractions) and scaled_cij (appropriately scaled copy)"""
         if not hasattr(self, 'cij'):
             self.generic({'c11': 0.0, 'c22': 0.0, 'c33': 0.0, 'c12': 0.0, 'c13': 0.0, 'c23': 0.0}, 'cij')
         # merge new on old
-        self.generic(cij, 'cij', min0=0.0, max0=50.0)
+        self.generic(cij, 'cij', min0=0.0, max0=np.inf)
 
         if not hasattr(self, 'scaled_cij'):
             self.scaled_cij = deepcopy(self.cij)

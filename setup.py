@@ -22,7 +22,7 @@ setup_args = dict(
 		'lmfit>=0.9.5',
 		'emcee>=2.2.1',
 		'corner>=2.0.1',
-        'schwimmbad>=0.3.0',
+        # 'schwimmbad>=0.3.0',  # necessary for mpi 
         'tabulate>=0.8.2',
         'dill>=0.2.7.1'
 

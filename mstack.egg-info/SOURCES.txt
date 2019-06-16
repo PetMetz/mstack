@@ -1,4 +1,5 @@
 README.md
+setup.py
 mstack/__init__.py
 mstack/background.py
 mstack/interface.py
