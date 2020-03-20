@@ -6,6 +6,10 @@ Common utility classes and functions for MStack.
 
 @author: Peter C Metz
 """
+<<<<<<< HEAD
+=======
+from __future__ import print_function
+>>>>>>> 1334e26467e2e46b29528ef0fa95e3e4e12a5425
 from warnings import warn
 
 def warn_windows():
@@ -245,8 +249,14 @@ def filter_report(refinement, variable=True, constrained=False,
                     v.append(st)
 
             if _print:
+<<<<<<< HEAD
                 print '\nstart: %s, end: %s\n' % (refinement.start, refinement.end)
                 print '\n'.join(v)
+=======
+                print('\nstart: %s, end: %s\n' % (refinement.start,
+                                                  refinement.end))
+                print('\n'.join(v))
+>>>>>>> 1334e26467e2e46b29528ef0fa95e3e4e12a5425
             if _text:
                 rv.extend(v)
 
@@ -256,21 +266,36 @@ def filter_report(refinement, variable=True, constrained=False,
                 if st.endswith('\''):
                     v.append(st)
             if _print:
+<<<<<<< HEAD
                 print '\nstart: %s, end: %s\n' % (refinement.start,
                                                   refinement.end)
                 print '\n'.join(v)
+=======
+                print('\nstart: %s, end: %s\n' % (refinement.start,
+                                                  refinement.end))
+                print('\n'.join(v))
+>>>>>>> 1334e26467e2e46b29528ef0fa95e3e4e12a5425
             if _text:
                 rv.extend(v)
 
         if _print is True:
+<<<<<<< HEAD
             print '\n {0:2.4f} \n'.format(rwp(refinement))
+=======
+            print('\n {0:2.4f} \n'.format(rwp(refinement)))
+>>>>>>> 1334e26467e2e46b29528ef0fa95e3e4e12a5425
 
         if _text is True:
             rv.extend('\n{0:2.4f}\n'.format(rwp(refinement)))
 
     except AttributeError:
+<<<<<<< HEAD
         print '%s.report does not exist. Have you run a minimization yet?'\
                 % refinement.name
+=======
+        print('%s.report does not exist. Have you run a minimization yet?'\
+                % refinement.name)
+>>>>>>> 1334e26467e2e46b29528ef0fa95e3e4e12a5425
 
     return rv
 
@@ -316,8 +341,13 @@ def interpolate_data(Array1, Array2, *mesh):
         A2 = np.array(Array2)
         x2 = A2[:, 0]  # , A2[:, 1]
     except Exception as e:
+<<<<<<< HEAD
         print e
         print 'Array2 == [], looking for mesh'
+=======
+        print(e)
+        print('Array2 == [], looking for mesh')
+>>>>>>> 1334e26467e2e46b29528ef0fa95e3e4e12a5425
 
     if Array2 == []:
         try:
@@ -451,7 +481,11 @@ def print_table(dictionary=None, table=None, key=None, headers=None):
 
     if headers is not None:
         r.insert(0, headers)
+<<<<<<< HEAD
     print tabulate(r, headers="firstrow")
+=======
+    print(tabulate(r, headers="firstrow"))
+>>>>>>> 1334e26467e2e46b29528ef0fa95e3e4e12a5425
 
     return True
 
@@ -616,7 +650,11 @@ def read_data(filename, path=None, column=1, lam=None, q=False, override=True):
     try:
         return zip(np.array(str_data, dtype=float)[:, 0], np.array(str_data, dtype=float)[:, column])
     except ValueError:
+<<<<<<< HEAD
         print '\nproblem casting data into numpy array\n'
+=======
+        print('\nproblem casting data into numpy array\n')
+>>>>>>> 1334e26467e2e46b29528ef0fa95e3e4e12a5425
         raise
 
 
@@ -641,8 +679,13 @@ def report_refined(minimizer_results_object_params, tabulate=False):
     if not tabulate:
         return d
     else:
+<<<<<<< HEAD
         print print_table(dictionary=d, headers=headers)
         print '\nvariables: %0d\n' % len(d)
+=======
+        print(print_table(dictionary=d, headers=headers))
+        print('\nvariables: %0d\n' % len(d))
+>>>>>>> 1334e26467e2e46b29528ef0fa95e3e4e12a5425
 
 
 def rwp(PDF_refinement, weight=None):
@@ -691,8 +734,13 @@ def sort_expr(obj):
             for item in sd.values():
                getattr(obj, k).add(item)
       except Exception as e:
+<<<<<<< HEAD
          print 'sort_expr encountered exception:'
          print e
+=======
+         print('sort_expr encountered exception:')
+         print(e)
+>>>>>>> 1334e26467e2e46b29528ef0fa95e3e4e12a5425
          catch = True
          pass
    return catch is False
@@ -843,6 +891,7 @@ class MergeParams(object):
 
     def lower_to_upper(self, top_attribute, specifier=None):
         """
+<<<<<<< HEAD
         When merging lmfit.Parameters instances belonging to different
         constituent refinement objects, we run into an issue of unique
         variable naming (x occurs for each atom coodinate, i.e.)
@@ -855,6 +904,18 @@ class MergeParams(object):
         top_attribute = (attribute as str) indicating dictionary of
                              subordinate objects
         bottom_attribute = params instance of subordinate object
+=======
+        When merging lmfit.Parameters instances belonging to different constituent refinement
+        objects, we run into an issue of unique variable naming (x occurs for each atom coodinate,
+        i.e.)
+
+        The transmogrifier appends the top_attribute.name to the bottom_attribute.Parameter.name attribute
+        to construct a unique variable label. This change is propagated to variables in the instance's
+        constraint expression to maintain validity.
+
+        i.e top_attribute = (attribute as str) indicating dictionary of subordinate objects
+            bottom_attribute = params instance subordinate object
+>>>>>>> 1334e26467e2e46b29528ef0fa95e3e4e12a5425
         """
         # Initialize
         self.exists('incorporated_%s' % top_attribute, [])
@@ -871,23 +932,38 @@ class MergeParams(object):
             # merge up bottom_attribute parameters
             for var in bottom_params:
                 # changing variable names invalidates expressions
+<<<<<<< HEAD
                 # first manage unconstrained variables
+=======
+>>>>>>> 1334e26467e2e46b29528ef0fa95e3e4e12a5425
                 if bottom_params[var].expr is None:
                     self.add_set_params(r'%s_%s' % (item, var),
                                         *attributegetter('value', 'vary', 'min', 'max', 'expr')(
                                                          bottom_params[var]))
             for var in bottom_params:
+<<<<<<< HEAD
                 # then update expr with new item_varname format
                 # FIXME this overwrites by default, not necessarily desired when adding phases
                 if bottom_params[var].expr is not None:
                     inplace = bottom_params[var].expr
                     # get named variables in expr
+=======
+                # therefore update expr with new item_varname format
+                # FIXME this overwrites by default, not necessarily desired when adding phases
+                if bottom_params[var].expr is not None:
+                    inplace = bottom_params[var].expr
+                    # print inplace
+>>>>>>> 1334e26467e2e46b29528ef0fa95e3e4e12a5425
                     replace = filter(None,
                                      re.split("[\+ \- \\ \/ \* \** \( \) \[ \] \{ \}]+", inplace))
 
                     for word in replace:
                         if any(w in word for w in keys):
+<<<<<<< HEAD
                             inplace = inplace.replace(word, '%s_%s' % (item, word))
+=======
+                            inplace = string.replace(inplace, word, '%s_%s' % (item, word))
+>>>>>>> 1334e26467e2e46b29528ef0fa95e3e4e12a5425
 
                     self.add_set_params(r'%s_%s' % (item, var),
                                         *attributegetter('value', 'vary', 'min', 'max')(
@@ -983,8 +1059,13 @@ class DynamicPlot(object):
         try:
             self.fig.canvas.flush_events()
         except NotImplementedError:
+<<<<<<< HEAD
             print 'dynamic plotting only enabled for backends with gui.'
             print 'Please set qt backend (e.g. %matplotlib qt)'
+=======
+            print('dynamic plotting only enabled for backends with gui.')
+            print('Please set qt backend (e.g. %matplotlib qt)')
+>>>>>>> 1334e26467e2e46b29528ef0fa95e3e4e12a5425
             raise
 
     def __call__(self, xdata, ydata):
@@ -1041,7 +1122,11 @@ class UpdateMethods(object):
         try:
             self.params[attribute].set(value=tup[0], min=tup[1], max=tup[2])
         except:
+<<<<<<< HEAD
             raise(Exception('%s must be given as a number type or a len(tuple) = 3' % attribute))
+=======
+            raise Exception
+>>>>>>> 1334e26467e2e46b29528ef0fa95e3e4e12a5425
         return
 
     def update_with_lmfit(self, attribute, parameter):
@@ -1053,7 +1138,11 @@ class UpdateMethods(object):
                 # print '{0}:  {1}, {2}, {3}'.format(attribute, *attributegetter('value',
                 #                                    'min', 'max')(parameter))
         except Exception as e:
+<<<<<<< HEAD
              print 'issue updating lmfit.parameter instance in pdf_data\n'
+=======
+             print('issue updating lmfit.parameter instance in pdf_data\n')
+>>>>>>> 1334e26467e2e46b29528ef0fa95e3e4e12a5425
              raise(e)
         return
 
@@ -1064,9 +1153,15 @@ class UpdateMethods(object):
 
     def dump_params(self, keys):
         """ print """
+<<<<<<< HEAD
         print '\nvariable  value  min  max expr\n'
         for k in flatten(keys):
             print k, self.params[k].value, self.params[k].min, self.params[k].max, self.params[k].expr
+=======
+        print('\nvariable  value  min  max expr\n')
+        for k in flatten(keys):
+            print(k, self.params[k].value, self.params[k].min, self.params[k].max, self.params[k].expr)
+>>>>>>> 1334e26467e2e46b29528ef0fa95e3e4e12a5425
 
     # End of class UpdateMethods
 

@@ -4,6 +4,10 @@ Created on Tue Apr 26 13:54:44 2016
 
 @author: Peter C Metz
 """
+<<<<<<< HEAD
+=======
+from __future__ import absolute_import
+>>>>>>> 1334e26467e2e46b29528ef0fa95e3e4e12a5425
 # standard
 from copy import deepcopy
 from operator import itemgetter
@@ -12,9 +16,15 @@ from operator import itemgetter
 import numpy as np
 
 # local
+<<<<<<< HEAD
 import structure as st
 import utilities as ut
 from utilities import warn_windows
+=======
+from . import structure as st
+from . import utilities as ut
+from .utilities import warn_windows
+>>>>>>> 1334e26467e2e46b29528ef0fa95e3e4e12a5425
 
 # diffpy-cmi
 try:

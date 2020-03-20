@@ -17,7 +17,12 @@ Attributes:
 
 @author: Peter C. Metz
 """
+from __future__ import print_function
+from __future__ import division
 # standard
+from builtins import str
+from builtins import range
+from past.utils import old_div
 from collections import OrderedDict
 import copy
 import os
@@ -69,13 +74,13 @@ def supercell(struct, vector, N=None, cif=True, xyz=False,
             ry = vector['ry'].value
             rz = vector['rz'].value
         except AttributeError:
-            rx, ry, rz = vector.values()
+            rx, ry, rz = list(vector.values())
     elif type(vector) is list:
         rx, ry, rz = vector[:]
 
     # get new cell (i.e. c dim)
     c_prime = N * struct.c.value * rz  # c dim of supercell
-    rz_prime = (rz * struct.c) / c_prime  # layer translation in new cell --> 1/N
+    rz_prime = old_div((rz * struct.c), c_prime)  # layer translation in new cell --> 1/N
     cell = copy.deepcopy(struct.cell) # a, b, c, alp, bet, gam
     for p in cell:  # scrub bounds
         p.min = -np.inf
@@ -84,8 +89,8 @@ def supercell(struct, vector, N=None, cif=True, xyz=False,
 
     # recast asymmetric unit in prime coordinates
     asym00 = OrderedDict()
-    tran = struct.c / c_prime  # transform z coordinate
-    for at, atom in struct.atoms.items():
+    tran = old_div(struct.c, c_prime)  # transform z coordinate
+    for at, atom in list(struct.atoms.items()):
         asym00.update({at: copy.deepcopy(atom)})
         asym00[at].z.set(value=tran * atom.z)
         # asym00.update({'%s_%0d' % (at, 0): copy.deepcopy(atom)})
@@ -95,7 +100,7 @@ def supercell(struct, vector, N=None, cif=True, xyz=False,
     # copy shift asym N times
     asym = OrderedDict()
     for i in range(N):
-        for k, at in asym00.items():
+        for k, at in list(asym00.items()):
             asym.update({'%s_%0d' % (k, i):
                          st.Atom(
                             atom_name = at.name,
@@ -112,7 +117,7 @@ def supercell(struct, vector, N=None, cif=True, xyz=False,
                                      
     # return asym
     # return atoms to unit cell
-    for k, at in asym.items():
+    for k, at in list(asym.items()):
         at.x.set(value= at.x % 1)
         at.y.set(value= at.y % 1)
 # =============================================================================
@@ -136,7 +141,7 @@ def supercell(struct, vector, N=None, cif=True, xyz=False,
 
     if xyz is True:
         # FIXME write xyz
-        print 'WARNING! transformation to orthogonal basis is broken. Check your cell.'
+        print('WARNING! transformation to orthogonal basis is broken. Check your cell.')
         pub_xyz(struct.a, struct.b, c_prime, struct.gam,
                 asym, path, filename)
 

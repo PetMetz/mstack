@@ -8,6 +8,11 @@ lattice parameters and atom instances.
 
 @author: Peter C Metz
 """
+<<<<<<< HEAD
+=======
+from __future__ import print_function
+from __future__ import absolute_import
+>>>>>>> 1334e26467e2e46b29528ef0fa95e3e4e12a5425
 # standard
 from operator import itemgetter
 import os
@@ -20,12 +25,21 @@ import lmfit
 import numpy as np
 
 # local
+<<<<<<< HEAD
 import utilities as u
 # from utilities import absfpath
 from utilities import MergeParams, UpdateMethods
 from utilities import pub_cif as _pub_cif
 from utilities import attributegetter
 from utilities import warn_windows
+=======
+from . import utilities as u
+# from utilities import absfpath
+from .utilities import MergeParams, UpdateMethods
+from .utilities import pub_cif as _pub_cif
+from .utilities import attributegetter
+from .utilities import warn_windows
+>>>>>>> 1334e26467e2e46b29528ef0fa95e3e4e12a5425
 
 # diffpy-cmi
 try:
@@ -71,7 +85,11 @@ def build_cif(filename, structure_name=None, layer_number=1, path=None):
                 break
             i += 1
             if i >= 100:
+<<<<<<< HEAD
                 raise(Exception('name your damn structure.'))
+=======
+                raise Exception
+>>>>>>> 1334e26467e2e46b29528ef0fa95e3e4e12a5425
 
     # read .cif file
     cf = ReadCif(fpath)
@@ -106,7 +124,11 @@ def build_cif(filename, structure_name=None, layer_number=1, path=None):
             break
 
     if adp == '':
+<<<<<<< HEAD
         raise(Exception('ADP not found in .cif file'))
+=======
+        raise Exception
+>>>>>>> 1334e26467e2e46b29528ef0fa95e3e4e12a5425
 
     # get the remaining information
     # k is the lb key that breaks the previous for loop
@@ -116,7 +138,11 @@ def build_cif(filename, structure_name=None, layer_number=1, path=None):
         try:
             info.update({item.split('_')[-1]: lb[item]})
         except:
+<<<<<<< HEAD
             print '\ncouldn\'t load %s' % item 
+=======
+            print('\ncouldn\'t load %s' % item) 
+>>>>>>> 1334e26467e2e46b29528ef0fa95e3e4e12a5425
             pass
 
     # split atom|number if necessary

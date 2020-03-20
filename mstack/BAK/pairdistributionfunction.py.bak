@@ -8,6 +8,11 @@ disorered PDF data.
 
 @author: Peter C Metz
 """
+<<<<<<< HEAD
+=======
+from __future__ import print_function
+from __future__ import absolute_import
+>>>>>>> 1334e26467e2e46b29528ef0fa95e3e4e12a5425
 # standard
 from copy import copy, deepcopy
 import os
@@ -23,10 +28,17 @@ import numpy as np
 # import dill
 
 # local
+<<<<<<< HEAD
 from interface import Interface
 import utilities as u
 from utilities import MergeParams, UpdateMethods
 from utilities import warn_windows
+=======
+from .interface import Interface
+from . import utilities as u
+from .utilities import MergeParams, UpdateMethods
+from .utilities import warn_windows
+>>>>>>> 1334e26467e2e46b29528ef0fa95e3e4e12a5425
 
 # diffpy-cmi
 try:
@@ -140,8 +152,12 @@ class PdfData(UpdateMethods, MergeParams):
             elif data is None:
                 pass
             else:
+<<<<<<< HEAD
                 raise(Exception('Data must be entered as filepath or\
                                 (filepath, column) or np.array'))
+=======
+                raise Exception
+>>>>>>> 1334e26467e2e46b29528ef0fa95e3e4e12a5425
 
     def __init__(self, name=None, data=None, qmax=None, qmin=None,
                  qbroad=None, qdamp=None, scale=None, rmin=None, rmax=None,
@@ -460,9 +476,15 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
             # merge up data parameters
             self.lower_to_upper('data', specifier='params')
         # verbose
+<<<<<<< HEAD
         print '\n data initialized:'
         for d in self.data.keys():
             print '      %s' % d
+=======
+        print('\n data initialized:')
+        for d in self.data.keys():
+            print('      %s' % d)
+>>>>>>> 1334e26467e2e46b29528ef0fa95e3e4e12a5425
 
         return True
 
@@ -484,9 +506,15 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
             # merge up phase parameters
             self.lower_to_upper('phases', specifier='params')
         # verbose
+<<<<<<< HEAD
         print '\n phases initialized:'
         for s in self.phases.keys():    
             print '      %s' % s
+=======
+        print('\n phases initialized:')
+        for s in self.phases.keys():    
+            print('      %s' % s)
+>>>>>>> 1334e26467e2e46b29528ef0fa95e3e4e12a5425
 
         return True
 
@@ -819,7 +847,11 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
                 del array[-1]
 
         if self.dim_check(calc_data, exp_data) is False:
+<<<<<<< HEAD
             print 'len(calc_data)[%s] != len(exp_data)[%s]' % (len(calc_data), len(exp_data))
+=======
+            print('len(calc_data)[%s] != len(exp_data)[%s]' % (len(calc_data), len(exp_data)))
+>>>>>>> 1334e26467e2e46b29528ef0fa95e3e4e12a5425
 
         return np.array(exp_data, dtype='float64'), np.array(calc_data, dtype='float64')
 
@@ -1043,7 +1075,11 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
 
         # ocassionally announce redchi
         # if iter % 10 == 0:
+<<<<<<< HEAD
         print 'rwp(%0d): %.4E' % (iter, rwp)
+=======
+        print('rwp(%0d): %.4E' % (iter, rwp))
+>>>>>>> 1334e26467e2e46b29528ef0fa95e3e4e12a5425
 
         # acccept kwarg to toggle residual plotting on (expensive, timewise)
         try:

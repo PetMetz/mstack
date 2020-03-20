@@ -10,9 +10,19 @@ disordered powder diffraction data
 """
 from __future__ import print_function
 from __future__ import absolute_import
+<<<<<<< HEAD
+=======
+from __future__ import division
+>>>>>>> 1334e26467e2e46b29528ef0fa95e3e4e12a5425
 # standard
+from future import standard_library
+standard_library.install_aliases()
+from builtins import str
+from builtins import zip
+from builtins import range
+from past.utils import old_div
 from copy import copy, deepcopy
-import cPickle
+import pickle
 from glob import glob
 import inspect
 import os
@@ -86,25 +96,25 @@ class Refinement(MergeParams, UpdateMethods):
         if not hasattr(self, 'weights'):
             self.weights = {}
 
-        for p in self.phases.keys():
-            if not any('%s_weight' % p == k for k in self.params.keys()):
+        for p in list(self.phases.keys()):
+            if not any('%s_weight' % p == k for k in list(self.params.keys())):
                 self.params.add('%s_weight' % p, vary=True)
                 self.weights.update({p: self.params['%s_weight' % p]})
 
         # add/update
         N = 0
         d = {}
-        for w in weights.keys():
+        for w in list(weights.keys()):
             d.update({w: weights[w]})
             N += weights[w]
-        for w in d.keys():
-            self.params['%s_weight' % w].set(value=(weights[w] / N))
+        for w in list(d.keys()):
+            self.params['%s_weight' % w].set(value=(old_div(weights[w], N)))
             self.weights.update({'w': self.params['%s_weight' % w]})
 
     def update_background(self):
         """ recompute background """
         for k in self.bkgkeys:
-            if not k in self.params.keys():
+            if not k in list(self.params.keys()):
                 self.params.add(k, value=0.0)
 
         self.ybg = self.background(self.xo, *[self.params[k].value for k in self.bkgkeys])
@@ -175,13 +185,13 @@ class Refinement(MergeParams, UpdateMethods):
         if not hasattr(self, 'phase_params'):
             self.phase_params = {}
 
-        for p in phase_params.keys():
-            if not any(p == k for k in self.phase_params.keys()):
+        for p in list(phase_params.keys()):
+            if not any(p == k for k in list(self.phase_params.keys())):
                 self.phase_params.update({p: phase_params[p]})
 
         # update
         else:
-            for p in phase_params.keys():
+            for p in list(phase_params.keys()):
                 for k in phase_params[p]:
                     # if phase_params[p][k].vary is True:
                     self.phase_params[p][k].set(
@@ -290,7 +300,7 @@ class Refinement(MergeParams, UpdateMethods):
         else:
             # weight evenly if none supplied
             weights = {}
-            for p in self.phases.keys():
+            for p in list(self.phases.keys()):
                 weights.update({p: 1. / len(self.phases)})
             self.update_weights(weights)
 
@@ -299,7 +309,7 @@ class Refinement(MergeParams, UpdateMethods):
             self.update_phase_params(phase_params)
         else:
             d = {}
-            for p in self.phases.keys():
+            for p in list(self.phases.keys()):
                 d.update({p: self.phases[p].params})
             self.update_phase_params(d)
 
@@ -392,7 +402,7 @@ class Refinement(MergeParams, UpdateMethods):
 
     def reset(self):
         """ use self.original to reset refined parameters to previous values """
-        for k in self.original.keys():
+        for k in list(self.original.keys()):
             self.params[k].value = self.original[k]
 
     def revert(self):
@@ -444,8 +454,8 @@ class Refinement(MergeParams, UpdateMethods):
         calc_data = {}
         x = np.array([])
         y = np.array([])
-        for p in self.phases.keys():
-            fpath, fname = split(abspath(join(*filter(None, (path, self.phases[p].name + '.spc')))))
+        for p in list(self.phases.keys()):
+            fpath, fname = split(abspath(join(*[_f for _f in (path, self.phases[p].name + '.spc') if _f])))
             calc_data.update({self.phases[p].name:
                              u.read_data(fname, fpath, column=column,
                                          lam=self.wvl, q=False)}
@@ -457,7 +467,7 @@ class Refinement(MergeParams, UpdateMethods):
             else:
                 if len(y) != len(calc_data):
                     # coerce correct dim
-                    calc_data[p] = u.interpolate_data(calc_data[p], zip(x, y))
+                    calc_data[p] = u.interpolate_data(calc_data[p], list(zip(x, y)))
 
                 y += np.multiply(np.array(calc_data[p])[:, 1], self.weights[p].value)
 
@@ -488,9 +498,9 @@ class Refinement(MergeParams, UpdateMethods):
             self.xo, self.yo = u.interpolate_data(self.exp_data, self.calc_data).T # exp data
 
         # map
-        A2 = zip(self.xo, self.yo)
+        A2 = list(zip(self.xo, self.yo))
         self.calc_data = u.interpolate_data(calc_data, A2)  # calc data
-        _, self.ybg = u.interpolate_data(zip(self.xo, self.ybg), A2).T # bkg
+        _, self.ybg = u.interpolate_data(list(zip(self.xo, self.ybg)), A2).T # bkg
 
 
         return self.calc_data
@@ -509,12 +519,12 @@ class Refinement(MergeParams, UpdateMethods):
         for f in glob(join(abspath(self.diffaxpath), '*.dif*')):
             os.remove(f)
 
-        for p in self.phases.values():
+        for p in list(self.phases.values()):
             for filename in glob(join(abspath(self.diffaxpath), '*.spc*')):
                 if match(filename, p.name) is True:
                     os.remove(filename)
 
-        for p in self.phases.values():
+        for p in list(self.phases.values()):
             for filename in glob(join(abspath(self.diffaxpath), '*.dat*')):
                 if match(filename, p.name) is True:
                     os.remove(filename)
@@ -555,9 +565,9 @@ class Refinement(MergeParams, UpdateMethods):
             path = self.diffaxpath
 
         # write control
-        con_path = abspath(join(*filter(None, (path, 'control.dif'))))
-        for phase in self.phases.keys():
-            dat_path = abspath(join(*filter(None, (path, phase + '.dat'))))
+        con_path = abspath(join(*[_f for _f in (path, 'control.dif') if _f]))
+        for phase in list(self.phases.keys()):
+            dat_path = abspath(join(*[_f for _f in (path, phase + '.dat') if _f]))
             dat_path = relpath(dat_path, start=split(con_path)[0])
             self.write_control_block(con_path, dat_path, mode='a+')
 
@@ -585,7 +595,7 @@ class Refinement(MergeParams, UpdateMethods):
             path = self.diffaxpath
         # write input files for phases
         #  FIX  include Pseudo-Voight
-        for p in self.phases.keys():
+        for p in list(self.phases.keys()):
             d = {'wvl': self.wvl,
                  'gau': self.gau.value,
                  'lat': self.lat.value,
@@ -640,7 +650,7 @@ class Refinement(MergeParams, UpdateMethods):
         """
         if np.sum(self.resid ** 2) > self.best[0]:
             print('setting params to best and recomputing')
-            for k, v in self.best[1].items():
+            for k, v in list(self.best[1].items()):
                 self.params[k].set(value=v.value)
             self.residual_method(self.params, **{'subdir': self.diffaxpath, 'plot_resid': False, 'sqrt_filter': False})
 
@@ -688,7 +698,7 @@ class Refinement(MergeParams, UpdateMethods):
     def report_constrained(self, tabulate=False):
         """ report parameters with attribute expr != None """
         d = {}
-        for k in self.params.keys():
+        for k in list(self.params.keys()):
             if self.params[k].expr is not None:
                 d.update({k: (self.params[k].value, self.params[k].expr)})
         if not tabulate:
@@ -772,7 +782,7 @@ class Refinement(MergeParams, UpdateMethods):
             bool: True
         """
         # update parameter values
-        for k in params.keys():
+        for k in list(params.keys()):
             if params[k].value != self.params[k].value:
                 # print 'changing {0}: {1} to {2}'.format(k, self.params[k].value, params[k].value)
                 self.params[k].value = params[k].value
@@ -781,7 +791,7 @@ class Refinement(MergeParams, UpdateMethods):
         self.upper_to_lower('phases', specifier='params', debug=True)
 
         # push new values down
-        for p, phase in self.phases.items():
+        for p, phase in list(self.phases.items()):
             phase.phase_to_structure()
             phase.phase_to_trans()
         return True
@@ -827,7 +837,7 @@ class Refinement(MergeParams, UpdateMethods):
         # calculate Yc = global_scale * (Ywp + Ybg)
         self.yc = (self.yc + self.ybg)
         # ~! self.xc = x
-        self.calc_data = zip(self.xc, self.yc)
+        self.calc_data = list(zip(self.xc, self.yc))
 
         # get residual array
         if len(kws) != 0 and kws['sqrt_filter'] is True:
@@ -839,7 +849,7 @@ class Refinement(MergeParams, UpdateMethods):
         if not hasattr(self,'best'):
             self.best = (np.inf,)
         if np.sum(self.resid ** 2) < self.best[0]:
-            self.best = (np.sum(self.resid ** 2), dict([(k, v) for k, v in self.params.items() if v.vary is True]))
+            self.best = (np.sum(self.resid ** 2), dict([(k, v) for k, v in list(self.params.items()) if v.vary is True]))
 
         return self.resid
 
@@ -920,8 +930,8 @@ class Refinement(MergeParams, UpdateMethods):
 
         # output cif file for inspection
         if cifout is True:
-            for p in self.phases.keys():
-                for s in self.phases[p].structures.keys():
+            for p in list(self.phases.keys()):
+                for s in list(self.phases[p].structures.keys()):
                     self.phases[p].pub_cif(s)
 
         return
@@ -943,13 +953,13 @@ class Refinement(MergeParams, UpdateMethods):
             True
         """
         # check for None in .values
-        for k in self.params.values():
+        for k in list(self.params.values()):
             if any(k.value == s for s in [float('-inf'), float('inf'), None]):
                 k.value = 0.0
                 #  FIX  print k.name, k.value
 
         # set min/max arbitrarily at +/- 25% if values not supplied
-        for par in self.params.values():
+        for par in list(self.params.values()):
             value = par.value
             # m = [value * 0.75, value * 1.25]
             m = [-adjust * value, adjust * value]
@@ -1064,8 +1074,8 @@ class Refinement(MergeParams, UpdateMethods):
 
             # output cif file for inspection (overwritten each minimization call)
             if cifout is True:
-                for p in self.phases.keys():
-                    for s in self.phases[p].structures.keys():
+                for p in list(self.phases.keys()):
+                    for s in list(self.phases[p].structures.keys()):
                         self.phases[p].pub_cif(s)
 
             return
@@ -1082,7 +1092,7 @@ class Refinement(MergeParams, UpdateMethods):
             # weight = np.sqrt(self.yo ** 0.5) ** -2
             weight = 1. / self.yo
         resid = self.yo - self.yc
-        rv = np.sqrt(np.sum(weight * resid ** 2) / np.sum(weight * self.yo ** 2))
+        rv = np.sqrt(old_div(np.sum(weight * resid ** 2), np.sum(weight * self.yo ** 2)))
         return rv
 
     # End of class Refinement

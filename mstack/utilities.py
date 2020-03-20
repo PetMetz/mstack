@@ -7,6 +7,17 @@ Common utility classes and functions for MStack.
 @author: Peter C Metz
 """
 from __future__ import print_function
+<<<<<<< HEAD
+=======
+from __future__ import division
+from builtins import next
+from builtins import zip
+from builtins import str
+from builtins import range
+from past.builtins import basestring
+from builtins import object
+from past.utils import old_div
+>>>>>>> 1334e26467e2e46b29528ef0fa95e3e4e12a5425
 from warnings import warn
 
 def warn_windows():
@@ -202,13 +213,13 @@ def fetch_thermals(Refinement):
         OrderedDict of Bij tensors
     """
     odd = OD()
-    for k1, phase in Refinement.phases.items():   # for phase in refinment
+    for k1, phase in list(Refinement.phases.items()):   # for phase in refinment
         odd.update({k1:{}})
-        for k2, layer in phase.phase.items():   # for layer in phase
+        for k2, layer in list(phase.phase.items()):   # for layer in phase
             odd[k1].update({k2:{}})
-            for k3, structure in layer.structures.items():   # for structure in layer
+            for k3, structure in list(layer.structures.items()):   # for structure in layer
                 odd[k1][k2].update({k3:{}})
-                for k4, atom in structure.atoms.items():   # for asymmetric unit in layer
+                for k4, atom in list(structure.atoms.items()):   # for asymmetric unit in layer
                     fstr = '%s_%s_%s_%s' % (k1, k2, k3, k4) + '_B{i}{j}'
                     fmater = lambda fstr, i: [fstr.format(i=i, j=idx) for idx in (1, 2, 3)]
                     rv = np.array((
@@ -246,7 +257,12 @@ def filter_report(refinement, variable=True, constrained=False,
                     v.append(st)
 
             if _print:
+<<<<<<< HEAD
                 print('\nstart: %s, end: %s\n' % (refinement.start, refinement.end))
+=======
+                print('\nstart: %s, end: %s\n' % (refinement.start,
+                                                  refinement.end))
+>>>>>>> 1334e26467e2e46b29528ef0fa95e3e4e12a5425
                 print('\n'.join(v))
             if _text:
                 rv.extend(v)
@@ -431,7 +447,7 @@ def print_table(dictionary=None, table=None, key=None, headers=None):
 
     r = []
     if dictionary is not None:
-        for k in dictionary.keys():
+        for k in list(dictionary.keys()):
             r.append(flatten((k, dictionary[k])))
 
     if table is not None:
@@ -467,7 +483,7 @@ def pub_cif(asym, cell=None, path=None, filename=None, debug=False):
         path (str): directory of file.cif
         filename (str): filname for dump (omit .cif)
     """
-    fpath = abspath(join(*filter(None, (path, filename))))  # absfpath(path, filename, 'cif')
+    fpath = abspath(join(*[_f for _f in (path, filename) if _f]))  # absfpath(path, filename, 'cif')
     cifkeys = {'header_line': '%s_%s' % (filename, strftime('%d-%m-%y_%H.%M.%S'))}
 
     # define unit cell positionally
@@ -476,13 +492,13 @@ def pub_cif(asym, cell=None, path=None, filename=None, debug=False):
     if cell is not None:
         for idx, prm in enumerate(cell):
             init[idx] = prm
-    cifkeys.update(dict(map(lambda prm: (prm.name, prm.value), init)))
+    cifkeys.update(dict([(prm.name, prm.value) for prm in init]))
 
     # define asymmetric unit
     sort_key = lambda x: x.split()[0] + x.split()[1]   # sort on site label
     asymloop = []
     anisoloop = []
-    for k, atom  in asym.items():
+    for k, atom  in list(asym.items()):
         # build asymmetric unit block
         asymloop.append(' '.join(flatten((atom.name,
                                           str(atom.number),
@@ -529,28 +545,28 @@ def pub_xyz(a, b, c, gam, asym, path=None, filename=None):
 
     @!!!!!! Orthogonal vector space conversion is broken
     """
-    fpath = abspath(join(*filter(None, (path, filename))))  # absfpath(path, filename, 'xyz')
+    fpath = abspath(join(*[_f for _f in (path, filename) if _f]))  # absfpath(path, filename, 'xyz')
 
     asym = copy.deepcopy(asym)
     # transform coordinates
-    for at in asym.keys():
+    for at in list(asym.keys()):
         # swap for absolute vector values
         asym[at].x = a * asym[at].x
         asym[at].y = b * asym[at].y
         asym[at].z = c * asym[at].z
 
     if gam != 90:
-        for at in asym.keys():
+        for at in list(asym.keys()):
             # transform to orthogonal  system
-            asym[at].x = asym[at].x + (asym[at].y * math.sin(gam * math.pi / 180 - math.pi / 2))
-            asym[at].y = asym[at].y + (asym[at].y * math.cos(gam * math.pi / 180 - math.pi / 2))
+            asym[at].x = asym[at].x + (asym[at].y * math.sin(old_div(gam * math.pi, 180) - old_div(math.pi, 2)))
+            asym[at].y = asym[at].y + (asym[at].y * math.cos(old_div(gam * math.pi, 180) - old_div(math.pi, 2)))
 
     # write .xyz
     template = '''%(atom)s %(x)s %(y)s %(z)s\n'''
     with open(fpath, 'w+') as f:
         f.write('%s\n' % len(asym))
         f.write('%s_%s\n' % (filename, strftime('%d-%m-%y_%H.%M.%S')))
-        for at in asym.keys():
+        for at in list(asym.keys()):
             f.write(template % {'atom': asym[at].name,
                                 'x': asym[at].x,
                                 'y': asym[at].y,
@@ -612,10 +628,10 @@ def read_data(filename, path=None, column=1, lam=None, q=False, override=True):
     # if data is in Q
     if q is True:
         for i in range(len(str_data)):
-            str_data[i][0] = 2*math.asin((str_data[i][0]*lam)/(4*math.pi))*(180/math.pi)
+            str_data[i][0] = 2*math.asin(old_div((str_data[i][0]*lam),(4*math.pi)))*(old_div(180,math.pi))
 
     try:
-        return zip(np.array(str_data, dtype=float)[:, 0], np.array(str_data, dtype=float)[:, column])
+        return list(zip(np.array(str_data, dtype=float)[:, 0], np.array(str_data, dtype=float)[:, column]))
     except ValueError:
         print('\nproblem casting data into numpy array\n')
         raise
@@ -666,7 +682,7 @@ def rwp(PDF_refinement, weight=None):
         return Exception('weight and data must have identical shape')
 
     diff = ref.yo - ref.yc
-    rv = (sum(weight * diff ** 2) / sum(weight * ref.yo ** 2)) ** 0.5
+    rv = (old_div(sum(weight * diff ** 2), sum(weight * ref.yo ** 2))) ** 0.5
 
     return rv
 
@@ -680,16 +696,16 @@ def sort_expr(obj):
    [expr1=None, expr2=None,....,exprN='foo', exprN+1='bar',...]
    """
    catch = False   # <--- debugging/testing
-   for k, v in obj.__dict__.items():
+   for k, v in list(obj.__dict__.items()):
       try:
          if type(v).__name__ == 'Parameters':
-            sd = OD(sorted(v.items(),
+            sd = OD(sorted(list(v.items()),
                            key=lambda x: x[1].expr is None,
                            reverse=True
                            ))
             delattr(obj, k)
             setattr(obj, k, lmfit.parameter.Parameters())
-            for item in sd.values():
+            for item in list(sd.values()):
                getattr(obj, k).add(item)
       except Exception as e:
          print('sort_expr encountered exception:')
@@ -725,7 +741,7 @@ def var_names(string):
 def bubble_sort(param_dict):
     """ param_dict as OrderedDict() """
     # swap for type supporting replacement
-    sd = param_dict.items()
+    sd = list(param_dict.items())
 
     # bubble sort
     for pnum in range(len(sd)-1, 0, -1):
@@ -749,7 +765,7 @@ def reconstruct(obj):
     """
     catch=False
 
-    for k, v in obj.__dict__.items():
+    for k, v in list(obj.__dict__.items()):
         try:
             if type(v).__name__ == 'Parameters':
                 sd = bubble_sort(v)     # get sorted parameters
@@ -757,11 +773,11 @@ def reconstruct(obj):
                 setattr(obj, k, lmfit.parameter.Parameters()) # replace parameters instance
                 new_symtab = getattr(obj, k)._asteval.symtable
 
-                for sym in symtab.keys(): # replace new symtab with cached
-                    if not any(sym==x for x in new_symtab.keys()):
+                for sym in list(symtab.keys()): # replace new symtab with cached
+                    if not any(sym==x for x in list(new_symtab.keys())):
                         new_symtab.update({sym: symtab[sym]})
 
-                getattr(obj, k).add_many(*sd.values())     # update parameters instance with sorted
+                getattr(obj, k).add_many(*list(sd.values()))     # update parameters instance with sorted
 
         except Exception as e:
             catch = True
@@ -819,7 +835,7 @@ class MergeParams(object):
                 self.params = lmfit.Parameters()
 
             # use add or set appropriately
-            if not any(name == k for k in self.params.keys()):
+            if not any(name == k for k in list(self.params.keys())):
                 self.params.add(name=name, value=value, vary=vary, min=min, max=max, expr=expr)
             else:
                 self.params[name].set(value=value, vary=vary, min=min, max=max, expr=expr)
@@ -830,7 +846,7 @@ class MergeParams(object):
         """
         # get attribute parameters instance handle
         l = []
-        for k, v in bottom_attribute.__dict__.items():
+        for k, v in list(bottom_attribute.__dict__.items()):
             if isinstance(v, lmfit.Parameters):
                 l.append(k)
         if len(l) != 1 and specifier is None:  # if found no instance of Parameters
@@ -861,13 +877,13 @@ class MergeParams(object):
         self.exists('incorporated_%s' % top_attribute, [])
 
         # for each item in top_attribute
-        for item in getattr(self, top_attribute).keys():
+        for item in list(getattr(self, top_attribute).keys()):
             # get bottom_attribute Parameters instance
             bottom_params = self.param_finder(getattr(self, top_attribute)[item], specifier)
 
             # get label for appending/spliting
             getattr(self, 'incorporated_%s' % top_attribute).append(item)
-            keys = bottom_params.keys()  # use with regex to update expr
+            keys = list(bottom_params.keys())  # use with regex to update expr
 
             # merge up bottom_attribute parameters
             for var in bottom_params:
@@ -882,9 +898,14 @@ class MergeParams(object):
                 # FIXME this overwrites by default, not necessarily desired when adding phases
                 if bottom_params[var].expr is not None:
                     inplace = bottom_params[var].expr
+<<<<<<< HEAD
                     # get named variables in expr
                     replace = filter(None,
                                      re.split("[\+ \- \\ \/ \* \** \( \) \[ \] \{ \}]+", inplace))
+=======
+                    # print inplace
+                    replace = [_f for _f in re.split("[\+ \- \\ \/ \* \** \( \) \[ \] \{ \}]+", inplace) if _f]
+>>>>>>> 1334e26467e2e46b29528ef0fa95e3e4e12a5425
 
                     for word in replace:
                         if any(w in word for w in keys):
@@ -909,13 +930,13 @@ class MergeParams(object):
         """
         skipped = [('name', 'item_var', 'var')]  # for debugging
         # get bottom attribute Parameters instance
-        for item in getattr(self, top_attribute).keys():
+        for item in list(getattr(self, top_attribute).keys()):
             bottom_params = self.param_finder(getattr(self, top_attribute)[item], specifier)
 
             # for name in getattr(self, 'incorporated_%s' % top_attribute):
             # this caused the parameter to be shadowed- i.e. wrong level of nesting here.
             name = item  #  FIX
-            for item_var in [k for k in self.params.keys() if k.startswith(name)]:
+            for item_var in [k for k in list(self.params.keys()) if k.startswith(name)]:
                 try:
                     # strip item header to retrieve original var name
                     var = re.split('%s_' % name, self.params[item_var].name)[-1]
