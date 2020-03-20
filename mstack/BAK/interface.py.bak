@@ -4,7 +4,6 @@ Created on Tue Apr 26 13:54:44 2016
 
 @author: Peter C Metz
 """
-from __future__ import absolute_import
 # standard
 from copy import deepcopy
 from operator import itemgetter
@@ -13,9 +12,9 @@ from operator import itemgetter
 import numpy as np
 
 # local
-from . import structure as st
-from . import utilities as ut
-from .utilities import warn_windows
+import structure as st
+import utilities as ut
+from utilities import warn_windows
 
 # diffpy-cmi
 try:

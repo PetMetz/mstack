@@ -8,6 +8,8 @@ disordered powder diffraction data
 
 @author: Peter C Metz
 """
+from __future__ import print_function
+from __future__ import absolute_import
 # standard
 from copy import copy, deepcopy
 import cPickle
@@ -25,9 +27,9 @@ from matplotlib import pyplot as plt
 import numpy as np
 
 # local
-import utilities as u
-from utilities import MergeParams, UpdateMethods
-from background import inv_x_plus_poly3
+from . import utilities as u
+from .utilities import MergeParams, UpdateMethods
+from .background import inv_x_plus_poly3
 
 
 
@@ -481,7 +483,7 @@ class Refinement(MergeParams, UpdateMethods):
         while len(self.yo) != len(self.calc_data):
             rec += 1
             if rec >= 10:
-                raise(Exception('unable to map calc and exp data'))
+                raise Exception
             # trim to calc_data length
             self.xo, self.yo = u.interpolate_data(self.exp_data, self.calc_data).T # exp data
 
@@ -692,7 +694,7 @@ class Refinement(MergeParams, UpdateMethods):
         if not tabulate:
             return d
         else:
-            print u.print_table(d)
+            print(u.print_table(d))
 
     def report_refined(self, tabulate=True):
         """
@@ -745,7 +747,7 @@ class Refinement(MergeParams, UpdateMethods):
             self.hist.append((iter, rwp))
         # ocassionally plot redchi
         if iter % 10 == 0:
-            print 'rwp(%0d): %.4E' % (iter, np.min(self.hist[-10:]))
+            print('rwp(%0d): %.4E' % (iter, np.min(self.hist[-10:])))
 
         # acccept kwarg to toggle residual plotting on
         try:
@@ -845,7 +847,7 @@ class Refinement(MergeParams, UpdateMethods):
         """ get peak at first calculated state """
         kws = {'subdir': subdir, 'sqrt_filter': sqrt_filter}
         self.residual_method(self.params, **kws)
-        print self.rwp() #   sum(resid)
+        print(self.rwp()) #   sum(resid)
         return self.plot(sqrt_filter=sqrt_filter)
 
 

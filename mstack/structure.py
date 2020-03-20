@@ -8,6 +8,8 @@ lattice parameters and atom instances.
 
 @author: Peter C Metz
 """
+from __future__ import print_function
+from __future__ import absolute_import
 # standard
 from operator import itemgetter
 import os
@@ -20,12 +22,12 @@ import lmfit
 import numpy as np
 
 # local
-import utilities as u
+from . import utilities as u
 # from utilities import absfpath
-from utilities import MergeParams, UpdateMethods
-from utilities import pub_cif as _pub_cif
-from utilities import attributegetter
-from utilities import warn_windows
+from .utilities import MergeParams, UpdateMethods
+from .utilities import pub_cif as _pub_cif
+from .utilities import attributegetter
+from .utilities import warn_windows
 
 # diffpy-cmi
 try:
@@ -71,7 +73,7 @@ def build_cif(filename, structure_name=None, layer_number=1, path=None):
                 break
             i += 1
             if i >= 100:
-                raise(Exception('name your damn structure.'))
+                raise Exception
 
     # read .cif file
     cf = ReadCif(fpath)
@@ -106,7 +108,7 @@ def build_cif(filename, structure_name=None, layer_number=1, path=None):
             break
 
     if adp == '':
-        raise(Exception('ADP not found in .cif file'))
+        raise Exception
 
     # get the remaining information
     # k is the lb key that breaks the previous for loop
@@ -116,7 +118,7 @@ def build_cif(filename, structure_name=None, layer_number=1, path=None):
         try:
             info.update({item.split('_')[-1]: lb[item]})
         except:
-            print '\ncouldn\'t load %s' % item 
+            print('\ncouldn\'t load %s' % item) 
             pass
 
     # split atom|number if necessary

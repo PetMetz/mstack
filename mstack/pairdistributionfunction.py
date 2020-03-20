@@ -8,6 +8,8 @@ disorered PDF data.
 
 @author: Peter C Metz
 """
+from __future__ import print_function
+from __future__ import absolute_import
 # standard
 from copy import copy, deepcopy
 import os
@@ -23,10 +25,10 @@ import numpy as np
 # import dill
 
 # local
-from interface import Interface
-import utilities as u
-from utilities import MergeParams, UpdateMethods
-from utilities import warn_windows
+from .interface import Interface
+from . import utilities as u
+from .utilities import MergeParams, UpdateMethods
+from .utilities import warn_windows
 
 # diffpy-cmi
 try:
@@ -140,8 +142,7 @@ class PdfData(UpdateMethods, MergeParams):
             elif data is None:
                 pass
             else:
-                raise(Exception('Data must be entered as filepath or\
-                                (filepath, column) or np.array'))
+                raise Exception
 
     def __init__(self, name=None, data=None, qmax=None, qmin=None,
                  qbroad=None, qdamp=None, scale=None, rmin=None, rmax=None,
@@ -460,9 +461,9 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
             # merge up data parameters
             self.lower_to_upper('data', specifier='params')
         # verbose
-        print '\n data initialized:'
+        print('\n data initialized:')
         for d in self.data.keys():
-            print '      %s' % d
+            print('      %s' % d)
 
         return True
 
@@ -484,9 +485,9 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
             # merge up phase parameters
             self.lower_to_upper('phases', specifier='params')
         # verbose
-        print '\n phases initialized:'
+        print('\n phases initialized:')
         for s in self.phases.keys():    
-            print '      %s' % s
+            print('      %s' % s)
 
         return True
 
@@ -819,7 +820,7 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
                 del array[-1]
 
         if self.dim_check(calc_data, exp_data) is False:
-            print 'len(calc_data)[%s] != len(exp_data)[%s]' % (len(calc_data), len(exp_data))
+            print('len(calc_data)[%s] != len(exp_data)[%s]' % (len(calc_data), len(exp_data)))
 
         return np.array(exp_data, dtype='float64'), np.array(calc_data, dtype='float64')
 
@@ -1043,7 +1044,7 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
 
         # ocassionally announce redchi
         # if iter % 10 == 0:
-        print 'rwp(%0d): %.4E' % (iter, rwp)
+        print('rwp(%0d): %.4E' % (iter, rwp))
 
         # acccept kwarg to toggle residual plotting on (expensive, timewise)
         try:

@@ -6,7 +6,6 @@ Common utility classes and functions for MStack.
 
 @author: Peter C Metz
 """
-from __future__ import print_function
 from warnings import warn
 
 def warn_windows():
@@ -246,8 +245,8 @@ def filter_report(refinement, variable=True, constrained=False,
                     v.append(st)
 
             if _print:
-                print('\nstart: %s, end: %s\n' % (refinement.start, refinement.end))
-                print('\n'.join(v))
+                print '\nstart: %s, end: %s\n' % (refinement.start, refinement.end)
+                print '\n'.join(v)
             if _text:
                 rv.extend(v)
 
@@ -257,21 +256,21 @@ def filter_report(refinement, variable=True, constrained=False,
                 if st.endswith('\''):
                     v.append(st)
             if _print:
-                print('\nstart: %s, end: %s\n' % (refinement.start,
-                                                  refinement.end))
-                print('\n'.join(v))
+                print '\nstart: %s, end: %s\n' % (refinement.start,
+                                                  refinement.end)
+                print '\n'.join(v)
             if _text:
                 rv.extend(v)
 
         if _print is True:
-            print('\n {0:2.4f} \n'.format(rwp(refinement)))
+            print '\n {0:2.4f} \n'.format(rwp(refinement))
 
         if _text is True:
             rv.extend('\n{0:2.4f}\n'.format(rwp(refinement)))
 
     except AttributeError:
-        print('%s.report does not exist. Have you run a minimization yet?'\
-                % refinement.name)
+        print '%s.report does not exist. Have you run a minimization yet?'\
+                % refinement.name
 
     return rv
 
@@ -317,8 +316,8 @@ def interpolate_data(Array1, Array2, *mesh):
         A2 = np.array(Array2)
         x2 = A2[:, 0]  # , A2[:, 1]
     except Exception as e:
-        print(e)
-        print('Array2 == [], looking for mesh')
+        print e
+        print 'Array2 == [], looking for mesh'
 
     if Array2 == []:
         try:
@@ -452,7 +451,7 @@ def print_table(dictionary=None, table=None, key=None, headers=None):
 
     if headers is not None:
         r.insert(0, headers)
-    print(tabulate(r, headers="firstrow"))
+    print tabulate(r, headers="firstrow")
 
     return True
 
@@ -617,7 +616,7 @@ def read_data(filename, path=None, column=1, lam=None, q=False, override=True):
     try:
         return zip(np.array(str_data, dtype=float)[:, 0], np.array(str_data, dtype=float)[:, column])
     except ValueError:
-        print('\nproblem casting data into numpy array\n')
+        print '\nproblem casting data into numpy array\n'
         raise
 
 
@@ -642,8 +641,8 @@ def report_refined(minimizer_results_object_params, tabulate=False):
     if not tabulate:
         return d
     else:
-        print(print_table(dictionary=d, headers=headers))
-        print('\nvariables: %0d\n' % len(d))
+        print print_table(dictionary=d, headers=headers)
+        print '\nvariables: %0d\n' % len(d)
 
 
 def rwp(PDF_refinement, weight=None):
@@ -692,8 +691,8 @@ def sort_expr(obj):
             for item in sd.values():
                getattr(obj, k).add(item)
       except Exception as e:
-         print('sort_expr encountered exception:')
-         print(e)
+         print 'sort_expr encountered exception:'
+         print e
          catch = True
          pass
    return catch is False
@@ -984,8 +983,8 @@ class DynamicPlot(object):
         try:
             self.fig.canvas.flush_events()
         except NotImplementedError:
-            print('dynamic plotting only enabled for backends with gui.')
-            print('Please set qt backend (e.g. %matplotlib qt)')
+            print 'dynamic plotting only enabled for backends with gui.'
+            print 'Please set qt backend (e.g. %matplotlib qt)'
             raise
 
     def __call__(self, xdata, ydata):
@@ -1042,7 +1041,7 @@ class UpdateMethods(object):
         try:
             self.params[attribute].set(value=tup[0], min=tup[1], max=tup[2])
         except:
-            raise Exception
+            raise(Exception('%s must be given as a number type or a len(tuple) = 3' % attribute))
         return
 
     def update_with_lmfit(self, attribute, parameter):
@@ -1054,7 +1053,7 @@ class UpdateMethods(object):
                 # print '{0}:  {1}, {2}, {3}'.format(attribute, *attributegetter('value',
                 #                                    'min', 'max')(parameter))
         except Exception as e:
-             print('issue updating lmfit.parameter instance in pdf_data\n')
+             print 'issue updating lmfit.parameter instance in pdf_data\n'
              raise(e)
         return
 
@@ -1065,9 +1064,9 @@ class UpdateMethods(object):
 
     def dump_params(self, keys):
         """ print """
-        print('\nvariable  value  min  max expr\n')
+        print '\nvariable  value  min  max expr\n'
         for k in flatten(keys):
-            print(k, self.params[k].value, self.params[k].min, self.params[k].max, self.params[k].expr)
+            print k, self.params[k].value, self.params[k].min, self.params[k].max, self.params[k].expr
 
     # End of class UpdateMethods
 
