@@ -10,10 +10,7 @@ disorered PDF data.
 """
 from __future__ import print_function
 from __future__ import absolute_import
-<<<<<<< HEAD
-=======
 from __future__ import division
->>>>>>> 1334e26467e2e46b29528ef0fa95e3e4e12a5425
 # standard
 from future import standard_library
 standard_library.install_aliases()
@@ -471,12 +468,9 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
             self.lower_to_upper('data', specifier='params')
         # verbose
         print('\n data initialized:')
-<<<<<<< HEAD
         for d in self.data.keys():
-=======
-        for d in list(self.data.keys()):
->>>>>>> 1334e26467e2e46b29528ef0fa95e3e4e12a5425
-            print('      %s' % d)
+            for d in list(self.data.keys()):
+                print('      %s' % d)
 
         return True
 
@@ -499,12 +493,9 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
             self.lower_to_upper('phases', specifier='params')
         # verbose
         print('\n phases initialized:')
-<<<<<<< HEAD
         for s in self.phases.keys():    
-=======
-        for s in list(self.phases.keys()):    
->>>>>>> 1334e26467e2e46b29528ef0fa95e3e4e12a5425
-            print('      %s' % s)
+            for s in list(self.phases.keys()):    
+                print('      %s' % s)
 
         return True
 

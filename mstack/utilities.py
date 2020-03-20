@@ -7,8 +7,6 @@ Common utility classes and functions for MStack.
 @author: Peter C Metz
 """
 from __future__ import print_function
-<<<<<<< HEAD
-=======
 from __future__ import division
 from builtins import next
 from builtins import zip
@@ -17,7 +15,6 @@ from builtins import range
 from past.builtins import basestring
 from builtins import object
 from past.utils import old_div
->>>>>>> 1334e26467e2e46b29528ef0fa95e3e4e12a5425
 from warnings import warn
 
 def warn_windows():
@@ -257,12 +254,9 @@ def filter_report(refinement, variable=True, constrained=False,
                     v.append(st)
 
             if _print:
-<<<<<<< HEAD
                 print('\nstart: %s, end: %s\n' % (refinement.start, refinement.end))
-=======
                 print('\nstart: %s, end: %s\n' % (refinement.start,
                                                   refinement.end))
->>>>>>> 1334e26467e2e46b29528ef0fa95e3e4e12a5425
                 print('\n'.join(v))
             if _text:
                 rv.extend(v)
@@ -898,14 +892,11 @@ class MergeParams(object):
                 # FIXME this overwrites by default, not necessarily desired when adding phases
                 if bottom_params[var].expr is not None:
                     inplace = bottom_params[var].expr
-<<<<<<< HEAD
                     # get named variables in expr
                     replace = filter(None,
                                      re.split("[\+ \- \\ \/ \* \** \( \) \[ \] \{ \}]+", inplace))
-=======
                     # print inplace
                     replace = [_f for _f in re.split("[\+ \- \\ \/ \* \** \( \) \[ \] \{ \}]+", inplace) if _f]
->>>>>>> 1334e26467e2e46b29528ef0fa95e3e4e12a5425
 
                     for word in replace:
                         if any(w in word for w in keys):

@@ -5,10 +5,7 @@ Created on Tue Apr 26 13:54:44 2016
 @author: Peter C Metz
 """
 from __future__ import absolute_import
-<<<<<<< HEAD
-=======
 from __future__ import division
->>>>>>> 1334e26467e2e46b29528ef0fa95e3e4e12a5425
 # standard
 from builtins import str
 from builtins import range
