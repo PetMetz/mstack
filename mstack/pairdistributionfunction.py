@@ -8,22 +8,33 @@ disorered PDF data.
 
 @author: Peter C Metz
 """
-# import block
-import lmfit
+# standard
+from copy import copy, deepcopy
 import os
-import numpy as np
-import utilities as u
 import re
 import time
-import cPickle
-# import dill
-from utilities import MergeParams, UpdateMethods
-from interface import Interface
-from diffpy.srreal.pdfcalculator import PDFCalculator
-from diffpy.srfit.pdf import characteristicfunctions as CF
-from copy import copy, deepcopy
 from time import strftime
+
+# 3rd party
+import cPickle
+import lmfit
 from matplotlib import pyplot as plt
+import numpy as np
+# import dill
+
+# local
+from interface import Interface
+import utilities as u
+from utilities import MergeParams, UpdateMethods
+from utilities import warn_windows
+
+# diffpy-cmi
+try:
+    from diffpy.srreal.pdfcalculator import PDFCalculator
+    from diffpy.srfit.pdf import characteristicfunctions as CF
+except ImportError:
+    warn_windows()
+    pass
 
 
 # ##################################### main ################################# #

@@ -6,11 +6,15 @@ Transition module contains classes for describing layer transitions.
 
 @author: Peter C. Metz
 """
+# standard
 from copy import deepcopy
+
+# 3rd party
 import lmfit
-import utilities as u
 import numpy as np
 
+# local
+import utilities as u
 
 
 class Transition(object):

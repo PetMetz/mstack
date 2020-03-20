@@ -4,62 +4,34 @@ Created on Thu Dec 03 09:24:07 2015
 
 Designed to integrate lmfit/scipy differential evolution, existing structure
 tools, and DIFFaX I(Q) generator for global minimization of complex stacking
-disorered powder diffraction data
+disordered powder diffraction data
 
 @author: Peter C Metz
 """
-
-# import block
-import os
-import utilities as u
-import numpy as np
-import lmfit
-import re
-# import string
-import time
-import cPickle
-import inspect
+# standard
 from copy import copy, deepcopy
-from matplotlib import pyplot as plt
-import subprocess
-from subprocess import call
-from operator import itemgetter
+import cPickle
 from glob import glob
+import inspect
+import os
+from os.path import abspath, relpath, join, split
+import re
+from subprocess import call, Popen, PIPE
+import time
+
+# 3rd party
+import lmfit
+from matplotlib import pyplot as plt
+import numpy as np
+
+# local
+import utilities as u
 from utilities import MergeParams, UpdateMethods
-from utilities import abspath, absfpath
 from background import inv_x_plus_poly3
 
 
 
 # ##################################### main ################################# #
-
-
-def load(filename, subdir=None):
-    """
-    load a pickled .dat file
-
-    Args:
-        filename (str): file to load
-        subdir (str | None): directory
-
-    Note:
-        !!!!!!! EXTREMELY IMPORTANT !!!!!!!!!
-        cPickle saves dependencies by reference. If the source code changes between
-        execution, save state, and loading, the save state WILL NOT LOAD. THIS WILL
-        MAKE YOU VERY SAD.
-
-        The next step is to switch from pickle to dill, which saves dependencies by
-        definition. This should make save files compatible across development.
-
-        If all modules needed by the refinement object are note imported at time of
-        unpickling, there will likely be AttributeErrors thrown.
-    """
-    path = os.path.join(*[k for k in [os.getcwd(), subdir, '%s.dat' % filename] if k is not None])
-
-    with open(path, 'rb') as f:
-        obj = cPickle.load(f)
-
-    return obj
 
 
 class Refinement(MergeParams, UpdateMethods):
@@ -127,61 +99,6 @@ class Refinement(MergeParams, UpdateMethods):
             self.params['%s_weight' % w].set(value=(weights[w] / N))
             self.weights.update({'w': self.params['%s_weight' % w]})
 
-# =============================================================================
-#     def update_background(self, background_coefficients=None, params=None):
-#         """
-#         update background from list of coefficients or parameters instances
-#         assumes a functional form ybg = A/x + B + C * x + D * x **2 + E * x ** 3
-# 
-#         Args:
-#             background_coefficients (list | None)
-#             params (lmfit.Parameters | None)
-# 
-#         Returns:
-#             None
-#         """
-#         order = {'a': 1, 'b': 2, 'c': 3, 'd': 4, 'e': 5}
-# 
-#         if background_coefficients is not None:
-#             # initialize
-#             if not hasattr(self, 'bg_coefficients'):
-#                 self.bg_coefficients = {}
-#                 # self.params.add_many(('a'), ('b'), ('c'), ('d'), ('e'))
-# 
-#             background = u.flatten(background_coefficients)
-#             order = {'a': 1, 'b': 2, 'c': 3, 'd': 4, 'e': 5}
-#             # add
-#             for i in range(len(order)):
-#                 k = sorted(order, key=order.__getitem__)[i]
-#                 if not any(k == s for s in self.params.keys()):
-#                     try:
-#                         self.params.add(k, value=background[i], vary=True)
-#                         self.bg_coefficients.update({k: self.params[k]})
-#                     except IndexError:
-#                         self.params.add(k, value=0, vary=False)
-#                         self.bg_coefficients.update({k: self.params[k]})
-# 
-#             # update
-#             for i in range(len(background)):
-#                 k = sorted(order, key=order.__getitem__)[i]  # returns key for the ith positional argument
-#                 self.params[k].set(value=background[i])  # issue with voiding bounds on update
-# 
-#         elif params is not None:
-#             for k in order.keys():
-#                 try:
-#                     for attr in ['value', 'vary', 'min', 'max', 'expr']:
-#                         #  FIX  print 'updating from params'
-#                         setattr(self.params[k], attr, getattr(params[k], attr))
-#                 except KeyError:
-#                     #  FIX  print '%s not updated in background coefficients' % k
-#                     pass
-# 
-#         # (re)calculate background array
-#         self.ybg = inv_x_plus_poly3(self.xo,
-#                                     *itemgetter(*sorted(order, key=order.__getitem__))
-#                                     (self.bg_coefficients))
-#         self.background = zip(self.xo, self.ybg)
-# =============================================================================
     def update_background(self):
         """ recompute background """
         for k in self.bkgkeys:
@@ -190,7 +107,6 @@ class Refinement(MergeParams, UpdateMethods):
 
         self.ybg = self.background(self.xo, *[self.params[k].value for k in self.bkgkeys])
         return
-        
 
     def update_broadening(self, broadening):
         """
@@ -242,14 +158,6 @@ class Refinement(MergeParams, UpdateMethods):
         # reset y-observed
         self.exp_data = copy(self.exp_back)
         self.xo, self.yo = np.array(self.exp_back)[:, 0], np.array(self.exp_back)[:, 1]
-# =============================================================================
-#         # reset background
-#         order = {'a': 1, 'b': 2, 'c': 3, 'd': 4, 'e': 5}
-#         self.ybg = inv_x_plus_poly3(self.xo,
-#                                     *itemgetter(*sorted(order, key=order.__getitem__))
-#                                     (self.bg_coefficients))
-#         self.background = zip(self.xo, self.ybg)
-# =============================================================================
 
     def update_phase_params(self, phase_params):
         """
@@ -285,9 +193,10 @@ class Refinement(MergeParams, UpdateMethods):
     #                               __init__                                  #
     ###########################################################################
 
-    def __init__(self, diffaxpath=None, wavelength=None, exp_data=None, t_range=None, broadening=None,
-                 background=None, phases=None, weights=None, global_scale=None,
-                 lateral_broadening=None, phase_params=None, name=None):
+    def __init__(self, diffaxpath=None, wavelength=None, exp_data=None, t_range=None,
+                 broadening=None, background=None, phases=None, weights=None,
+                 global_scale=None, lateral_broadening=None, phase_params=None,
+                 name=None):
         """
         Args:
             * wavelength: experimental radiation in angstrom
@@ -323,10 +232,10 @@ class Refinement(MergeParams, UpdateMethods):
             self.exp_data = exp_data
             self.exp_back = exp_data
         else:
-            self.exp_data = [(0, 0), (1, 1)]
-            self.exp_back = [(0, 0), (1, 1)]
+            self.exp_data = [(1, 1), (2, 2)]
+            self.exp_back = [(1, 1), (2, 2)]
         self.xo, self.yo = np.array(self.exp_data)[:, 0], np.array(self.exp_data)[:, 1]
-
+        
         # experimental 2θ range
         if t_range is not None:
             self.t_min, self.t_max, self.t_step = t_range[:]
@@ -355,13 +264,6 @@ class Refinement(MergeParams, UpdateMethods):
         self.global_scale = self.params['global_scale']
 
         # Background ######################################################## #
-
-# =============================================================================
-#         if background is not None:
-#             self.update_background(background)
-#         else:
-#             self.update_background(background_coefficients=[0, 0, 0, 0, 0], params=None)
-# =============================================================================
         if background is None:
             self.background = inv_x_plus_poly3 # x as first positional arg
         else:
@@ -370,7 +272,7 @@ class Refinement(MergeParams, UpdateMethods):
         self.bkgkeys, _, _, _ = inspect.getargspec(self.background)
         self.bkgkeys = self.bkgkeys[1:]  # pop xo arg
         self.update_background()
-        
+
         # Phases ############################################################ #
         # phase instances in refinement
         if phases is not None:
@@ -401,7 +303,7 @@ class Refinement(MergeParams, UpdateMethods):
 
         # merge to refinement params
         self.lower_to_upper('phases', 'params')
-        
+
         # get Bij
         # self.Bij = u.fetch_thermals(self)
 
@@ -410,7 +312,8 @@ class Refinement(MergeParams, UpdateMethods):
         if diffaxpath is None:
             diffaxpath = os.getcwd()
         self.diffaxpath = diffaxpath
-        
+        self.timeout = 120 # default timeout for diffax
+
         # history
         self.hist = []  # list of tuples (iter, R)
 
@@ -428,25 +331,62 @@ class Refinement(MergeParams, UpdateMethods):
     ###########################################################################
     #                     additional refinement methods                       #
     ###########################################################################
-
-    def save(self, filename=None, path=None):
-        """
-        Create a pickled save state of the refinement.
-
-        Args:
-            filename (str): filename.pkl or some such
-            subdir (str): directory
-
-        Returns:
-            None
-        """
-        if filename is None:
-            filename = '_'.join(re.split('[\ :]+', time.ctime()))
-
-        fpath = absfpath(path, filename,'dat')
-
-        with open(fpath, 'w+b') as f:
-            cPickle.dump(self, f, -1)
+    # =============================================================================
+    #     def load(self, filename):
+    #         """
+    #         load a pickled .dat file
+    # 
+    #         Args:
+    #             filename (str): file to load
+    #             subdir (str | None): directory
+    # 
+    #         Note:
+    #             !!!!!!! EXTREMELY IMPORTANT !!!!!!!!!
+    #             cPickle saves dependencies by reference. If the source code changes between
+    #             execution, save state, and loading, the save state WILL NOT LOAD. THIS WILL
+    #             MAKE YOU VERY SAD.
+    # 
+    #             The next step is to switch from pickle to dill, which saves dependencies by
+    #             definition. This should make save files compatible across development.
+    # 
+    #             If all modules needed by the refinement object are not imported at time of
+    #             unpickling, there will likely be AttributeErrors thrown.
+    #             
+    #             Additionally, Parameters instances raise errors based on constraints
+    #             and bounds when reinitializing. 
+    #             
+    #             All together, you just don't want to use this to save your refinements.
+    #             
+    #             A better solution for the future will be some sort of human readable
+    #             dump files.
+    #         """
+    #         path = os.path.abspath(filename)
+    #         assert os.path.isfile(path), 'check filename %s' % filename
+    # 
+    #         with open(path, 'rb') as f:
+    #             self = cPickle.load(f)
+    # 
+    #         return
+    # 
+    #     def save(self, filename=None, path=None):
+    #         """
+    #         Create a pickled save state of the refinement.
+    # 
+    #         Args:
+    #             filename (str): filename.pkl or some such
+    #             subdir (str): directory
+    # 
+    #         Returns:
+    #             None
+    #         """
+    #         if filename is None:
+    #             filename = '_'.join(re.split('[\ :]+', time.ctime()))
+    # 
+    #         fpath = abspath(join(*filter(None, (path, filename + '.dat'))))
+    # 
+    #         with open(fpath, 'w+b') as f:
+    #             cPickle.dump(self, f, -1)
+    # =============================================================================
 
     def reset(self):
         """ use self.original to reset refined parameters to previous values """
@@ -503,8 +443,7 @@ class Refinement(MergeParams, UpdateMethods):
         x = np.array([])
         y = np.array([])
         for p in self.phases.keys():
-            fpath, fname = os.path.split(absfpath(path, self.phases[p].name, 'spc'))
-            # pathfile = os.path.join(*[k for k in [path, subdir, self.phases[p].name] if k is not None])
+            fpath, fname = split(abspath(join(*filter(None, (path, self.phases[p].name + '.spc')))))
             calc_data.update({self.phases[p].name:
                              u.read_data(fname, fpath, column=column,
                                          lam=self.wvl, q=False)}
@@ -535,25 +474,73 @@ class Refinement(MergeParams, UpdateMethods):
             calc_data (list): [(x1, y1), ..., ]
 
         Returns:
-            list: [(x1, y1), ...]
+            self.calc_data (list): [(x1, y1), ...]
         """
-        self.calc_data = u.interpolate_data(calc_data, zip(self.xo, self.ybg))
-        _, self.ybg = u.interpolate_data(zip(self.xo, self.ybg), self.calc_data).T
-        # ~! self.ybg = np.array(self.background)[:, 1]
-
-        if len(self.yo) != len(calc_data):
+        # trim exp_data range
+        rec = 0
+        while len(self.yo) != len(self.calc_data):
+            rec += 1
+            if rec >= 10:
+                raise(Exception('unable to map calc and exp data'))
             # trim to calc_data length
-            self.exp_data = u.interpolate_data(self.exp_data, self.calc_data)
-            self.yo = np.array(self.exp_data)[:, 1]
-            self.xo = np.array(self.exp_data)[:, 0]
+            self.xo, self.yo = u.interpolate_data(self.exp_data, self.calc_data).T # exp data
+
+        # map
+        A2 = zip(self.xo, self.yo)
+        self.calc_data = u.interpolate_data(calc_data, A2)  # calc data
+        _, self.ybg = u.interpolate_data(zip(self.xo, self.ybg), A2).T # bkg
+
 
         return self.calc_data
+
+    ############################################################################
+    # DIFFaX functions & subprocess
+    ############################################################################
+    #~! this should be improved to capture stdout/stderr; timeout; support 
+    # DIFFaX syntax checking before call
+    def clean_diffax_dir(self):
+        """
+        remove *.dif* [phase]*.dat* and [phase]*.spc* from self.diffaxpath
+        """
+        match = lambda f, p: split(f)[-1].startswith(str(p))
+
+        for f in glob(join(abspath(self.diffaxpath), '*.dif*')):
+            os.remove(f)
+
+        for p in self.phases.values():
+            for filename in glob(join(abspath(self.diffaxpath), '*.spc*')):
+                if match(filename, p.name) is True:
+                    os.remove(filename)
+
+        for p in self.phases.values():
+            for filename in glob(join(abspath(self.diffaxpath), '*.dat*')):
+                if match(filename, p.name) is True:
+                    os.remove(filename)
+        return
+
+    def write_control_block(self, dif, dat, mode='w+'):
+        """
+        write powder diffraction control block
+        """
+        with open(dif, mode) as f:
+            f.write(dat)
+            f.write('\n')
+            f.write('0 {data dump}\n')
+            f.write('0 {atom pos dump}\n')
+            # f.write('0 {sym eval dump}\n')  FIX  not required if prior is 0
+            f.write('3 {powder diffraction}\n')
+            f.write('%6.4F %6.4F %6.4F\n' % (self.t_min, self.t_max, self.t_step))
+            f.write('1 {adaptive quadrature on diffuse}\n')
+            f.write('1 {adaptive quadrature on sharp}\n')
+        return
 
     def pub_control(self, path=None):  # , subdir=None):
         """
         Publish control file for all structures in self.phases
         Control.dif written in working directory
         Path as os.path.join(*[k for k in [subdir, phase] if k is not None])
+
+        default mode is 'a+'
 
         Args:
             subdir (str): directory in which to write
@@ -562,24 +549,20 @@ class Refinement(MergeParams, UpdateMethods):
         Returns:
             None
         """
-        # dat_path = abspath(path)
-        con_fpath = absfpath(path, 'control', 'dif')
+        if path is None:
+            path = self.diffaxpath
+
         # write control
-        with open(con_fpath, 'w+') as f:
-            for phase in self.phases.keys():
-                try:
-                    f.write('%s.dat' % phase)
-                    f.write('\n')
-                    f.write('0 {data dump}\n')
-                    f.write('0 {atom pos dump}\n')
-                    # f.write('0 {sym eval dump}\n')  FIX  not required if prior is 0
-                    f.write('3 {powder diffraction}\n')
-                    f.write('%6.4F %6.4F %6.4F\n' % (self.t_min, self.t_max, self.t_step))
-                    f.write('1 {adaptive quadrature on diffuse}\n')
-                    f.write('1 {adaptive quadrature on sharp}\n')
-                except:
-                    raise
+        con_path = abspath(join(*filter(None, (path, 'control.dif'))))
+        for phase in self.phases.keys():
+            dat_path = abspath(join(*filter(None, (path, phase + '.dat'))))
+            dat_path = relpath(dat_path, start=split(con_path)[0])
+            self.write_control_block(con_path, dat_path, mode='a+')
+
+        # end control
+        with open(con_path, 'a') as f:
             f.write('end\n')
+        return
 
     def pub_input(self, path=None):
         """
@@ -596,6 +579,8 @@ class Refinement(MergeParams, UpdateMethods):
         Returns:
             None
         """
+        if path is None:
+            path = self.diffaxpath
         # write input files for phases
         #  FIX  include Pseudo-Voight
         for p in self.phases.keys():
@@ -614,15 +599,39 @@ class Refinement(MergeParams, UpdateMethods):
             if d['gau'] < 0.0001:
                 d['gau'] = 0.0
             self.phases[p].pub_input(d, inputname='%s' % self.phases[p].name, path=path)
+        return
 
-    def plot_min_result(self, sqrt_filter=False, fontsize=12):
+    def call_diffax(self, timeout=None):
+        """
+        subprocess.call diffax
+        """
+        self.timeout = timeout or self.timeout  # timeout subprocess call
+        
+        for phase in self.phases:
+            self.pub_control(path=self.diffaxpath)
+            self.pub_input(path=self.diffaxpath)
+        if os.name == 'nt':
+            call('DIFFaX.exe', cwd=abspath(self.diffaxpath), shell=True,
+                 timeout=self.timeout) # , stdout=PIPE, stderr=PIPE)
+        elif os.name == 'posix':
+            call(r'./DIFFaX.sh', cwd=abspath(self.diffaxpath), stdout=PIPE,
+                 stderr=PIPE, timeout=self.timeout)
+        else:
+            raise Exception('I(Q) refinment runs on posix or windows only')
+        return
+
+    ###########################################################################
+    # reporting
+    ###########################################################################
+
+    def plot_min_result(self, sqrt_filter=False, fontsize=None):
         """
         Plot the calculated, observed, background and difference curves
         of the last computation. Executed at end of every minimization.
 
         Args:
             sqrt_filter (bool): plot data scaled by (Yobs) ** 1/2
-            fontsize (float): font size
+            fontsize (float): font size (depricated) use rcParams
 
         Returns:
             matplotlib.Figure
@@ -632,49 +641,46 @@ class Refinement(MergeParams, UpdateMethods):
             for k, v in self.best[1].items():
                 self.params[k].set(value=v.value)
             self.residual_method(self.params, **{'subdir': self.diffaxpath, 'plot_resid': False, 'sqrt_filter': False})
-        
+
         return self.plot(sqrt_filter, fontsize)
 
 
-    def plot(self, sqrt_filter=False, fontsize=12):        
-        # FIXME there's no reason for this to be here.
-        # map calc_data onto exp_data, get arrays
-        diff = self.yo - self.yc
-        baseline = -0.25 * (self.yo.max() - self.yo.min())
-
-        # get yer plot goin'
+    def plot(self, sqrt_filter=False, fontsize=None):
+        """ in the process of depricating. fontsize should be set in rcParams """
         fig = plt.figure()
         ax = fig.add_subplot(1, 1, 1)
 
         if sqrt_filter is False:
+            diff = self.yo - self.yc
+            baseline = 1.05 * ( self.yo.min() - abs(diff.max()) )
             ax.plot(self.xo, self.yo, 'kx', label=r'$Y_{obs}$')
             ax.plot(self.xo, self.yc, 'b-', label=r'$Y_{calc}$')
             ax.plot(self.xo, self.ybg, 'r-', label=r'$Y_{bkg}$')
             ax.plot(self.xo, diff + baseline, 'g-', label='$difference$')
             ax.plot(self.xo, np.zeros_like(self.xo) + baseline, 'k:')
-            ax.set_xlabel(r'$2\theta \/ [\lambda\/=\/{}\/ \AA]$'.format(self.wvl), {'fontsize': fontsize})
-            ax.set_ylabel(r'$I\/[arb.]$', {'fontsize': fontsize})
-            ax.set_xlim(xmin=int(self.xo.min() * 0.9), xmax=int(self.xo.max() * 1.1))
+            ax.set_xlabel(r'$\degree 2\theta \/ [\lambda\/=\/{}\/ \AA]$'.format(self.wvl)) # , {'fontsize': fontsize})
+            ax.set_ylabel(r'$I\/[arb.]$') # , {'fontsize': fontsize})
+            # ax.set_xlim(xmin=int(self.xo.min() * 0.9), xmax=int(self.xo.max() * 1.1))
         elif sqrt_filter is True:
             # difference curve needs special treatment to handle negatives
-            baseline = -0.25 * (np.sqrt(self.yo.max()) - np.sqrt(self.yo.min()))
             diff = np.sqrt(self.yo) - np.sqrt(self.yc)
+            baseline = 1.05 * (np.sqrt(self.yo.min()) - abs(diff.max()))
             # the rest proceeds much the same
             ax.plot(self.xo, np.sqrt(np.float64(self.yo)), 'kx', label=r'$Y_{obs}^{1/2}$')
             ax.plot(self.xo, np.sqrt(np.float64(self.yc)), 'b-', label=r'$Y_{calc}^{1/2}$')
             ax.plot(self.xo, np.sqrt(np.float64(self.ybg)), 'r-', label=r'$Y_{bkg}^{1/2}$')
             ax.plot(self.xo, diff + baseline, 'g-', label='$difference$')
             ax.plot(self.xo, np.zeros_like(self.xo) + baseline, 'k:')
-            ax.set_xlabel(r'$2\theta \/ [\lambda\/=\/{}\/ \AA]$'.format(self.wvl), {'fontsize': fontsize})
-            ax.set_ylabel(r'$I^{1/2}\/[arb.]$', {'fontsize': fontsize})
-            ax.set_xlim(xmin=int(self.xo.min() * 0.9), xmax=int(self.xo.max() * 1.1))
-        ax.legend(fontsize=fontsize)
+            ax.set_xlabel(r'$2\theta \/ [\lambda\/=\/{}\/ \AA]$'.format(self.wvl)) # , {'fontsize': fontsize})
+            ax.set_ylabel(r'$I^{1/2}\/[arb.]$') # , {'fontsize': fontsize})
+            # ax.set_xlim(xmin=int(self.xo.min() * 0.9), xmax=int(self.xo.max() * 1.1))
+        ax.legend() # fontsize=fontsize)
 
         # set more font sizes
-        plt.xticks(size=fontsize)
-        plt.yticks(size=fontsize)
-        plt.show()
+        plt.xticks() # size=fontsize)
+        plt.yticks() # size=fontsize)
 
+        fig.tight_layout()
         return fig
 
     def report_constrained(self, tabulate=False):
@@ -726,7 +732,7 @@ class Refinement(MergeParams, UpdateMethods):
             Return type is important in this case. I believe a return type of
             True causes the minimization to abort.
         """
-        '''  FIX 
+        '''  FIX
         # add R-value to refinement.hist
         redchi = sum(resid ** 2 / (len(self.exp_data) -
                      len([k for k in self.params if self.params[k].vary is True])))
@@ -753,42 +759,6 @@ class Refinement(MergeParams, UpdateMethods):
             # not required
             pass
 
-# =============================================================================
-#     def generic_update(self, params):   # , incomplete=False):
-#         """
-#         generic update method passes parameters to subordinate objects
-# 
-#         Args:
-#             params (lmfit.Parameters)
-# 
-#         Returns:
-#             bool: True
-#         """
-#         # allow merging of incomplete parameters set onto Refinement params
-#         for k, v in params.items():
-#             if self.deepcompare(v, self.params[k]) is False:
-#                 for attr in ['value', 'vary', 'min', 'max', 'expr']:
-#                     setattr(self.params[k], attr, getattr(v, attr))
-# 
-#         # update background, weights, global scale, broadening with updated parameter instance
-#         #  FIX  why is this necessary?
-#         self.update_background(params=params)
-#         self.global_scale.value = self.params['global_scale'].value
-#         d = {}
-#         for p in self.phases.keys():
-#             d.update({p: self.params['%s_weight' % p]})
-#         self.update_weights(d)
-# 
-#         #  FIX  include Pseudo-Voight
-# 
-#         # update phase parameters
-#         # self.refinement_to_phase()  #<--  FIX  depricated by upper_to_lower
-#         self.err = self.upper_to_lower('phases', 'params', debug=True)  # <---  FIX  this may be broken
-#         for p, phase in self.phases.items():
-#             phase.upper_to_lower('trans_dict', 'params')
-# 
-#         return True
-# =============================================================================
     def generic_update(self, params):
         """
         generic update method passes parameters to subordinate objects
@@ -805,73 +775,52 @@ class Refinement(MergeParams, UpdateMethods):
                 # print 'changing {0}: {1} to {2}'.format(k, self.params[k].value, params[k].value)
                 self.params[k].value = params[k].value
 
-        # make sure dependent variables are updated
-        self.params.update()
-
-        # update bkg
-        # self.update_background(params=params)  # FIXME streamline
-        
         # push new values down to PdfPhases, PdfData objects
         self.upper_to_lower('phases', specifier='params', debug=True)
 
-        # push new values down 
+        # push new values down
         for p, phase in self.phases.items():
             phase.phase_to_structure()
             phase.phase_to_trans()
         return True
-    
+
     def residual_method(self, params, **kws):  # subdir=None, path=cwd):
-        """
+        r"""
         For each phase in refinement, get DIFFaX pattern and calculate residual
+        weighted as
+        
+        .. math::
+            R = \frac{1}{y_{obs}} (y_{obs} - y_{calc})
 
         Args:
-            params (lmfit.Parameters)
-            kws: see below  FIXME this is depracated in favor of setting class property diffaxpath
+            - params (lmfit.Parameters)
 
         kws:
-            path: working directory
-            subdir: subdirectory
-            plot_resid: real-time residual plotting (pass thru to callback)
-            sqrt_filter: sounds silly, actually just compare sqrt intensities
+            - plot_resid: real-time residual plotting (pass thru to callback)
+            - sqrt_filter: sounds silly, actually just compare sqrt intensities
 
         Returns:
-            np.array: residual with length of data
+            - np.array: residual with length of data
         """
         # update refinement parameters
         self.generic_update(params)
-        subdir = self.diffaxpath
 
         # cleanup .spc* with matching phase names (permits multiple use of same diffax dir)
-        for p in self.phases.keys():
-            for filename in glob(os.path.join(abspath(subdir), '*.spc*')):
-                match = lambda x: os.path.split(filename)[-1].startswith(
-                        str(self.phases[p].name))
-                if match(filename) is True:
-                    os.remove(filename)
+        self.clean_diffax_dir()
 
         # for each phase, make a DIFFaX call
-        for phase in self.phases:
-            self.pub_control(path=subdir)
-            self.pub_input(path=subdir)
-        if os.name =='nt':
-            call(absfpath(subdir, 'DIFFaX', 'exe'))  # r'DIFFaX.exe', cwd=abspath(subdir))
-        elif os.name == 'posix':
-            call(r'./DIFFaX.sh', cwd=abspath(subdir), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        else:
-            raise Exception('I(Q) refinment runs on posix or windows only')
+        self.call_diffax()
 
-        # check instrumental broadening
+        # check instrumental broadening (conditional DIFFaX behavior)
         column = 2
         if self.params['gau'] < 0.0001:
             column = 1
 
-        # I/O and cast calc onto xo
-        self.calc_data = self.weighted_composite(path=subdir, column=column)
+        # read and cast calc onto xo
+        self.calc_data = self.weighted_composite(path=self.diffaxpath, column=column)
         self.update_background()
-        self.calc_data = self.map_calc_exp_background(self.calc_data)
+        self.map_calc_exp_background(self.calc_data)
         self.xc, self.yc = np.array(self.calc_data).T
-        # ~! ywp = A[:, 1]
-        # ~! x = A[:, 0]
 
         # calculate Yc = global_scale * (Ywp + Ybg)
         self.yc = (self.yc + self.ybg)
@@ -882,22 +831,22 @@ class Refinement(MergeParams, UpdateMethods):
         if len(kws) != 0 and kws['sqrt_filter'] is True:
             self.resid = np.sqrt(self.yo) - np.sqrt(self.yc)
         else:
-            self.resid = self.yo - self.yc
+            self.resid = 1. / self.yo * (self.yo - self.yc)
 
         # latch best
         if not hasattr(self,'best'):
             self.best = (np.inf,)
         if np.sum(self.resid ** 2) < self.best[0]:
             self.best = (np.sum(self.resid ** 2), dict([(k, v) for k, v in self.params.items() if v.vary is True]))
+
         return self.resid
 
     def preview(self, subdir=None, sqrt_filter=False):
         """ get peak at first calculated state """
         kws = {'subdir': subdir, 'sqrt_filter': sqrt_filter}
         self.residual_method(self.params, **kws)
-        self.plot(sqrt_filter=sqrt_filter)
         print self.rwp() #   sum(resid)
-        return
+        return self.plot(sqrt_filter=sqrt_filter)
 
 
     def lsq_minimize(self, subdir=None, plot_resid=False,
@@ -1129,7 +1078,7 @@ class Refinement(MergeParams, UpdateMethods):
         """
         if weight is None:
             # weight = np.sqrt(self.yo ** 0.5) ** -2
-            weight = 1.
+            weight = 1. / self.yo
         resid = self.yo - self.yc
         rv = np.sqrt(np.sum(weight * resid ** 2) / np.sum(weight * self.yo ** 2))
         return rv

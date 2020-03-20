@@ -42,7 +42,11 @@ def cauchy(x, cauchya, cauchyb, cauchym, lina, linb):
 def porod(x, poroda, porodm, lina, linb):
     """
     Porod's law, I(q) = 1 / SQ ** m where S is the surface area of the particles
-    for an approximately flat surface, and 3 < m < 4 is typical.
+    for an approximately flat surface, and 3 < m < 4 is typical
+    
+    Physically, the Porod exponent goes as 6-D, where D is the dimensionality of the surface.
+    Hence, m=4 for a purely 2D surface, whereas fractal surfaces will have a fractal dimension
+    larger than 2.
     
     This expects x [2theta] and returns sin(theta)**m
     

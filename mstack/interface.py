@@ -4,15 +4,26 @@ Created on Tue Apr 26 13:54:44 2016
 
 @author: Peter C Metz
 """
-
-# ### import block ######
-import utilities as ut
-import structure as st
-import numpy as np
-from numpy import pi
+# standard
 from copy import deepcopy
 from operator import itemgetter
-from diffpy.Structure import Structure, Atom, Lattice
+
+# 3rd party
+import numpy as np
+
+# local
+import structure as st
+import utilities as ut
+from utilities import warn_windows
+
+# diffpy-cmi
+try:
+    from diffpy.Structure import Structure, Atom, Lattice
+except ImportError:
+    warn_windows()
+    pass
+
+
 
 
 # interface functions #

@@ -8,21 +8,32 @@ lattice parameters and atom instances.
 
 @author: Peter C Metz
 """
-# imports
-import os
-import re
-import lmfit
-import utilities as u
-import numpy as np
-import time
+# standard
 from operator import itemgetter
+import os
+from os.path import abspath, relpath, join, split
+import re
+
+# 3rd party
 from CifFile import ReadCif
+import lmfit
+import numpy as np
+
+# local
+import utilities as u
+# from utilities import absfpath
 from utilities import MergeParams, UpdateMethods
-from utilities import  abspath, absfpath
 from utilities import pub_cif as _pub_cif
-from utilities import pub_xyz as _pub_xyz
 from utilities import attributegetter
-from diffpy.Structure import loadStructure
+from utilities import warn_windows
+
+# diffpy-cmi
+try:
+    from diffpy.structure import Structure
+    from diffpy.structure import loadStructure
+except ImportError:
+    warn_windows()
+    pass
 
 # globals
 cwd = os.getcwd()
@@ -49,7 +60,7 @@ def build_cif(filename, structure_name=None, layer_number=1, path=None):
         seems to work so long as the current working directory is on the same disk as your
         .cif file.
     """
-    fpath = absfpath(path, filename, 'cif')
+    fpath = abspath(join(*filter(None, (path, filename)))) # absfpath(path, filename, 'cif')
 
     # preliminary
     if structure_name is None:
@@ -149,25 +160,31 @@ def cmi_load_cif(fname):
     return loadStructure(abspath(fname))
 
 
-def cmi_build_struct(fname, sname, number):
+def cmi_build_struct(stru, sname, number):
     """
     Parse .cif using diffpy.Structure.loadStructure
 
     Parameters:
-        * fname : like path/fname.cif
+        * fname : like path/fname.cif or diffpy.Structure instance
         * sname : name for mstack.Structure instance
     Returns:
         mstack.Structure instance
     """
-    stru = loadStructure(abspath(fname))
+    if type(stru) is Structure:
+        pass
+    elif os.path.isfile(str(stru)):
+        stru = cmi_load_cif(stru)
+
     # atoms
     atoms = []
+    types = [re.split('[-+]?\d+', label)[0] for label in stru.label]
+    nums = dict(zip(set(types), [iter(np.arange(types.count(at))) for at in set(types)])) # unique index
     for ii, label in enumerate(stru.label):
         at = re.split('[-+]?\d+', label)[0]
         if stru[label].anisotropy is False:  # reading Uij is buggy for some reason
             Bij = np.identity(3) * stru.U[ii] * 8 * np.pi ** 2
         atoms.append(Atom(atom_name=at,  # specie, site number e.g. Uu5
-                          number=int(label.lstrip(at)),  
+                          number=next(nums[at]),  # int(label.lstrip(at)),  
                           x=stru.x[ii],   # x, y, z (frac.)
                           y=stru.y[ii],
                           z=stru.z[ii],
@@ -537,10 +554,9 @@ class Phase(MergeParams, UpdateMethods):
         Returns:
             * bool: True
         """
-        con_path = absfpath(path, 'control', 'dif')
-        dat_path = os.path.join(*[k for k in (path, subdir) if k is not None])
-        dat_path = absfpath(dat_path, inputname, 'dat')
-        dat_path = dat_path.lstrip(con_path)
+        con_path = abspath(join(*filter(None, (path, 'control.dif'))))
+        dat_path = abspath(join(*filter(None, (path, subdir, inputname + '.dat'))))
+        dat_path = relpath(dat_path, start=split(con_path)[0])
         # write control
         try:
             with open(con_path, 'w+') as f:
@@ -576,8 +592,9 @@ class Phase(MergeParams, UpdateMethods):
         Returns:
             * None
         """
-        # perfunctory stuff, hombre
-        fpath = absfpath(path, inputname, 'dat')
+        # perfunctory stuff
+        # fpath = absfpath(path, inputname, 'dat')
+        fpath = abspath(join(*filter(None, (path, inputname + '.dat'))))
         nlayers = len(self.trans.transitions)
 
         # not necessarily refined- establish source
@@ -597,9 +614,12 @@ class Phase(MergeParams, UpdateMethods):
                         raise
                 #  FIX  print k, 'dict'
 
-        def picker(index):
-            'returns key of index-th layer'
-            return [k for k in self.structures.keys() if self.structures[k].number == int(index)][0]
+        # ~! I forget, anonymous functions might be incompatible with some serialization
+        #    this might break pickle / MPI capabilities
+        # def picker(index):
+        #    'returns key of index-th layer'
+        #    return [k for k in self.structures.keys() if self.structures[k].number == int(index)][0]
+        picker = lambda index: [k for k in self.structures.keys() if self.structures[k].number == int(index)][0]
 
         # main ##################
         with open(fpath, 'w+') as f:

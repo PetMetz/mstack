@@ -17,14 +17,18 @@ Attributes:
 
 @author: Peter C. Metz
 """
-# import
-import os
-import numpy as np
-import copy
+# standard
 from collections import OrderedDict
+import copy
+import os
 from time import strftime
-import mstack.structure as st
+
+# 3rd party
+import numpy as np
+
+# local
 from mstack.utilities import pub_cif, pub_xyz
+import mstack.structure as st
 
 
 def supercell(struct, vector, N=None, cif=True, xyz=False,
@@ -108,10 +112,14 @@ def supercell(struct, vector, N=None, cif=True, xyz=False,
                                      
     # return asym
     # return atoms to unit cell
-    for at in asym.keys():
-        for att in ['x', 'y']:
-            pos = getattr(asym[at], att)
-            asym[at].x = pos % 1
+    for k, at in asym.items():
+        at.x.set(value= at.x % 1)
+        at.y.set(value= at.y % 1)
+# =============================================================================
+#         for att in ['x', 'y']:
+#             pos = getattr(asym[at], att)
+#             asym[at].x = pos % 1
+# =============================================================================
 # =============================================================================
 #             count = 0
 #             while pos > 1.0:

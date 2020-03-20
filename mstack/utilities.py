@@ -6,24 +6,41 @@ Common utility classes and functions for MStack.
 
 @author: Peter C Metz
 """
+from warnings import warn
+
+def warn_windows():
+    """ diffpy-cmi not compiled for windows """
+    warn(
+'\n\nWarning: Diffpy-CMI is not compiled for Windows at time of writing.\
+ PDF functionalities built around CMI not enabled.'
+          )
 
 
 # import
+from collections import OrderedDict as OD
+import copy
 import math
-import numpy as np
-import lmfit
+from operator import itemgetter
+import os
+from os.path import abspath, join
 import re
 import string
-import os
-import copy
-import dill
 from time import strftime
+
+# 3rd party
+import dill
+import lmfit
 from matplotlib import pyplot as plt
+import numpy as np
 from scipy.interpolate import interp1d
 from tabulate import tabulate
-from collections import OrderedDict as OD
-from operator import itemgetter
-from diffpy.utils.parsers.loaddata import loadData
+
+# diffpy-cmi
+try:
+    from diffpy.utils.parsers.loaddata import loadData
+except ImportError:
+    warn_windows()
+    pass
 
 # export
 __all__ = ['loadData']
@@ -65,8 +82,8 @@ _atom_site_aniso_B33
 
 '''
 
-# utility functions ##############################
 
+# utility functions ##############################
 
 def _save(obj, fname):
     """ dump pickle to fname """
@@ -81,32 +98,36 @@ def _load(fname):
         return dill.load(f)
 
 
-def abspath(relative_path):
-    """
-    return absolute path from relative path in a uniform way to be used throughout
-    package.
-
-    Args:
-        * relative_path (str): path relative to working directory
-
-    Note:
-    |    /foo
-    |        /work
-    |            /isnofun
-    |        /bar
-    |
-    |    pwd = /foo/work
-    |    abspath('isnofun') == /foo/work/isnofun
-    |    abspath('../bar') == /foo/bar
-    """
-    if relative_path is None or relative_path == '':
-        return os.getcwd()
-
-    if os.path.exists(relative_path) is False:
-        raise Exception('please check that specified path exists')
-    else:
-        return os.path.abspath(relative_path)
-
+# =============================================================================
+# def abspath(relative_path):
+#     """
+#     ! GET RID OF THIS
+#     
+#     return absolute path from relative path in a uniform way to be used throughout
+#     package.
+# 
+#     Args:
+#         * relative_path (str): path relative to working directory
+# 
+#     Note:
+#     |    /foo
+#     |        /work
+#     |            /isnofun
+#     |        /bar
+#     |
+#     |    pwd = /foo/work
+#     |    abspath('isnofun') == /foo/work/isnofun
+#     |    abspath('../bar') == /foo/bar
+#     """
+#     if relative_path is None or relative_path == '':
+#         return os.getcwd()
+# 
+#     if os.path.exists(relative_path) is False:
+#         raise Exception('please check that specified path exists')
+#     else:
+#         return os.path.abspath(relative_path)
+# 
+# =============================================================================
 
 def absfpath(relative_path=None, filename=None, extension=None):
     """ FIX refactor this out of code return absolute path of rel_path/filename.extension"""
@@ -299,58 +320,22 @@ def interpolate_data(Array1, Array2, *mesh):
         print e
         print 'Array2 == [], looking for mesh'
 
-    """ FIXME
-    # some initialization
-    return_array = []
-
-    def try_to_interpolate(x_coord):
-        # tries to interpolate a function instantiated as f
-        # returns list of successfully interpolate tuples
-        try:
-            return_array.append((x_coord, float(f(x_coord))))
-        except Exception:
-            pass
-        return return_array
-
-    if Array2 == []:
-        # if Array2 is passed as null, interpolate on user specified mesh
-        try:
-            mesh = float(mesh[0])
-            x2 = np.arange(round(x1[0], len(str(mesh))), round(x1[-1], len(str(mesh))), mesh)
-
-            f = interp1d(x1, y1, kind="slinear")
-            for x_coord in x2:
-                try_to_interpolate(x_coord)
-
-        except Exception:
-            print 'Array2 and/or mesh not specified'
-
-    else:
-        # get interpolated values valid for both arrays
-        # data rejected if they lie outside the common maximal x-coordinates
-
-
-        f = interp1d(x1, y1, kind='slinear')
-        for x_coord in x2:
-            try_to_interpolate(x_coord)
-    """
     if Array2 == []:
         try:
             # if Array2 is passed as null, interpolate on user specified mesh
             xmin = round(x1[0])
             xmax = round(x1[-1])
             x2 = np.arange(xmin, xmax, mesh)
-            y2 = interp1d(x1, y1, kind='slinear', fill_value=np.nan)(x2)
+            y2 = interp1d(x1, y1, kind='linear', fill_value=np.nan)(x2)
         except:
             raise Exception('Array2 and/or mesh not specified in utilities.interpolate_data')
     else:
         # get interpolated values valid for both arrays
         # data rejected if they lie outside the common maximal x-coordinates
-        y2 = interp1d(x1, y1, kind='slinear', bounds_error=False, fill_value=np.nan)(x2) # map f(x1, y1) on x2
+        y2 = interp1d(x1, y1, kind='linear', fill_value=np.nan)(x2) # map f(x1, y1) on x2
 
-    rv = np.array((x2, y2)).T
+    rv = np.transpose((x2, y2))
     rv = rv[~np.isnan(rv[:,1])]  # <-- trim NAN
-    # y2 = y2[~np.isnan(y2)]
 
     return rv
 
@@ -482,7 +467,7 @@ def pub_cif(asym, cell=None, path=None, filename=None, debug=False):
         path (str): directory of file.cif
         filename (str): filname for dump (omit .cif)
     """
-    fpath = absfpath(path, filename, 'cif')
+    fpath = abspath(join(*filter(None, (path, filename))))  # absfpath(path, filename, 'cif')
     cifkeys = {'header_line': '%s_%s' % (filename, strftime('%d-%m-%y_%H.%M.%S'))}
 
     # define unit cell positionally
@@ -544,7 +529,7 @@ def pub_xyz(a, b, c, gam, asym, path=None, filename=None):
 
     @!!!!!! Orthogonal vector space conversion is broken
     """
-    fpath = absfpath(path, filename, 'xyz')
+    fpath = abspath(join(*filter(None, (path, filename))))  # absfpath(path, filename, 'xyz')
 
     asym = copy.deepcopy(asym)
     # transform coordinates
@@ -676,7 +661,7 @@ def rwp(PDF_refinement, weight=None):
     ref = PDF_refinement
 
     if weight is None:
-        weight = np.ones(ref.yo.shape)
+        weight = 1./ref.yo  # np.ones(ref.yo.shape)
     if weight.shape != ref.yo.shape:
         return Exception('weight and data must have identical shape')
 
