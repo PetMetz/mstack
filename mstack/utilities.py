@@ -254,6 +254,7 @@ def filter_report(refinement, variable=True, constrained=False,
                     v.append(st)
 
             if _print:
+                print('\nstart: %s, end: %s\n' % (refinement.start, refinement.end))
                 print('\nstart: %s, end: %s\n' % (refinement.start,
                                                   refinement.end))
                 print('\n'.join(v))
@@ -853,16 +854,18 @@ class MergeParams(object):
 
     def lower_to_upper(self, top_attribute, specifier=None):
         """
-        When merging lmfit.Parameters instances belonging to different constituent refinement
-        objects, we run into an issue of unique variable naming (x occurs for each atom coodinate,
-        i.e.)
+        When merging lmfit.Parameters instances belonging to different
+        constituent refinement objects, we run into an issue of unique
+        variable naming (x occurs for each atom coodinate, i.e.)
 
-        The transmogrifier appends the top_attribute.name to the bottom_attribute.Parameter.name attribute
-        to construct a unique variable label. This change is propagated to variables in the instance's
-        constraint expression to maintain validity.
+        The transmogrifier appends the top_attribute.name to the
+        bottom_attribute.Parameter.name attribute to construct a unique
+        variable label. This change is propagated to variables in the
+        instance's constraint expression to maintain validity.
 
-        i.e top_attribute = (attribute as str) indicating dictionary of subordinate objects
-            bottom_attribute = params instance subordinate object
+        top_attribute = (attribute as str) indicating dictionary of
+                             subordinate objects
+        bottom_attribute = params instance of subordinate object
         """
         # Initialize
         self.exists('incorporated_%s' % top_attribute, [])
@@ -879,21 +882,25 @@ class MergeParams(object):
             # merge up bottom_attribute parameters
             for var in bottom_params:
                 # changing variable names invalidates expressions
+                # first manage unconstrained variables
                 if bottom_params[var].expr is None:
                     self.add_set_params(r'%s_%s' % (item, var),
                                         *attributegetter('value', 'vary', 'min', 'max', 'expr')(
                                                          bottom_params[var]))
             for var in bottom_params:
-                # therefore update expr with new item_varname format
+                # then update expr with new item_varname format
                 # FIXME this overwrites by default, not necessarily desired when adding phases
                 if bottom_params[var].expr is not None:
                     inplace = bottom_params[var].expr
+                    # get named variables in expr
+                    replace = filter(None,
+                                     re.split("[\+ \- \\ \/ \* \** \( \) \[ \] \{ \}]+", inplace))
                     # print inplace
                     replace = [_f for _f in re.split("[\+ \- \\ \/ \* \** \( \) \[ \] \{ \}]+", inplace) if _f]
 
                     for word in replace:
                         if any(w in word for w in keys):
-                            inplace = string.replace(inplace, word, '%s_%s' % (item, word))
+                            inplace = inplace.replace(word, '%s_%s' % (item, word))
 
                     self.add_set_params(r'%s_%s' % (item, var),
                                         *attributegetter('value', 'vary', 'min', 'max')(

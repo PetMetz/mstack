@@ -620,10 +620,10 @@ class Refinement(MergeParams, UpdateMethods):
             self.pub_control(path=self.diffaxpath)
             self.pub_input(path=self.diffaxpath)
         if os.name == 'nt':
-            call('DIFFaX.exe', cwd=abspath(self.diffaxpath), shell=True,
+            _ = call('DIFFaX.exe', cwd=abspath(self.diffaxpath), shell=True,
                  timeout=self.timeout) # , stdout=PIPE, stderr=PIPE)
         elif os.name == 'posix':
-            call(r'./DIFFaX.sh', cwd=abspath(self.diffaxpath), stdout=PIPE,
+            _ = call(r'./DIFFaX.sh', cwd=abspath(self.diffaxpath), stdout=PIPE,
                  stderr=PIPE, timeout=self.timeout)
         else:
             raise Exception('I(Q) refinment runs on posix or windows only')

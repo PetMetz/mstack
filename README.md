@@ -1,6 +1,18 @@
 # mstack
 Not fit for public consumption. Currently refactoring. Please disregard.
 
+I suspect the best option for these tools is for the DIFFaX subprocess to be rewritten as a CMI-compatible Calculator,
+which could leverage a number of existing optimizations in the diffpy srfit package. I.e. the pattern doesn't need
+to be reevaluated if only a scale factor is modified.
+
+Likewise, the real space stacking tools should become a fit contribution constructor that manages pointers / proxies
+for hierarchically constrained variables.
+
+The current version is recently futurized for py3.7 compatibility, which is quite useful as subprocess now has builtin
+timeout for spawned processes, and DIFFaX will hang if fed inappropriate input.
+
+P.S. This was the project in which I learned to code in Python. If my code looks like a catastrophe, that's because it is ;)
+
 # mstack
 
 Stacking disorder tools for Python extending the [DiffPy-CMI](http://www.DiffPy.org/products/diffpycmi) 

@@ -468,8 +468,9 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
             self.lower_to_upper('data', specifier='params')
         # verbose
         print('\n data initialized:')
-        for d in list(self.data.keys()):
-            print('      %s' % d)
+        for d in self.data.keys():
+            for d in list(self.data.keys()):
+                print('      %s' % d)
 
         return True
 
@@ -492,8 +493,9 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
             self.lower_to_upper('phases', specifier='params')
         # verbose
         print('\n phases initialized:')
-        for s in list(self.phases.keys()):    
-            print('      %s' % s)
+        for s in self.phases.keys():    
+            for s in list(self.phases.keys()):    
+                print('      %s' % s)
 
         return True
 
