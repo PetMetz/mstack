@@ -8,22 +8,33 @@ disorered PDF data.
 
 @author: Peter C Metz
 """
-# import block
-import lmfit
+# standard
+from copy import copy, deepcopy
 import os
-import numpy as np
-import utilities as u
 import re
 import time
-import cPickle
-# import dill
-from utilities import MergeParams, UpdateMethods
-from interface import Interface
-from diffpy.srreal.pdfcalculator import PDFCalculator
-from diffpy.srfit.pdf import characteristicfunctions as CF
-from copy import copy, deepcopy
 from time import strftime
+
+# 3rd party
+import cPickle
+import lmfit
 from matplotlib import pyplot as plt
+import numpy as np
+# import dill
+
+# local
+from interface import Interface
+import utilities as u
+from utilities import MergeParams, UpdateMethods
+from utilities import warn_windows
+
+# diffpy-cmi
+try:
+    from diffpy.srreal.pdfcalculator import PDFCalculator
+    from diffpy.srfit.pdf import characteristicfunctions as CF
+except ImportError:
+    warn_windows()
+    pass
 
 
 # ##################################### main ################################# #
@@ -60,7 +71,7 @@ def load(filename, path=None):
     Note: if all modules needed by the refinement object are not imported at time of
         unpickling, there will likely be AttributeErrors thrown.
 
-    ~! actually, this is problematic. cPickle serializes class by reference, nor
+     FIXME  actually, this is problematic. cPickle serializes class by reference, nor
         definition, so changinging the namespace (e.g. adding or removing modules
         to this program) will break the pickle.
 
@@ -123,7 +134,7 @@ class PdfData(UpdateMethods, MergeParams):
         try:
             if os.path.exists(data):
                 self.data = np.array(u.read_data(data, column=column, lam=1.0))
-        except UnicodeDecodeError:
+        except (UnicodeDecodeError, TypeError):
             if type(data) is np.ndarray:
                 self.data = data
             elif data is None:
@@ -224,6 +235,7 @@ class PdfModel(UpdateMethods, MergeParams):
             * sthick (float): [Å] sheet thickness in analytic damping function (infinite width)
             * mno (int, list): [int] (int, int, int) supercell dimensions for expansion of structures
             * use (bool): include in refinement?
+            # FIXME  unused
             * sratio: [-] sigma ratio for bonded atoms- peak sharpening due to correlated motion
             * rcut: [Å] radius cutoff for application of sratio
             * stepcut: [Å] distance above which G(r) is truncated
@@ -292,9 +304,9 @@ class PdfPhase(UpdateMethods, MergeParams):
 
     def _check_mno(self, mno):
         """ type enforcing. returns mno as len 3 tuple"""
-        if type(mno) is tuple and len(mno) is 3:
+        if type(mno) is tuple and len(mno) == 3:
             return mno
-        elif type(mno) is int and len(str(mno)) is 3:
+        elif type(mno) is int and len(str(mno)) == 3:
             return tuple([int(x) for x in str(mno)[:]])
         else:
             raise Exception('values of m|n|o greater than 9 must be entered\
@@ -338,6 +350,10 @@ class PdfPhase(UpdateMethods, MergeParams):
             parameters may be instantiated as a value (float|int) or as a tuple
             (value, min, max)
         """
+        #
+        if scale is None:
+            scale = 1
+            
         # Parameters
         self.params = lmfit.Parameters()
         self.update('scale', scale)
@@ -397,7 +413,7 @@ class PdfPhase(UpdateMethods, MergeParams):
                                    use=self.use)}
                       )
 
-        # ~! for debugging
+        #  FIXME  for debugging
         if name_check(rv.keys()) is False:
             raise Exception('check out naming conventions for phase->model')
 
@@ -436,20 +452,17 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
         Returns:
             bool: True
         """
-        self.data = {}
+        if not hasattr(self, 'data'):
+            self.data = {}
         if data is not None:
-            try:
-                for d in u.flatten(data):
-                    self.data.update({d.name: d})
-            except AttributeError:
-                raise Exception('update_data requires PdfData instance')
+            for d in u.flatten(data):
+                self.data.update({d.name: d})
+            # merge up data parameters
+            self.lower_to_upper('data', specifier='params')
         # verbose
+        print '\n data initialized:'
         for d in self.data.keys():
-            print '\n data initialized:'
             print '      %s' % d
-
-        # merge up data parameters
-        self.lower_to_upper('data', specifier='params')
 
         return True
 
@@ -463,20 +476,17 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
         Returns:
             bool: True
         """
-        self.phases = {}
+        if not hasattr(self, 'phases'):
+            self.phases = {}
         if phases is not None:
-            try:
-                for s in u.flatten(phases):
-                    self.phases.update({s.name: s})
-            except AttributeError:
-                raise Exception('update_phases requires PdfPhase instance')
+            for s in u.flatten(phases):
+                self.phases.update({s.name: s})
+            # merge up phase parameters
+            self.lower_to_upper('phases', specifier='params')
         # verbose
-        for s in self.phases.keys():
-            print '\n phases initialized:'
+        print '\n phases initialized:'
+        for s in self.phases.keys():    
             print '      %s' % s
-
-        # merge up phase parameters
-        self.lower_to_upper('phases', specifier='params')
 
         return True
 
@@ -512,6 +522,7 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
         self.params = lmfit.Parameters()
         self.update_data(data)  # elevates data params to refinement
         self.update_phases(phases)  # elevates phase params to refinement
+        self.Bij = u.fetch_thermals(self)
 
         return
 
@@ -617,7 +628,7 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
 
         # some None|inf replacement
         for k, v in cfg.items():
-            # ~! print k, v, type(k), type(v)
+            #  FIXME  print k, v, type(k), type(v)
             if not u.isfinite(v):
                 cfg.update({k: 0})
 
@@ -702,15 +713,15 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
             self.gr[data.name].update({phase.name: {}})
         # get computable models
         phase.to_models()
-        #~! rv = np.zeros_like(np.linspace(data.rmin, data.rmax, data.rstep)) ~!
-        #~! rv = np.zeros((np.ceil((data.rmax - data.rmin) / data.rstep).astype(int),), dtype=float)
+        # FIXME  rv = np.zeros_like(np.linspace(data.rmin, data.rmax, data.rstep))
+        # FIXME  rv = np.zeros((np.ceil((data.rmax - data.rmin) / data.rstep).astype(int),), dtype=float)
         rv = np.array([])
-        N = 0
+        N = 0  # FIXME this just results in a scale parameter multiplied by N
 
         # crunch G(r) * model_scale
         for m_key, mod in phase.models.items():
             gr = self.calculator(mod, data)  # calc gr
-            # ~! print data.name, phase.name, m_key
+            #  FIXME  print data.name, phase.name, m_key
             self.gr[data.name][phase.name].update({m_key: gr})
             rv = self.merge_add(rv, gr[:, 1])
             N += 1
@@ -747,7 +758,7 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
             self.GR[data.name].keys()
         except KeyError:
             self.GR.update({data.name: {}})
-        #~! rv = np.zeros((np.ceil((data.rmax - data.rmin) / data.rstep).astype(int),), dtype=float)
+        # FIXME  rv = np.zeros((np.ceil((data.rmax - data.rmin) / data.rstep).astype(int),), dtype=float)
         rv = np.array([])
         M = 0
 
@@ -756,41 +767,34 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
             if phase.use is True:   # option to turn off phases
                 # get model composite
                 if recalc is True:  # speed up by skipping g(r) calc if no var change
-                    # ~! print 'computing {}'.format(p_key)
-                    gr = self.model_composite(phase, data)  # <--- weighted phase PDF
-                    self.GR[data.name].update({p_key: gr})
+                    # <--- weighted model PDFs
+                    self.GR[data.name].update({p_key: self.model_composite(phase, data)})
 
-                # apply shape function
+                # apply shape function  FIXME this is explicit and restrictive
                 gr = self.GR[data.name][p_key]
                 for env in [k for k in phase.params.keys() if any(
                         k.endswith(j) for j in ['spdiameter', 'sthick'])]:
                     if env == 'spdiameter' and u.isfinite(phase.spdiameter.value):
-                        #~! print 'applying spdiameter'
+                        # FIXME  print 'applying spdiameter'
                         psize = phase.spdiameter.value
                         gr = self.apply_sphericalcf(gr, psize)
                     if env == 'sthick' and u.isfinite(phase.sthick.value):
-                        #~! print 'applying sthick'
+                        # FIXME  print 'applying sthick'
                         sthick = phase.sthick.value
                         gr = self.apply_sheetcf(gr, sthick)
+                
+                self.GR[data.name].update({p_key: gr})  # <--- appropriately scaled components
                 rv = self.merge_add(rv, gr[:, 1])
-                M += 1
-
-                #~!
-                if not invalid_type(rv):
-                    pass
-
+                M += 1  # FIXME this just results in a scale factor muliplied by M
 
         # normalize and update
         rv = np.divide(rv, M, dtype=float)
-        #~!
-        if not invalid_type(rv):
-            pass
-
-        self.composite.update({data.name: np.column_stack((gr[:, 0], rv))})
-        exp, calc = self.map_exp_calc(data.data, self.composite[data.name], data.rmin, data.rmax)
-        self.xo, self.yo = exp.T[:]  # need transpose because of axis convention
-        self.xc, self.yc = calc.T[:]
-        self.yo = self.yo * data.scale.value  # scale yo
+        if not invalid_type(rv):  # check for NaN's, zeros, etc.
+            self.composite.update({data.name: np.column_stack((gr[:, 0], rv))})
+            exp, calc = self.map_exp_calc(data.data, self.composite[data.name], data.rmin, data.rmax)
+            self.xo, self.yo = exp.T[:]  # need transpose because of axis convention
+            self.xc, self.yc = calc.T[:]
+            self.yo = self.yo * data.scale.value  # scale yo
         return True
 
     def map_exp_calc(self, exp_data, calc_data, rmin, rmax):
@@ -877,19 +881,23 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
     def report_refined(self, tabulate=True):
         """
         report parameters with attribute vary == True
-        ~! moved to utilities
+         FIXME  moved to utilities
         """
         for p in self.params.values():
             if p.expr is not None and p.vary is True:
                 p.vary = False
         return u.report_refined(self.params, tabulate)
 
-    def filter_report(self, variable=True, constrained=False):
+    def filter_report(self, variable=True, constrained=False,
+                      _print=True, _text=False):
         """
         print a limited portion of the lmfit minimizer fit report
-        ~! moved to utilities
+        FIXME  moved to utilities
+        
+        Returns:
+            string representation
         """
-        rv = u.filter_report(self, variable, constrained)
+        rv = u.filter_report(self, variable, constrained, _print, _text)
         return rv
 
     ###########################################################################
@@ -944,7 +952,7 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
             np.array: residual with length of data
         """
         # get members of interest
-        # ~! migrated to phase_composite method
+        #  FIXME  migrated to phase_composite method
 
         # get difference
         diff = np.subtract(self.yo, self.yc)
@@ -955,7 +963,7 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
         """
         calculate rwp for the refinement (utilities method)
         Note:
-            ~! not suitable for multiple data
+             FIXME  not suitable for multiple data
         """
         rv = u.rwp(self)
         return rv
@@ -981,7 +989,7 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
         # self.generic_update(params)
         self.generic_update(params)
 
-        # ~! Future feature: gr skipping if no relevant var change
+        #  FIXME  Future feature: gr skipping if no relevant var change
         recalc = True
 
         # get phase composites and residuals
@@ -1013,33 +1021,38 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
             Return type is important in this case. I believe a return type of
             True causes the minimization to abort.
         """
-        # ~!
+        #  FIXME 
         # print iter
         self.iter = iter
 
         # add R-value to refinement.hist
-        average_length = np.average([len(k.data) for k in self.data.values()])
-        redchi = sum(resid ** 2 / (average_length -
-                     len([k for k in self.params if self.params[k].vary is True])))
-        # self.Rwp = np.sqrt(sum(resid **2) / sum(w_m * [self.data.values()[0].data[:, 1] **2])
-
+# =============================================================================
+#         FIXME
+#         average_length = np.average([len(k.data) for k in self.data.values()])
+#         redchi = sum(resid ** 2 / (average_length -
+#                      len([k for k in self.params if self.params[k].vary is True])))
+#         # self.Rwp = np.sqrt(sum(resid **2) / sum(w_m * [self.data.values()[0].data[:, 1] **2])
+# 
+# =============================================================================
         # append history
+        rwp = self.rwp()
         try:
-            self.hist.append((self.hist[-1][0] + 1, redchi))
+            self.hist.append((self.hist[-1][0] + 1, rwp))
         except IndexError:
-            self.hist.append((iter, redchi))
+            self.hist.append((iter, rwp))
 
         # ocassionally announce redchi
         # if iter % 10 == 0:
-        print 'redchi(%0d): %.4E' % (iter, redchi)
+        print 'rwp(%0d): %.4E' % (iter, rwp)
 
         # acccept kwarg to toggle residual plotting on (expensive, timewise)
         try:
             if kwargs['plot_resid'] is True:
                 if iter % 1 == 0:  # don't mind the sillyness
                     # dynamic plot iter, R-value
-                    A = np.array(self.hist)
-                    self.DynamicPlot(A[:, 0], A[:, 1])
+                    # A = np.array(self.hist)
+                    x, y = np.array(self.hist)[:, :2].T
+                    self.DynamicPlot(x, y)
         except KeyError:
             # not required
             pass
@@ -1073,7 +1086,8 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
         """
         # kws to pass
         kws = {'subdir': subdir, 'plot_resid': plot_resid, 'sqrt_filter': sqrt_filter}
-        minkws = {}
+        if minkws is None:
+            minkws = {}
 
         if method == 'leastsq':
             # set step-length
@@ -1103,11 +1117,11 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
         # end of minimization
         self.end = strftime('%c')  # end time
         self.final = u.report_refined(self.result.params)  # final values
-        # for d_key, dat in self.data.items():
-        #     self.plot_min_result(dat)  # plot of result
         self.report = lmfit.fit_report(self.result, min_correl=0.5)  # fit report
         self.filter_report(variable=True, constrained=False)  # contracted version
-
+        for k, v in self.result.params.items():  # copy stderr to top level
+            self.params[k].stderr = v.stderr
+        
         # output cif file for inspection (overwritten each minimization call)
         if dump is True:
             for pha in self.phases.values():
@@ -1125,7 +1139,7 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
         This function coerces min/max values to *adjust* from supplied
         information if none are given by the user.
 
-        ~! this is a bit of a sticking point. Need to research scipy details.
+         FIXME  this is a bit of a sticking point. Need to research scipy details.
         lmfit default
 
         Returns:
@@ -1135,7 +1149,7 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
         for k in self.params.values():
             if any(k.value == s for s in [float('-inf'), float('inf'), None]):
                 k.value = 0.0
-                # ~! print k.name, k.value
+                #  FIXME  print k.name, k.value
 
         # set min/max arbitrarily at +/- 25% if values not supplied
         for par in self.params.values():
@@ -1143,7 +1157,7 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
             # m = [value * 0.75, value * 1.25]
             m = [-adjust * value, adjust * value]
             expr = par.expr
-            # ~! print k, m
+            #  FIXME  print k, m
             if min(m) == max(m):  # as in the case of value = 0.0
                 m = [min(m), min(m) + 0.0001]
             if any(par.min == s for s in [float('-inf'), float('inf'), None]):
@@ -1165,7 +1179,7 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
                 raise Exception('refinement.validate_diffev still not correcting min == max')
 
         # if everything passes, return True
-        # ~! print '\n\n\n\n\n\n\n end of validate diffev \n\n\n\n\n\n\n'
+        #  FIXME  print '\n\n\n\n\n\n\n end of validate diffev \n\n\n\n\n\n\n'
         # push updated variables
         self.generic_update(self.params)
         return True

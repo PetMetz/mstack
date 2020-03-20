@@ -8,19 +8,32 @@ lattice parameters and atom instances.
 
 @author: Peter C Metz
 """
-# imports
-import os
-import re
-import lmfit
-import utilities as u
-import numpy as np
-import time
+# standard
 from operator import itemgetter
+import os
+from os.path import abspath, relpath, join, split
+import re
+
+# 3rd party
 from CifFile import ReadCif
+import lmfit
+import numpy as np
+
+# local
+import utilities as u
+# from utilities import absfpath
 from utilities import MergeParams, UpdateMethods
-from utilities import  abspath, absfpath
 from utilities import pub_cif as _pub_cif
-from utilities import pub_xyz as _pub_xyz
+from utilities import attributegetter
+from utilities import warn_windows
+
+# diffpy-cmi
+try:
+    from diffpy.structure import Structure
+    from diffpy.structure import loadStructure
+except ImportError:
+    warn_windows()
+    pass
 
 # globals
 cwd = os.getcwd()
@@ -28,7 +41,7 @@ cwd = os.getcwd()
 # ##################### structure functions ################################# #
 
 
-def build_cif(filename, structure_name=None, layer_number=1):
+def build_cif(filename, structure_name=None, layer_number=1, path=None):
     """
     Use PyCifRW to parse a .cif file and output a Structure instance.
 
@@ -47,7 +60,7 @@ def build_cif(filename, structure_name=None, layer_number=1):
         seems to work so long as the current working directory is on the same disk as your
         .cif file.
     """
-    fpath = filename   # TODO work out absolute path with ReadCif
+    fpath = abspath(join(*filter(None, (path, filename)))) # absfpath(path, filename, 'cif')
 
     # preliminary
     if structure_name is None:
@@ -64,8 +77,8 @@ def build_cif(filename, structure_name=None, layer_number=1):
     cf = ReadCif(fpath)
 
     # read cell
-    # ~! this probably needs to be generalized to look at all values for possible
-    # ~! value (esd) pairs. Uncertainties package may be useful here
+    #  FIX  this probably needs to be generalized to look at all values for possible
+    #  FIX  value (esd) pairs. Uncertainties package may be useful here
     cell = {}
     for item in ['_cell_length_a', '_cell_length_b', '_cell_length_c',
                  '_cell_angle_alpha', '_cell_angle_beta', '_cell_angle_gamma']:
@@ -103,6 +116,7 @@ def build_cif(filename, structure_name=None, layer_number=1):
         try:
             info.update({item.split('_')[-1]: lb[item]})
         except:
+            print '\ncouldn\'t load %s' % item 
             pass
 
     # split atom|number if necessary
@@ -124,7 +138,7 @@ def build_cif(filename, structure_name=None, layer_number=1):
                        info['x'][i],            # x-coordinate
                        info['y'][i],            # y-coordinate
                        info['z'][i],            # z-coordinate
-                       info['equiv'][i],        # Uiso or Biso value
+                       info['equiv'][i],        # Uiso or Bij value
                        info['occupancy'][i],    # occupancy
                        adp                      # ADP type
                        ))
@@ -133,14 +147,63 @@ def build_cif(filename, structure_name=None, layer_number=1):
     return Structure(structure_name, *itemgetter('a', 'b', 'c', 'alpha', 'beta', 'gamma')(cell),
                      atoms=ai, number=layer_number)
 
+
+def cmi_load_cif(fname):
+    """
+    Parse .cif using diffpy.Structure.loadStructure
+    
+    Parameters:
+        * fname: like path/fname.cif
+    Returns:
+        diffpy.Structure instance
+    """
+    return loadStructure(abspath(fname))
+
+
+def cmi_build_struct(stru, sname, number):
+    """
+    Parse .cif using diffpy.Structure.loadStructure
+
+    Parameters:
+        * fname : like path/fname.cif or diffpy.Structure instance
+        * sname : name for mstack.Structure instance
+    Returns:
+        mstack.Structure instance
+    """
+    if type(stru) is Structure:
+        pass
+    elif os.path.isfile(str(stru)):
+        stru = cmi_load_cif(stru)
+
+    # atoms
+    atoms = []
+    types = [re.split('[-+]?\d+', label)[0] for label in stru.label]
+    nums = dict(zip(set(types), [iter(np.arange(types.count(at))) for at in set(types)])) # unique index
+    for ii, label in enumerate(stru.label):
+        at = re.split('[-+]?\d+', label)[0]
+        if stru[label].anisotropy is False:  # reading Uij is buggy for some reason
+            Bij = np.identity(3) * stru.U[ii] * 8 * np.pi ** 2
+        atoms.append(Atom(atom_name=at,  # specie, site number e.g. Uu5
+                          number=next(nums[at]),  # int(label.lstrip(at)),  
+                          x=stru.x[ii],   # x, y, z (frac.)
+                          y=stru.y[ii],
+                          z=stru.z[ii],
+                          Bij=Bij,   # Bij
+                          occ=stru.occupancy[ii],
+                          disp_type='Bij'
+                          )
+                    )
+    # (name a b c alp bet gam atoms number)
+    return Structure(sname, *stru.lattice.abcABG(), atoms=atoms, number=number)
+    
 # ##################### structure classes ################################# #
 
 
-class Atom(object):
+class Atom(UpdateMethods, MergeParams):
     """
     an atom instance contains its type (name) and number (of its kind) which define
     a unique label (i.e. O1, Nb5). x, y, & z are float fractional coordinates and
-    Uiso is the thermal displacement parameter (Biso =  8*pi**2*<u**2> = 8*pi**2*Uiso)
+    Uiso is the thermal displacement parameter (Bij =  8*pi**2*<u**2> = 8*pi**2*Uiso)
 
     Args:
         * atom_name (str): atom name
@@ -148,32 +211,86 @@ class Atom(object):
         * x, y, z (float): fractional coordinates
         * Uiso_or_equiv (float): isotropic thermal displacement parameter
         * occ (float): occupancy fractional
-        * disp_type (str | Uiso): 'Biso' or 'Uiso'
+        * disp_type (str | Uiso): 'Bij' or 'Uiso'
     """
 
-    def __init__(self, atom_name, number, x, y, z, Uiso_or_equiv,
-                 occ, disp_type='Uiso'):
+    def __init__(self, atom_name, number, x, y, z, Bij,
+                 occ, disp_type='Bij'):
         """
+        FIX Parameter propogation currently ends at Structure object
         Args:
             * atom_name (str): atom name
             * number (int): site number
             * x, y, z (float): fractional coordinates
-            * Uiso_or_equiv (float): isotropic thermal displacement parameter
+            * Bij (float or (3,3)np.array): thermal displacement parameter
             * occ (float): occupancy fractional
-            * disp_type (str | Uiso): 'Biso' or 'Uiso'
+            * disp_type (str | Uiso): 'Bij' or 'Uij'
         """
+        self.params = lmfit.Parameters()
         self.name = str(atom_name)
         self.number = int(number)
         self.label = str(atom_name) + str(int(number))
-        self.x = float(x)
-        self.y = float(y)
-        self.z = float(z)
-        self.occ = float(occ)
+        self.disp_type = str(disp_type)
+        self.initialize('occ', occ)
+        
+        # vector
+        self.initialize('x', x)
+        self.initialize('y', y)
+        self.initialize('z', z)
+        self.vector = np.array((self.x, self.y, self.z), dtype='object')
+        
+        # thermals
+        self._new_Bij()
+        if any(type(Bij) is x for x in (float, int)):  # if isotropic
+            self._set_isotropic(Bij)
+        elif hasattr(Bij, '__iter__'):   # elif tensor
+            Bij = np.asarray(Bij)
+            self._set_anisotropic(Bij)
+        self._decl_therm_attr()
 
-        # ~! This may create problems later, but initialize ADP's by name and value
-        setattr(self, 'disp_type', str(disp_type))
-        setattr(self, str(disp_type), float(Uiso_or_equiv))
+        return
 
+    def _new_Bij(self):
+        """ as (3, 3) np.array """
+        setattr(self, self.disp_type, np.zeros((3,3), dtype=object))
+        therm = getattr(self, self.disp_type)
+        char = self.disp_type[0]
+        for ii in range(3):
+            for jj in range(3):
+                if ii == jj:
+                    therm[ii,jj] = self.initialize('%s%s%s' % (char, ii+1, jj+1), 0.25)
+                elif ii != jj:
+                    therm[ii,jj] = self.initialize('%s%s%s' % (char, ii+1, jj+1), 0.0)
+        return 
+
+    def _set_anisotropic(self, Bij):
+        """ set Bij parameters """
+        therm = getattr(self, self.disp_type)
+        Bij = np.array(Bij)
+        for ii in range(3):
+            for jj in range(3):
+                therm[ii, jj].set(value=Bij[ii, jj])
+        return
+      
+    def _set_isotropic(self, Bij):
+        """ set Bij tensor if isotropic """
+        therm = getattr(self, self.disp_type)
+        for ii in range(3):
+            for jj in range(3):
+                if ii == jj:
+                    therm[ii, jj].set(value=Bij)
+                else:
+                    therm[ii, jj].set(value=0.0)
+        return
+
+    def _decl_therm_attr(self):
+        """ make apparent at atom level"""
+        therm = getattr(self, self.disp_type)
+        char = self.disp_type[0]
+        for ii in range(3):
+            for jj in range(3):
+                setattr(self, '%s%s%s' % (char, ii + 1, jj + 1), therm[ii, jj])
+    
     # End of class atom
 
 
@@ -185,23 +302,22 @@ class Structure(UpdateMethods, MergeParams):
 
     def merge_adp(self, atoms):
         """
-        get list of atom ADPS in common ADP type (Biso)
+        get list of atom ADPS in common ADP type (Bij)
 
         Args:
             * atoms (structure.Atoms): list of atom instances
         """
         atoms = u.flatten(atoms)
         for at in atoms:
-            if at.disp_type == 'Uiso':
-                # Biso = 8 * pi ** 2 * Uiso
-                at.Uiso = 8 * np.pi ** 2 * at.Uiso  # scale value
-                setattr(at, 'Biso', at.Uiso)        # create attribute Biso
-                at.disp_type = 'Biso'               # update disp_type
-                del at.Uiso                         # remove former attribute Uiso
+            if at.disp_type == 'Uij':
+                at.Bij = at.Uij             # new handle
+                map(lambda p: p.set(value=p.value * 8 * np.pi ** 2), at.Uij) # scale value
+                at.disp_type = 'Bij'               # update disp_type
+                del at.Uij                     # remove former attribute handle
 
-            elif at.disp_type == 'Biso':
+            elif at.disp_type == 'Bij':
                 pass
-
+       
     def __init__(self, name, a, b, c, alp=90, bet=90, gam=90, atoms=None, number=1):
         u"""
         Structure.__init__
@@ -220,13 +336,16 @@ class Structure(UpdateMethods, MergeParams):
             In DIFFaX alpha and beta are constrained to 90°- only gamma may vary. These are presently
             included as a formality.
         """
+        self.params = lmfit.Parameters()
+        
         self.name = name
-        self.a = a
-        self.b = b
-        self.c = c
-        self.alp = alp
-        self.bet = bet
-        self.gam = gam
+        self.initialize('a', a)
+        self.initialize('b', b)
+        self.initialize('c', c)
+        self.initialize('alp', alp)
+        self.initialize('bet', bet)
+        self.initialize('gam', gam)
+        self.cell = attributegetter('a', 'b', 'c', 'alp', 'bet', 'gam')(self)
         self.number = number
 
         # construct dict of atom instances from list of atom instances
@@ -235,101 +354,36 @@ class Structure(UpdateMethods, MergeParams):
             atoms = u.flatten(atoms)
             self.merge_adp(atoms)
             for i in range(len(atoms)):
-                self.atoms.update({'%s_%s' % (self.name, atoms[i].label): atoms[i]})
+                self.atoms.update({ atoms[i].label: atoms[i]})   # '%s_%s' % (self.name,
                 setattr(self, atoms[i].label, atoms[i])
+
+        # update structure parameters from list of atoms
+        self.lower_to_upper('atoms', specifier='params')
+
+        # constrain Bij == Bji
+        for k in ['12', '13', '23']:   
+            for at in self.atoms.keys():
+                self.params['%s_B%s' % (at, k[::-1])].set(expr='%s_B%s' % (at, k))
+        
+        return
     
-    def disp_type(self):
-        ''' raise disp_type from atom to structure '''
-        return self.atoms[self.atoms.keys()[0]].disp_type
-
-    def lattice_params(self):
-        """ return lattice parameters as variables (dict)"""
-        r = {}
-        for k in ['a', 'b', 'c']:
-            r.update({self.name + '_%s' % k: self.__getattribute__(k)})
-        return r
-
-    def lattice_angles(self):
-        """ return lattice angles as variables (dict) """
-        r = {}
-        for k in ['alp', 'bet', 'gam']:
-            r.update({self.name + '_%s' % k: self.__getattribute__(k)})
-        return r
-
-    def get_atom_par(self, par):
-        """ return atom par(str) with keys label_par (dict)"""
-        r = {}
-        for k in self.atoms.keys():
-            r.update({'%s_%s' % (k, par): self.atoms[k].__getattribute__(par)})
-        return r
-
-    def get_all_par(self):
+    def struc_to_atom(self):
         """
-        returns dictionary of all paramters stored in structure, e.g.:
-            * lattice parameters (vector magnitudes and angles)
-            * atom parameters (x, y, z, occ, Uiso)
+        update transition instances from phase params (values only)
 
         Returns:
-            dict: {[atom.label]_[par]: value, ...}
+            True if no errors
         """
-        r = {}
-        r.update(self.lattice_angles())
-        r.update(self.lattice_params())
-        for at in self.atoms.keys():
-            for par in ['x', 'y', 'z', 'occ', str(self.disp_type())]:
-                r.update(self.get_atom_par(par))
-        return r
+        return self.upper_to_lower('atoms', specifier='params') is True
 
-    def parameters(self, *valid_keys):
+    def atom_to_struc(self):
         """
-        Creates a lmfit Parameters instance from the contents of structure.
-
-        All pars come fixed by default- user will flag enteries for
-        refinment using the Parameters method instance['parname'].vary=Boolean.
-
-        If a list of keywords is passed, parameters() will attempt to assemble a
-        Parameters instance using the valid keys and reporting the invalid keys
-        (i.e. ['a', 'b', 'c', 'Ox']... returned params.keys()= 'a', 'b', 'c'): invalid
-        key 'ox'.)
-
-        Args:
-            * valid_keys (str, list): parameter keys
+        update transition instances from phase params (values only)
 
         Returns:
-            * lmfit.Parameters: instance containing *valid_keys
+            True if no errors
         """
-        import lmfit
-        parameters = lmfit.Parameters()
-
-        # check if valid_keys exist in structure.keys()
-        try_keys = u.flatten(valid_keys)
-        strupar = self.get_all_par()
-        existing_keys = strupar.keys()
-
-        for k in try_keys:
-            report = []
-            if k in existing_keys:
-                if type(strupar[k]) == str:
-                    print 'Warning! type(%s) == str. This may create problems.' % k
-                # add to Parameters instance if key exists in structure
-                parameters.add(name=k, value=strupar[k], vary=False)
-            else:
-                # build report of failed additions
-                report.append(k)
-
-        # report success/failure
-        if len(report) != 0:
-            g = len(try_keys)
-            b = len(report)
-            print '%s / %s keys instantiated' % (g - b, g)
-            print 'invalid keys for structure %s:' % self.name
-            for k in report:
-                print '%s\n' % k
-        elif len(report) == 0:
-            # print '%s parameters successfully instantiated' % len(try_keys)
-            pass
-
-        return parameters
+        return self.lower_to_upper('atoms', specifier='params') is True
 
     # End of class structure
 
@@ -357,7 +411,7 @@ class Phase(MergeParams, UpdateMethods):
             self.trans = T
             self.trans_dict = T.todict()
 
-        # update phase params
+        # update phase params from trans params
         self.lower_to_upper('trans_dict', specifier='params')
 
         return True
@@ -369,21 +423,17 @@ class Phase(MergeParams, UpdateMethods):
         Args:
             * stru (structure.Structure, list)
         """
+        if not hasattr(self, 'structures'):
+            self.structures = {}
+
         for item in u.flatten(stru):
             setattr(self, str(item.name), item)
             self.structures.update({item.name: item})
-
-    def initialize_structure_params(self, stru):
-        """
-        initialize structure parameters as lmfit parameters for stru(s)
-
-        Args:
-            * stru (structure.Structure, list)
-        """
-        if not hasattr(self, 'params'):
-            self.params = lmfit.Parameters()
-        for item in u.flatten(stru):
-            self.params += item.parameters(item.get_all_par().keys())
+        
+        # update phase params from structure params
+        self.lower_to_upper('structures', specifier='params')
+        
+        return True
 
     def update_mcl(self, mcl):
         """
@@ -405,7 +455,7 @@ class Phase(MergeParams, UpdateMethods):
     # ############################ __init__ ################################# #
 
     def __init__(self, name, transitions=None, structures=None, parameters=None,
-                 redchi=None, broadening=None, mcl=None):  # ~!, path=None):
+                 redchi=None, broadening=None, mcl=None):  #  FIX , path=None):
         """
         Phase.__init__
 
@@ -416,10 +466,11 @@ class Phase(MergeParams, UpdateMethods):
             * redchi - reduced chi value of last iteration
             * broadening - [FWHM] | [u, v, w, sigma]
             * mcl - mean column length (int)
-            * path (str|current dir): directory path  #~! depricated 4/5/17
+            * path (str|current dir): directory path  # FIX  depricated 4/5/17
         """
 
         # initialize standard variables
+        self.params = lmfit.Parameters()
         self.name = name
         self.redchi = redchi
         self.hist = []  # list of tuples containing (iter, R-val)
@@ -432,15 +483,11 @@ class Phase(MergeParams, UpdateMethods):
 
         if structures is not None:
             # 'access structure instance from model level or from dict of structures'
-            self.structures = {}
             self.update_structures(structures)
 
         if parameters is not None:
             # 'If parameters are passed in assign them to the model class'
-            self.params = parameters
-        else:
-            # 'Default to all fixed parameters (so that lmfit.Parameters.set still operates)'
-            self.initialize_structure_params(structures)
+            self.params.add_many(parameters)
 
         if mcl is not None:
             self.update_mcl(mcl)
@@ -449,128 +496,54 @@ class Phase(MergeParams, UpdateMethods):
 
     # ########################## structure methods ########################## #
 
-    def toggle(self, flags=None):
-        """
-        set refinement_flags to refine
-
-        flags (str): parameter names to togggle vary - True
-        """
-        for k in self.params.keys():
-            self.params[k].vary = False
-
-        if flags is None:
-            l = self.refinement_flags
-        elif flags is not None:
-            l = u.flatten(flags)
-
-        for k in l:
-            invalid = []
-            try:
-                self.params[k].vary = True
-            except KeyError:
-                invalid.append(k)
-                pass
-
-        print '\n%d variables flagged for refinement: %d invalid keys\n' % (len(flags), len(invalid))
-        for k in invalid:
-            print k
-
     def phase_to_trans(self):
         """
         update transition instances from phase params (values only)
-    
-        Returns:
-            None
-    
-        Note:
-            Depricated by utilities.MergeParams upper_to_lower method though
-            change has not been completely propagated in structure module.
-        """
-        self.upper_to_lower('trans_dict')
-        
-        '''
-        for trans in self.incorporated:  # these are like 'transition_#'
-            i = trans.split('_')[-1]     # but refered to in transition as #
-            # for key that starts with k
-            for trans_var in [s for s in self.params.keys() if s.startswith(trans)]:
-                var = filter(None, trans_var.split('%s_' % trans))[0]  # var like transition_#_var --> var
-                if self.trans_dict[i].params[var] != self.params[trans_var]:
-                    try:
-                        # overwrite phase in trans_dict, which shares pointer with transition instance
-                        self.trans_dict[str(i)].params[var].set(value=self.params[trans_var].value,
-                                                           vary=self.params[trans_var].vary,
-                                                           min=self.params[trans_var].min,
-                                                           max=self.params[trans_var].max)
-                        # ~! again need to include decatentation of expr if passed
-                    except KeyError:
-                        # this shouldn't be an issue at the phase - transition level
-                        print '%s not updated: see Structure.phase.phase_to_trans()' % trans_var
-                        pass
 
-        # update Transitions object with new params, validate parameters
-        self.trans.update_transitions(self.trans_dict.values())
-        '''
-        return True
+        Returns:
+            True if no errors
+        """
+        return self.upper_to_lower('trans_dict') is True
+
 
     def phase_to_structure(self):
         """
         update structure instance(s) from phase params (values only)
-    
-        Returns:
-            None
-    
-        Note:
-            Depricated by utilities.MergeParams upper_to_lower method though
-            change has not been completely propagated in structure module.
-        """
-        for stru in self.structures.keys():
-            # update unit cell
-            for k in ['a', 'b', 'c', 'alp', 'bet', 'gam']:
-                setattr(self.structures[stru], k, self.params['%s_%s' % (stru, k)].value)
-    
-            # update asymmetric unit
-            for at in self.structures[stru].atoms.keys():
-                ADP = self.structures[stru].atoms[at].disp_type
-                for k in ['x', 'y', 'z', 'occ', ADP]:
-                    setattr(self.structures[stru].atoms[at], k, self.params['%s_%s' % (at, k)].value)
-        return True
 
-    def pub_cif(self, structure_name, filename=None, path=None):  # , subdir='LSQ'):
+        Returns:
+            True if no errors
+        """
+        a = self.upper_to_lower('structures') is True
+        b = map(lambda st: st.upper_to_lower('atoms'), self.structures.values())
+        return a and all(b)
+
+    def pub_cif(self, structure_name, filename=None, path=None, debug=False):  # , subdir='LSQ'):
         """
         publish a .cif file from the refined structure model
-        
+
         Args:
             * structure_name (str): structure.Structure.name
             * filename (str | None): write to filename.cif
             * path (str | None): relative path
-        
+
         Returns:
             * bool: True
         """
-        asym = self.structures[structure_name].atoms  # asymmetric unit
+        struct = self.structures[structure_name]
+        asym = struct.atoms  # asymmetric unit
 
-        sn = structure_name  # shorten variable name
-
-        keys = {'header_line': time.strftime('%m-%d-%y_%H-%M-%S'),
-                'a': self.params['%s_a' % self.structures[sn].name].value,
-                'b': self.params['%s_b' % self.structures[sn].name].value,
-                'c': self.params['%s_c' % self.structures[sn].name].value,
-                'alp': self.params['%s_alp' % self.structures[sn].name].value,
-                'bet': self.params['%s_bet' % self.structures[sn].name].value,
-                'gam': self.params['%s_gam' % self.structures[sn].name].value}
-
-        _pub_cif(*itemgetter('a', 'b', 'c', 'gam')(keys),
+        _pub_cif(*struct.cell,
                  asym = asym,
                  path = path,
                  filename = filename
                  )
-        
+
         return True
 
     def pub_control(self, info, inputname='diffax_in', path=None, subdir=None):
         """
         write control file for single file inputname.dat
-        supply T_min, T_max_ T_step as info ~! this will change at some point
+        supply T_min, T_max_ T_step as info  FIX  this will change at some point
 
         Args:
             * info (dict): theta information (min, max, step)
@@ -581,10 +554,9 @@ class Phase(MergeParams, UpdateMethods):
         Returns:
             * bool: True
         """
-        con_path = absfpath(path, 'control', 'dif')
-        dat_path = os.path.join(*[k for k in (path, subdir) if k is not None])
-        dat_path = absfpath(dat_path, inputname, 'dat')
-        dat_path = dat_path.lstrip(con_path)
+        con_path = abspath(join(*filter(None, (path, 'control.dif'))))
+        dat_path = abspath(join(*filter(None, (path, subdir, inputname + '.dat'))))
+        dat_path = relpath(dat_path, start=split(con_path)[0])
         # write control
         try:
             with open(con_path, 'w+') as f:
@@ -592,7 +564,7 @@ class Phase(MergeParams, UpdateMethods):
                 f.write('\n')
                 f.write('0 {data dump}\n')
                 f.write('0 {atom pos dump}\n')
-                # f.write('0 {sym eval dump}\n') ~! not required if prior is 0
+                # f.write('0 {sym eval dump}\n')  FIX  not required if prior is 0
                 f.write('3 {powder diffraction}\n')
                 f.write('%6.4F %6.4F %6.4F\n' % itemgetter('T_min', 'T_max', 'T_step')(info))
                 f.write('1 {adaptive quadrature on diffuse}\n')
@@ -609,7 +581,7 @@ class Phase(MergeParams, UpdateMethods):
         2-theta limits, etc... needs to be passed in
         needed (key):
                 * wavelength (wvl)
-                * broadening parameters (gau) ~! only gaussian implimented right now!
+                * broadening parameters (gau)  FIX  only gaussian implimented right now!
                 * lateral braodening (lat) -- this is optional
                 * Mean Column Length (MCL)
 
@@ -620,17 +592,18 @@ class Phase(MergeParams, UpdateMethods):
         Returns:
             * None
         """
-        # perfunctory stuff, hombre
-        fpath = absfpath(path, inputname, 'dat')
+        # perfunctory stuff
+        # fpath = absfpath(path, inputname, 'dat')
+        fpath = abspath(join(*filter(None, (path, inputname + '.dat'))))
         nlayers = len(self.trans.transitions)
 
         # not necessarily refined- establish source
-        # ~! figure out how to clean this up
+        #  FIX  figure out how to clean this up
         d = {'wvl': '', 'gau': '', 'lat': '', 'MCL': '', 'pv_coefficients': ()}
         for k in d.keys():
             try:
                 d.update({k.lower(): self.params[k.lower()].value})
-                # ~! print k, 'params'
+                #  FIX  print k, 'params'
             except KeyError:
                 try:
                     d.update({k.lower(): info[k]})
@@ -639,11 +612,14 @@ class Phase(MergeParams, UpdateMethods):
                         pass
                     else:
                         raise
-                # ~! print k, 'dict'
+                #  FIX  print k, 'dict'
 
-        def picker(index):
-            'returns key of index-th layer'
-            return [k for k in self.structures.keys() if self.structures[k].number == int(index)][0]
+        # ~! I forget, anonymous functions might be incompatible with some serialization
+        #    this might break pickle / MPI capabilities
+        # def picker(index):
+        #    'returns key of index-th layer'
+        #    return [k for k in self.structures.keys() if self.structures[k].number == int(index)][0]
+        picker = lambda index: [k for k in self.structures.keys() if self.structures[k].number == int(index)][0]
 
         # main ##################
         with open(fpath, 'w+') as f:
@@ -651,7 +627,7 @@ class Phase(MergeParams, UpdateMethods):
             f.write('INSTRUMENTAL\n')
             f.write('X-RAY {rad type}\n')
             f.write('%10.8F {rad wvl}\n' % d['wvl'])
-            '# ~! rewrite to automatically identify gaussian/PV with regex'
+            '#  FIX  rewrite to automatically identify gaussian/PV with regex'
             try:
                 if not u.checkequal(d['pv_coefficients']):
                     f.write('PSEUDO-VOIGT %6.4F %6.4F %6.4F %6.4F trim {empirical broadening}\n' % d['pv_coefficients'])
@@ -684,26 +660,31 @@ class Phase(MergeParams, UpdateMethods):
             # first layer using k from above
             f.write('LAYER %d\n' % (1))
             f.write('None {assumed layer symmetry (?)}\n')
-            f.write('{type  #   x   y   z   Biso  occ}\n')
+            f.write('{type  #   x   y   z   Bij_avg.  occ}\n')
 
             def last(s):
                 return int(re.findall(r'\d+', s)[-1])
 
-            s = []
-            for at in self.structures[k].atoms.keys():
-                s.append(at)
-            s.sort(key=last)
-            for at in s:
+            def write_site(at):
                 f.write(' %s   %s  %s  %s  %s  %s  %s\n' % (
-                        self.structures[k].atoms[at].name,
-                        self.structures[k].atoms[at].number,
-                        self.params['%s_x' % at].value,
-                        self.params['%s_y' % at].value,
-                        self.params['%s_z' % at].value,
-                        # ~! conditional handle Uiso
-                        self.params['%s_Biso' % at].value,
-                        self.params['%s_occ' % at].value))
+                        
+                        at.name,  # self.structures[k].atoms[at].name,
+                        at.number,  # self.structures[k].atoms[at].number,
+                        at.x.value,  # self.params['%s_x' % at].value,
+                        at.y.value,  # self.params['%s_y' % at].value,
+                        at.z.value,  # self.params['%s_z' % at].value,
+                        #  FIX  conditional handle Uiso
+                        1/3. * np.trace(at.Bij),  # TODO this is broken  | self.params['%s_Bij' % at].value
+                        at.occ.value))  # self.params['%s_occ' % at].value))
+                return
 
+            s = []
+            for atk in self.structures[k].atoms.keys():
+                s.append(atk)
+            s.sort(key=last)
+            for atk in s:
+                write_site(self.structures[k].atoms[atk])
+                        
             # cases for filling other n blocks
             if len(self.structures) == 1:
                 ' use layer n = 1 for only 1 layer type '
@@ -724,17 +705,9 @@ class Phase(MergeParams, UpdateMethods):
                     # write asymmetric unit to input file
                     f.write('LAYER %d\n' % (layer))
                     f.write('None {assumed layer symmetry (?)}\n')
-                    f.write('{type  #   x   y   z   Biso}\n')
+                    f.write('{type  #   x   y   z   Bij}\n')
                     for at in s:
-                        f.write(' %s   %s  %s  %s  %s  %s  %s\n' % (
-                                self.structures[k].atoms[at].name,
-                                self.structures[k].atoms[at].number,
-                                self.params['%s_x' % at].value,
-                                self.params['%s_y' % at].value,
-                                self.params['%s_z' % at].value,
-                                # ~! conditional handle Uiso
-                                self.params['%s_Biso' % at].value,
-                                self.params['%s_occ' % at].value))
+                        write_site(self.structures[k].atoms[at])
 
             elif not any(len(self.structures) == k for k in [1, nlayers]):
                 ' no handling for intermediate cases'

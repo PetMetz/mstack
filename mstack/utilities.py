@@ -6,50 +6,84 @@ Common utility classes and functions for MStack.
 
 @author: Peter C Metz
 """
+from warnings import warn
+
+def warn_windows():
+    """ diffpy-cmi not compiled for windows """
+    warn(
+'\n\nWarning: Diffpy-CMI is not compiled for Windows at time of writing.\
+ PDF functionalities built around CMI not enabled.'
+          )
 
 
 # import
+from collections import OrderedDict as OD
+import copy
 import math
-import numpy as np
-import lmfit
+from operator import itemgetter
+import os
+from os.path import abspath, join
 import re
 import string
-import os
-import copy
-import dill
 from time import strftime
+
+# 3rd party
+import dill
+import lmfit
 from matplotlib import pyplot as plt
+import numpy as np
 from scipy.interpolate import interp1d
 from tabulate import tabulate
-from collections import OrderedDict as od
+
+# diffpy-cmi
+try:
+    from diffpy.utils.parsers.loaddata import loadData
+except ImportError:
+    warn_windows()
+    pass
+
+# export
+__all__ = ['loadData']
+
+# utility objects
+ciftemplate = \
+'''data_%(header_line)s
+_cell_length_a                    %(a)s
+_cell_length_b                    %(b)s
+_cell_length_c                    %(c)s
+_cell_angle_alpha                 %(alp)s
+_cell_angle_beta                  %(bet)s
+_cell_angle_gamma                 %(gam)s
+
+_symmetry_space_group_name_H-M    P1
+
+loop_
+_atom_site_label
+_atom_site_number
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+_atom_site_occupancy
+%(asymloop)s
+
+loop_
+_atom_site_aniso_label
+_atom_site_aniso_number
+_atom_site_aniso_B11
+_atom_site_aniso_B12
+_atom_site_aniso_B13
+_atom_site_aniso_B21
+_atom_site_aniso_B22
+_atom_site_aniso_B23
+_atom_site_aniso_B31
+_atom_site_aniso_B32
+_atom_site_aniso_B33
+%(anisoloop)s
+
+'''
+
 
 # utility functions ##############################
-
-def iq_plot():
-    """ setup empty iq plot """
-    fig, ax = plt.subplots()
-    ax.set_xlabel('$Q \/\/ [\AA^{-1}]$')
-    ax.set_ylabel('$I(Q) \/\/ [counts]$')
-    return fig, ax
-
-
-def i2t_plot(wvl=None):
-    """ setup empty i2t plot """
-    if wvl is None:
-        wvl=1000
-    fig, ax = plt.subplots()
-    ax.set_xlabel('$\degree 2 \\vartheta \/\/ [\lambda\/=\/%1.4f]$' % wvl)
-    ax.set_ylabel('$I(\degree 2 \\vartheta ) \/\/ [counts]$')
-    return fig, ax
-
-
-def gr_plot():
-    """ setup empty G(r) plot """
-    fig, ax = plt.subplots()
-    ax.set_xlabel('$r \/\/ [\AA]$')
-    ax.set_ylabel('$G(r) \/\/ [\AA^{-2}]$')
-    return fig, ax
-
 
 def _save(obj, fname):
     """ dump pickle to fname """
@@ -64,35 +98,39 @@ def _load(fname):
         return dill.load(f)
 
 
-def abspath(relative_path):
-    """
-    return absolute path from relative path in a uniform way to be used throughout
-    package.
-
-    Args:
-        * relative_path (str): path relative to working directory
-
-    Note:
-    |    /foo
-    |        /work
-    |            /isnofun
-    |        /bar
-    |
-    |    pwd = /foo/work
-    |    abspath('isnofun') == /foo/work/isnofun
-    |    abspath('../bar') == /foo/bar
-    """
-    if relative_path is None or relative_path == '':
-        return os.getcwd()
-
-    if os.path.exists(relative_path) is False:
-        raise Exception('please check that specified path exists')
-    else:
-        return os.path.abspath(relative_path)
-
+# =============================================================================
+# def abspath(relative_path):
+#     """
+#     ! GET RID OF THIS
+#     
+#     return absolute path from relative path in a uniform way to be used throughout
+#     package.
+# 
+#     Args:
+#         * relative_path (str): path relative to working directory
+# 
+#     Note:
+#     |    /foo
+#     |        /work
+#     |            /isnofun
+#     |        /bar
+#     |
+#     |    pwd = /foo/work
+#     |    abspath('isnofun') == /foo/work/isnofun
+#     |    abspath('../bar') == /foo/bar
+#     """
+#     if relative_path is None or relative_path == '':
+#         return os.getcwd()
+# 
+#     if os.path.exists(relative_path) is False:
+#         raise Exception('please check that specified path exists')
+#     else:
+#         return os.path.abspath(relative_path)
+# 
+# =============================================================================
 
 def absfpath(relative_path=None, filename=None, extension=None):
-    """ return absolute path of rel_path/filename.extension"""
+    """ FIX refactor this out of code return absolute path of rel_path/filename.extension"""
 
     if relative_path is None:
         fpath = os.getcwd()
@@ -152,8 +190,11 @@ def checkequal(iterator):
 
 def fetch_thermals(Refinement):
     """
-    fetch Bij tensors from Refinement.Parameters
     
+    FIXME this isn't applicable to DIFFaX based refinement- need to refactor
+    
+    fetch Bij tensors from Refinement.Parameters
+
     Arguments:
         Refinement : (mstack.Refinement-like)
     Returns:
@@ -176,7 +217,7 @@ def fetch_thermals(Refinement):
                                   ), dtype=object
                                  )
                     odd[k1][k2][k3].update({k4: rv})   # package Bij tensor into OrderedDict
-    return odd            
+    return odd
 
 
 def filter_report(refinement, variable=True, constrained=False,
@@ -221,17 +262,17 @@ def filter_report(refinement, variable=True, constrained=False,
                 print '\n'.join(v)
             if _text:
                 rv.extend(v)
-    
+
         if _print is True:
-            print '\n {0} \n'.format(rwp(refinement))
-        
+            print '\n {0:2.4f} \n'.format(rwp(refinement))
+
         if _text is True:
-            rv.extend('\n{0}\n'.format(rwp(refinement)))
-    
+            rv.extend('\n{0:2.4f}\n'.format(rwp(refinement)))
+
     except AttributeError:
         print '%s.report does not exist. Have you run a minimization yet?'\
                 % refinement.name
-    
+
     return rv
 
 
@@ -247,6 +288,12 @@ def flatten(iterable):
         else:
             l.append(el)
     return l
+
+
+def floatrep(array):
+    """ return floating point value of array(lmfit.Parameter) instance """
+    opp = np.vectorize(lambda prm: prm.value)
+    return opp(array)
 
 
 def interpolate_data(Array1, Array2, *mesh):
@@ -272,60 +319,24 @@ def interpolate_data(Array1, Array2, *mesh):
     except Exception as e:
         print e
         print 'Array2 == [], looking for mesh'
-    
-    """
-    # some initialization
-    return_array = []
 
-    def try_to_interpolate(x_coord):
-        # tries to interpolate a function instantiated as f
-        # returns list of successfully interpolate tuples
-        try:
-            return_array.append((x_coord, float(f(x_coord))))
-        except Exception:
-            pass
-        return return_array
-
-    if Array2 == []:
-        # if Array2 is passed as null, interpolate on user specified mesh
-        try:
-            mesh = float(mesh[0])
-            x2 = np.arange(round(x1[0], len(str(mesh))), round(x1[-1], len(str(mesh))), mesh)
-
-            f = interp1d(x1, y1, kind="slinear")
-            for x_coord in x2:
-                try_to_interpolate(x_coord)
-
-        except Exception:
-            print 'Array2 and/or mesh not specified'
-
-    else:
-        # get interpolated values valid for both arrays
-        # data rejected if they lie outside the common maximal x-coordinates
-        
-        
-        f = interp1d(x1, y1, kind='slinear')
-        for x_coord in x2:
-            try_to_interpolate(x_coord)
-    """
     if Array2 == []:
         try:
             # if Array2 is passed as null, interpolate on user specified mesh
             xmin = round(x1[0])
             xmax = round(x1[-1])
             x2 = np.arange(xmin, xmax, mesh)
-            y2 = interp1d(x1, y1, kind='slinear', fill_value=np.nan)(x2)
+            y2 = interp1d(x1, y1, kind='linear', fill_value=np.nan)(x2)
         except:
             raise Exception('Array2 and/or mesh not specified in utilities.interpolate_data')
     else:
         # get interpolated values valid for both arrays
-        # data rejected if they lie outside the common maximal x-coordinates 
-        y2 = interp1d(x1, y1, kind='slinear', bounds_error=False, fill_value=np.nan)(x2) # map f(x1, y1) on x2
-    
-    rv = np.array((x2, y2)).T
+        # data rejected if they lie outside the common maximal x-coordinates
+        y2 = interp1d(x1, y1, kind='linear', fill_value=np.nan)(x2) # map f(x1, y1) on x2
+
+    rv = np.transpose((x2, y2))
     rv = rv[~np.isnan(rv[:,1])]  # <-- trim NAN
-    # y2 = y2[~np.isnan(y2)]
-    
+
     return rv
 
 
@@ -366,7 +377,7 @@ def plot(*Array, **kwargs):
     """
     Takes a list of tuples [(x1,y1),...,(xn,yn)] and plots with line format
 
-    ~! bug: axis determined on last loaded plot (could lead to truncation)
+     FIX  bug: axis determined on last loaded plot (could lead to truncation)
 
     Args:
         Array (list, np.array): array(s) with shape (N,2)
@@ -446,7 +457,7 @@ def print_table(dictionary=None, table=None, key=None, headers=None):
     return True
 
 
-def pub_cif(a, b, c, gam, asym, path=None, filename=None):
+def pub_cif(asym, cell=None, path=None, filename=None, debug=False):
     """
     publish a structure in .cif format.
 
@@ -456,62 +467,50 @@ def pub_cif(a, b, c, gam, asym, path=None, filename=None):
         path (str): directory of file.cif
         filename (str): filname for dump (omit .cif)
     """
-    fpath = absfpath(path, filename, 'cif')
+    fpath = abspath(join(*filter(None, (path, filename))))  # absfpath(path, filename, 'cif')
+    cifkeys = {'header_line': '%s_%s' % (filename, strftime('%d-%m-%y_%H.%M.%S'))}
 
-    alp = 90
-    bet = 90
+    # define unit cell positionally
+    init = [lmfit.Parameter(x[0], x[1]) for x in (('a',1), ('b',1), ('c',1),
+                            ('alp',90), ('bet',90), ('gam',90))]
+    if cell is not None:
+        for idx, prm in enumerate(cell):
+            init[idx] = prm
+    cifkeys.update(dict(map(lambda prm: (prm.name, prm.value), init)))
 
-    template = '''data_%(header_line)s
-_cell_length_a                    %(a)s
-_cell_length_b                    %(b)s
-_cell_length_c                    %(c)s
-_cell_angle_alpha                 %(alp)s
-_cell_angle_beta                  %(bet)s
-_cell_angle_gamma                 %(gam)s
-_symmetry_space_group_name_H-M    P1
-loop_
-_atom_site_label
-_atom_site_number
-_atom_site_fract_x
-_atom_site_fract_y
-_atom_site_fract_z
-_atom_site_B_iso_or_equiv
-_atom_site_occupancy
-_atom_site_thermal_displace_type
-
-'''
-
-    # %(asymmetric_block)s
-
-    def sort_key(line):
-        line = line.split()
-        return line[1]
-
-    l = []
-    for k in asym.keys():
-        name = asym[k].name
-        number = asym[k].number
-        disp_type = asym[k].disp_type
-        x, y, z = asym[k].x, asym[k].y, asym[k].z
-        ADP = getattr(asym[k], disp_type)
-        occ = asym[k].occ
-        l.append('%s %s %s %s %s %s %s %s\n' % (name, number, x, y, z, ADP, occ, disp_type))
-    l.sort(key=sort_key)
-
-    keys = {'header_line': '%s_%s' % (filename, strftime('%d-%m-%y_%H.%M.%S')),
-            'a': a,
-            'b': b,
-            'c': c,
-            'alp': alp,
-            'bet': bet,
-            'gam': gam}
-
-    with open(fpath, 'w+') as f:
-        f.write(template % keys)
-        for line in l:
-            f.write(line)
-
-    return
+    # define asymmetric unit
+    sort_key = lambda x: x.split()[0] + x.split()[1]   # sort on site label
+    asymloop = []
+    anisoloop = []
+    for k, atom  in asym.items():
+        # build asymmetric unit block
+        asymloop.append(' '.join(flatten((atom.name,
+                                          str(atom.number),
+                                          floatrep(atom.vector).astype(str),
+                                          str(atom.occ.value)
+                                          ))
+                                  )
+                        )
+        # build aniso values
+        anisoloop.append(' '.join(flatten((atom.name,
+                                           str(atom.number),
+                                           floatrep(atom.Bij).astype(str)
+                                           ))
+                                  )
+                         )
+    asymloop.sort(key=sort_key)
+    anisoloop.sort(key=sort_key)
+    cifkeys.update({'asymloop': '\n'.join(asymloop),
+                    'anisoloop': '\n'.join(anisoloop)
+                    })
+    
+    if debug is True:
+        return ciftemplate % cifkeys
+    
+    else:
+        with open(fpath, 'w+') as f:
+            f.write(ciftemplate % cifkeys)
+        return
 
 
 def pub_xyz(a, b, c, gam, asym, path=None, filename=None):
@@ -530,7 +529,7 @@ def pub_xyz(a, b, c, gam, asym, path=None, filename=None):
 
     @!!!!!! Orthogonal vector space conversion is broken
     """
-    fpath = absfpath(path, filename, 'xyz')
+    fpath = abspath(join(*filter(None, (path, filename))))  # absfpath(path, filename, 'xyz')
 
     asym = copy.deepcopy(asym)
     # transform coordinates
@@ -559,6 +558,7 @@ def pub_xyz(a, b, c, gam, asym, path=None, filename=None):
 
 def read_data(filename, path=None, column=1, lam=None, q=False, override=True):
     """
+    FIXME: diffpy has more robust algorithm for this. see exported loadData
     Reads data from space delimited format. Default assumption is that (x, y) are in
     the first and second column, respectively. Use column argument to change elsewise.
     use argument 'q' if data is a function of scattering vector rather than 2theta.
@@ -596,7 +596,7 @@ def read_data(filename, path=None, column=1, lam=None, q=False, override=True):
                     line[i] = float(line[i])
                 clean.append(line)
             except ValueError:
-                # print '%s' % (line)  # ~!
+                # print '%s' % (line)  #  FIX
                 if override:
                     pass
                 else:
@@ -661,7 +661,7 @@ def rwp(PDF_refinement, weight=None):
     ref = PDF_refinement
 
     if weight is None:
-        weight = np.ones(ref.yo.shape)
+        weight = 1./ref.yo  # np.ones(ref.yo.shape)
     if weight.shape != ref.yo.shape:
         return Exception('weight and data must have identical shape')
 
@@ -676,14 +676,14 @@ def sort_expr(obj):
    obj containing lmfit.Parameters attribute to be sorted (in place)
    key = lambda par : par.expr is None
    reverse = True
-   
+
    [expr1=None, expr2=None,....,exprN='foo', exprN+1='bar',...]
    """
    catch = False   # <--- debugging/testing
    for k, v in obj.__dict__.items():
       try:
          if type(v).__name__ == 'Parameters':
-            sd = od(sorted(v.items(),
+            sd = OD(sorted(v.items(),
                            key=lambda x: x[1].expr is None,
                            reverse=True
                            ))
@@ -697,7 +697,7 @@ def sort_expr(obj):
          catch = True
          pass
    return catch is False
-            
+
 
 def unique_flatlist(l):
     rv = []
@@ -721,12 +721,12 @@ def var_names(string):
     else:
         raise Exception('var_names expected None or str type.\n\
                          instead received:\n{}.'.format(type(string)))
-    
+
 def bubble_sort(param_dict):
     """ param_dict as OrderedDict() """
     # swap for type supporting replacement
     sd = param_dict.items()
-    
+
     # bubble sort
     for pnum in range(len(sd)-1, 0, -1):
         for i in range(pnum):
@@ -738,8 +738,8 @@ def bubble_sort(param_dict):
                 sd[i], sd[i+1] = sd[i+1], sd[i]
             elif any(x==y for x in l1 for y in l2):
                 sd[i], sd[i+1] = sd[i+1], sd[i]
-    
-    return od(sd)
+
+    return OD(sd)
 
 
 def reconstruct(obj):
@@ -748,7 +748,7 @@ def reconstruct(obj):
     returns True if flawless
     """
     catch=False
-    
+
     for k, v in obj.__dict__.items():
         try:
             if type(v).__name__ == 'Parameters':
@@ -756,16 +756,16 @@ def reconstruct(obj):
                 symtab = v._asteval.symtable    # cache old symtab
                 setattr(obj, k, lmfit.parameter.Parameters()) # replace parameters instance
                 new_symtab = getattr(obj, k)._asteval.symtable
-                
+
                 for sym in symtab.keys(): # replace new symtab with cached
                     if not any(sym==x for x in new_symtab.keys()):
                         new_symtab.update({sym: symtab[sym]})
-                
+
                 getattr(obj, k).add_many(*sd.values())     # update parameters instance with sorted
-                        
+
         except Exception as e:
             catch = True
-    
+
     return catch == False
 
 ####################################################
@@ -830,14 +830,14 @@ class MergeParams(object):
         """
         # get attribute parameters instance handle
         l = []
-        for k in dir(bottom_attribute):
-            if type(getattr(bottom_attribute, k)) is lmfit.Parameters:
+        for k, v in bottom_attribute.__dict__.items():
+            if isinstance(v, lmfit.Parameters):
                 l.append(k)
-        if len(l) != 1 and specifier is None:
+        if len(l) != 1 and specifier is None:  # if found no instance of Parameters
             raise Exception('unable to identify Bottom_Attribute.Parameters instance')
-        if len(l) == 1:
+        if len(l) == 1:   # if found one instance of Parameters
             bottom_params = getattr(bottom_attribute, l[0])
-        else:
+        else:   # if specified in call
             bottom_params = getattr(bottom_attribute, specifier)
 
         return bottom_params
@@ -876,6 +876,7 @@ class MergeParams(object):
                                                          bottom_params[var]))
             for var in bottom_params:
                 # therefore update expr with new item_varname format
+                # FIXME this overwrites by default, not necessarily desired when adding phases
                 if bottom_params[var].expr is not None:
                     inplace = bottom_params[var].expr
                     # print inplace
@@ -894,9 +895,14 @@ class MergeParams(object):
 
     def upper_to_lower(self, top_attribute, specifier=None, debug=False):
         """
+        Parameters:
         * top_attribute: attribute name for dict of subordinate objects
             i.e. 'phases' --> refinement.phases = {'phase_1': <PairDistributionFunction.PdfPhase>}
         * specifier: name of parameters instance in subordinate object
+
+        Returns:
+            True if no errors
+            list if debug is True
         """
         skipped = [('name', 'item_var', 'var')]  # for debugging
         # get bottom attribute Parameters instance
@@ -905,7 +911,7 @@ class MergeParams(object):
 
             # for name in getattr(self, 'incorporated_%s' % top_attribute):
             # this caused the parameter to be shadowed- i.e. wrong level of nesting here.
-            name = item  # ~!
+            name = item  #  FIX
             for item_var in [k for k in self.params.keys() if k.startswith(name)]:
                 try:
                     # strip item header to retrieve original var name
@@ -913,6 +919,7 @@ class MergeParams(object):
                     # update bottom attribute params instance
                     bottom_params[var].set(*attributegetter('value', 'vary',
                                            'min', 'max')(self.params[item_var]))
+
                 except KeyError:
                     # skip keys that belong to top level only
                     if debug is True:
@@ -922,7 +929,7 @@ class MergeParams(object):
         if debug is True:
             return skipped
         else:
-            return True
+            return len(skipped) == 1
 
     # End of class MergeParams
 
@@ -952,12 +959,10 @@ class DynamicPlot(object):
         self.ax.set_autoscaley_on(True)
 
         # plot self.hist
-        label = '$R_{wp}\/=\/\sqrt{\\frac{\Sigma_i \/ w_i \/ (Y_{o,m}-Y_{o,c})^2 }{ \Sigma_i\/w_i\/Y_{o,m}^2 }}$'
-        self.lines, = self.ax.plot([], [], 'bo', mec='b', mfc='None', ms=5,
-                                   label=label)
+        self.lines, = self.ax.plot([], [], 'bo', mec='b', mfc='None', ms=5)
                                    # label='$\{\Sigma_i\/Y_{diff}^2\/ / \/ N_{d.o.f.}\}^{1/2}$')
         self.ax.set_xlabel('$Iteration$', fontsize=self.fontsize)
-        self.ax.set_ylabel('$R_{wp}\/\/[frac.]$', fontsize=self.fontsize)
+        self.ax.set_ylabel('$R_{wp}$', fontsize=self.fontsize)
         plt.legend()
         self.fig.canvas.draw()
 
@@ -1003,15 +1008,19 @@ class UpdateMethods(object):
     def initialize(self, attribute, value=None):
         """ default variable initialization"""
         if not hasattr(self, attribute):
-            if type(value) is lmfit.Parameter:
+            if type(value) is lmfit.Parameter: # as lmfit.Parameter
                 self.params.add(value)
-            elif type(value) is tuple:
-                self.params.add(attribute)
+                setattr(self, attribute, value)
+            elif type(value) is tuple:  # as tuple with limits
+                add = lmfit.Parameter(attribute, vary=False)
+                self.params.add(add)
                 self.update_with_limits(attribute, value)
-            else:
-                self.params.add(attribute, value)
-            setattr(self, attribute, value)
-        return
+                setattr(self, attribute, add)
+            else:   # as numeric / value only
+                add = lmfit.Parameter(attribute, value=value, vary=False)
+                self.params.add(add)
+                setattr(self, attribute, add)  # visible at instance
+        return self.params[attribute]
 
     def update(self, attribute, value=None):
         """ default update mode """
@@ -1050,6 +1059,12 @@ class UpdateMethods(object):
         """ call reconstruct on refinement self """
         reconstruct(self)
         return
+
+    def dump_params(self, keys):
+        """ print """
+        print '\nvariable  value  min  max expr\n'
+        for k in flatten(keys):
+            print k, self.params[k].value, self.params[k].min, self.params[k].max, self.params[k].expr
 
     # End of class UpdateMethods
 
