@@ -9,14 +9,12 @@ Add definitions below.
 
 @author: Peter C Metz
 """
-from __future__ import division
 
-from past.utils import old_div
 import numpy as np
 
 def inv_x_plus_poly3(x, a, b, c, d, e):
     """ define custom fit function 3rd order polynomial + 1/x term """
-    return old_div(a,x) + b + c*x + d*x**2 + e*x**3
+    return a/x + b + c*x + d*x**2 + e*x**3
 
 
 def cauchy(x, cauchya, cauchyb, cauchym, lina, linb):
@@ -37,7 +35,7 @@ def cauchy(x, cauchya, cauchyb, cauchym, lina, linb):
     f(x) = a / 1 + (x / b) ** m  + c + b x
     
     """
-    return old_div(cauchya, (1. + (old_div(x, cauchyb)) ** cauchym)) + lina +  linb * x
+    return cauchya / (1. + (x / cauchyb) ** cauchym) + lina +  linb * x
 
 
 
@@ -58,7 +56,7 @@ def porod(x, poroda, porodm, lina, linb):
     * lina (float) additive scalar
     * linb (float) linear slope
     """
-    return old_div(poroda, np.sin(np.radians(old_div(x,2))) ** porodm) + lina + linb * x
+    return poroda / np.sin(np.radians(x/2)) ** porodm + lina + linb * x
     
 
 # EOF

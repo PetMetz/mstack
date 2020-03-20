@@ -6,6 +6,7 @@ Transition module contains classes for describing layer transitions.
 
 @author: Peter C. Metz
 """
+from __future__ import absolute_import
 # standard
 from copy import deepcopy
 
@@ -14,7 +15,7 @@ import lmfit
 import numpy as np
 
 # local
-import utilities as u
+from . import utilities as u
 
 
 class Transition(object):
@@ -182,8 +183,7 @@ class Transition(object):
                     if self.cij[k1].value == 0 or self.cij[k2].value == 0:
                         self.scaled_cij[k].set(value=0, min=0.0, max=1e-06)
                     else:
-                        raise(Exception('hmmm there appears to be an issue originating from setting cij==0.\
-                                see Transition.scale_cij'))
+                        raise Exception
             self.scaled = True
 
         return True

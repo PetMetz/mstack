@@ -8,7 +8,14 @@ lattice parameters and atom instances.
 
 @author: Peter C Metz
 """
+from __future__ import print_function
+from __future__ import absolute_import
 # standard
+from builtins import zip
+from builtins import str
+from builtins import next
+from builtins import map
+from builtins import range
 from operator import itemgetter
 import os
 from os.path import abspath, relpath, join, split
@@ -20,12 +27,12 @@ import lmfit
 import numpy as np
 
 # local
-import utilities as u
+from . import utilities as u
 # from utilities import absfpath
-from utilities import MergeParams, UpdateMethods
-from utilities import pub_cif as _pub_cif
-from utilities import attributegetter
-from utilities import warn_windows
+from .utilities import MergeParams, UpdateMethods
+from .utilities import pub_cif as _pub_cif
+from .utilities import attributegetter
+from .utilities import warn_windows
 
 # diffpy-cmi
 try:
@@ -60,7 +67,7 @@ def build_cif(filename, structure_name=None, layer_number=1, path=None):
         seems to work so long as the current working directory is on the same disk as your
         .cif file.
     """
-    fpath = abspath(join(*filter(None, (path, filename)))) # absfpath(path, filename, 'cif')
+    fpath = abspath(join(*[_f for _f in (path, filename) if _f])) # absfpath(path, filename, 'cif')
 
     # preliminary
     if structure_name is None:
@@ -71,7 +78,7 @@ def build_cif(filename, structure_name=None, layer_number=1, path=None):
                 break
             i += 1
             if i >= 100:
-                raise(Exception('name your damn structure.'))
+                raise Exception
 
     # read .cif file
     cf = ReadCif(fpath)
@@ -82,7 +89,7 @@ def build_cif(filename, structure_name=None, layer_number=1, path=None):
     cell = {}
     for item in ['_cell_length_a', '_cell_length_b', '_cell_length_c',
                  '_cell_angle_alpha', '_cell_angle_beta', '_cell_angle_gamma']:
-        split = re.split('[(*)]', cf[cf.keys()[0]][item])
+        split = re.split('[(*)]', cf[list(cf.keys())[0]][item])
         try:
             value, esd = float(split[0]), float(split[1])
         except IndexError:
@@ -94,7 +101,7 @@ def build_cif(filename, structure_name=None, layer_number=1, path=None):
     lb = cb.GetLoop('_atom_site_label')
 
     # get ADP type from loop keys
-    for k in lb.keys():
+    for k in list(lb.keys()):
         adp = ''
         m = re.search('u_iso', k)
         n = re.search('b_iso', k)
@@ -106,7 +113,7 @@ def build_cif(filename, structure_name=None, layer_number=1, path=None):
             break
 
     if adp == '':
-        raise(Exception('ADP not found in .cif file'))
+        raise Exception
 
     # get the remaining information
     # k is the lb key that breaks the previous for loop
@@ -116,7 +123,7 @@ def build_cif(filename, structure_name=None, layer_number=1, path=None):
         try:
             info.update({item.split('_')[-1]: lb[item]})
         except:
-            print '\ncouldn\'t load %s' % item 
+            print('\ncouldn\'t load %s' % item) 
             pass
 
     # split atom|number if necessary
@@ -126,7 +133,7 @@ def build_cif(filename, structure_name=None, layer_number=1, path=None):
         lab.append(re.split('[-+]?\d+', at)[0])
         num.append(re.split('[a-zA-Z]+', at)[1])
     info.update({'label': lab})  # atom name
-    if not any(k == 'number' for k in info.keys()):
+    if not any(k == 'number' for k in list(info.keys())):
         info.update({'number': num})  # atom number
 
     # instantiate atoms
@@ -178,7 +185,7 @@ def cmi_build_struct(stru, sname, number):
     # atoms
     atoms = []
     types = [re.split('[-+]?\d+', label)[0] for label in stru.label]
-    nums = dict(zip(set(types), [iter(np.arange(types.count(at))) for at in set(types)])) # unique index
+    nums = dict(list(zip(set(types), [iter(np.arange(types.count(at))) for at in set(types)]))) # unique index
     for ii, label in enumerate(stru.label):
         at = re.split('[-+]?\d+', label)[0]
         if stru[label].anisotropy is False:  # reading Uij is buggy for some reason
@@ -311,7 +318,7 @@ class Structure(UpdateMethods, MergeParams):
         for at in atoms:
             if at.disp_type == 'Uij':
                 at.Bij = at.Uij             # new handle
-                map(lambda p: p.set(value=p.value * 8 * np.pi ** 2), at.Uij) # scale value
+                list(map(lambda p: p.set(value=p.value * 8 * np.pi ** 2), at.Uij)) # scale value
                 at.disp_type = 'Bij'               # update disp_type
                 del at.Uij                     # remove former attribute handle
 
@@ -362,7 +369,7 @@ class Structure(UpdateMethods, MergeParams):
 
         # constrain Bij == Bji
         for k in ['12', '13', '23']:   
-            for at in self.atoms.keys():
+            for at in list(self.atoms.keys()):
                 self.params['%s_B%s' % (at, k[::-1])].set(expr='%s_B%s' % (at, k))
         
         return
@@ -514,7 +521,7 @@ class Phase(MergeParams, UpdateMethods):
             True if no errors
         """
         a = self.upper_to_lower('structures') is True
-        b = map(lambda st: st.upper_to_lower('atoms'), self.structures.values())
+        b = [st.upper_to_lower('atoms') for st in list(self.structures.values())]
         return a and all(b)
 
     def pub_cif(self, structure_name, filename=None, path=None, debug=False):  # , subdir='LSQ'):
@@ -554,8 +561,8 @@ class Phase(MergeParams, UpdateMethods):
         Returns:
             * bool: True
         """
-        con_path = abspath(join(*filter(None, (path, 'control.dif'))))
-        dat_path = abspath(join(*filter(None, (path, subdir, inputname + '.dat'))))
+        con_path = abspath(join(*[_f for _f in (path, 'control.dif') if _f]))
+        dat_path = abspath(join(*[_f for _f in (path, subdir, inputname + '.dat') if _f]))
         dat_path = relpath(dat_path, start=split(con_path)[0])
         # write control
         try:
@@ -594,13 +601,13 @@ class Phase(MergeParams, UpdateMethods):
         """
         # perfunctory stuff
         # fpath = absfpath(path, inputname, 'dat')
-        fpath = abspath(join(*filter(None, (path, inputname + '.dat'))))
+        fpath = abspath(join(*[_f for _f in (path, inputname + '.dat') if _f]))
         nlayers = len(self.trans.transitions)
 
         # not necessarily refined- establish source
         #  FIX  figure out how to clean this up
         d = {'wvl': '', 'gau': '', 'lat': '', 'MCL': '', 'pv_coefficients': ()}
-        for k in d.keys():
+        for k in list(d.keys()):
             try:
                 d.update({k.lower(): self.params[k.lower()].value})
                 #  FIX  print k, 'params'
@@ -619,7 +626,7 @@ class Phase(MergeParams, UpdateMethods):
         # def picker(index):
         #    'returns key of index-th layer'
         #    return [k for k in self.structures.keys() if self.structures[k].number == int(index)][0]
-        picker = lambda index: [k for k in self.structures.keys() if self.structures[k].number == int(index)][0]
+        picker = lambda index: [k for k in list(self.structures.keys()) if self.structures[k].number == int(index)][0]
 
         # main ##################
         with open(fpath, 'w+') as f:
@@ -679,7 +686,7 @@ class Phase(MergeParams, UpdateMethods):
                 return
 
             s = []
-            for atk in self.structures[k].atoms.keys():
+            for atk in list(self.structures[k].atoms.keys()):
                 s.append(atk)
             s.sort(key=last)
             for atk in s:
@@ -699,7 +706,7 @@ class Phase(MergeParams, UpdateMethods):
                     # get ith layer key
                     k = picker(layer)
                     s = []
-                    for at in self.structures[k].atoms.keys():
+                    for at in list(self.structures[k].atoms.keys()):
                         s.append(at)
                     s.sort(key=last)
                     # write asymmetric unit to input file
