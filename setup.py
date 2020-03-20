@@ -25,11 +25,9 @@ setup_args = dict(
         # 'schwimmbad>=0.3.0',  # necessary for mpi 
         'tabulate>=0.8.2',
         'dill>=0.2.7.1'
-
-
 						],
 	classifiers = [
-		'Programming Language :: Python :: 2.7',
+		'Programming Language :: Python :: 3.7',
 		'Operating System :: POSIX',
 		'License :: OSI Approved :: BSD-3-Clause'
 				   ],

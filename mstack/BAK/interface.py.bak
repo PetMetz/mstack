@@ -5,12 +5,7 @@ Created on Tue Apr 26 13:54:44 2016
 @author: Peter C Metz
 """
 from __future__ import absolute_import
-from __future__ import division
 # standard
-from builtins import str
-from builtins import range
-from builtins import object
-from past.utils import old_div
 from copy import deepcopy
 from operator import itemgetter
 
@@ -64,9 +59,9 @@ class Interface(object):
         """
         self.add('lattices', {})
 
-        for k1, p in list(self.phases.items()):
+        for k1, p in self.phases.items():
             self.lattices.update({k1: {}})
-            for k2, s in list(p.structures.items()):
+            for k2, s in p.structures.items():
                 self.lattices[k1].update({k2: Lattice(*ut.attributegetter('a', 'b', 'c', 'alp', 'bet', 'gam')(s))})
 
         return True
@@ -96,11 +91,11 @@ class Interface(object):
         # (atype=None, xyz=None, label=None, occupancy=None, anisotropy=None, U=None, Uisoequiv=None, lattice=None)
         self.add('atoms', {})
 
-        for k1, p in list(self.phases.items()):   # for phase in phases
+        for k1, p in self.phases.items():   # for phase in phases
             self.atoms.update({k1: {}})
-            for k2, s in list(p.structures.items()):  # for structure in structures
+            for k2, s in p.structures.items():  # for structure in structures
                 l = []
-                for k3, at in list(s.atoms.items()):  # for atoms in structure
+                for k3, at in s.atoms.items():  # for atoms in structure
                     XYZ = ut.attributegetter('x', 'y', 'z')(at)
                     occ = at.occ
 
@@ -134,7 +129,7 @@ class Interface(object):
         """
         # initialize short-name internal variables
         m, n, o = dim[:]
-        rx, ry, rz = [k.value for k in list(trans.vector.values())][:]
+        rx, ry, rz = [k.value for k in trans.vector.values()][:]
 
         # supercell dimensions
         aprime = m * lattice.a * 1  # * rx
@@ -149,9 +144,9 @@ class Interface(object):
             tag = '{0}_{1}'.format(at.label, '000')               # handle
             asym.update({tag: deepcopy(at)})                    # copy to modify
             asym[tag].label = tag                               # homogenize label
-            asym[tag].x = (old_div(lattice.a, aprime)) * asym[tag].x    # scale x coord
-            asym[tag].y = (old_div(lattice.b, bprime)) * asym[tag].y    # scale y coord
-            asym[tag].z = (old_div(lattice.c, cprime)) * asym[tag].z    # scale z coord
+            asym[tag].x = (lattice.a / aprime) * asym[tag].x    # scale x coord
+            asym[tag].y = (lattice.b / bprime) * asym[tag].y    # scale y coord
+            asym[tag].z = (lattice.c / cprime) * asym[tag].z    # scale z coord
 
         # copy asymmetric unit in 0th layer to mxn tiles
         asym000 = deepcopy(asym)  # copy of 000th asymmetric unit to propagate
@@ -161,7 +156,7 @@ class Interface(object):
                     pass
                 else:
                     pos = '{0}{1}0'.format(str(i), str(j))
-                    for at in list(asym000.keys()):
+                    for at in asym000.keys():
                         tag = '{0}_{1}'.format(asym000[at].label, pos)
                         asym.update({tag: deepcopy(asym000[at])})
                         asym[tag].label = tag
@@ -172,20 +167,20 @@ class Interface(object):
         asymmn0 = deepcopy(asym)  # copy of mn0th asymmetric unit to propagate
         for k in range(o - 1):
             k += 1
-            for at in list(asymmn0.keys()):
+            for at in asymmn0.keys():
                 pos = '{0}{1}'.format(asymmn0[at].label.split('_')[:-1], str(k))
                 tag = '{0}_{1}'.format(asymmn0[at].label, pos)
                 asym.update({tag: deepcopy(asymmn0[at])})
                 asym[tag].label = tag
-                asym[tag].x = asymmn0[at].x + old_div(k * rx, m)
-                asym[tag].y = asymmn0[at].y + old_div(k * ry, n)
+                asym[tag].x = asymmn0[at].x + k * rx / m
+                asym[tag].y = asymmn0[at].y + k * ry / n
                 asym[tag].z = asymmn0[at].z + k * 1. / o
 
         # create/return diffpy.Structure(asym)
         if debug is True:
             return asym
         else:
-            return Structure(atoms=list(asym.values()), lattice=superlattice, title=label)  # rv
+            return Structure(atoms=asym.values(), lattice=superlattice, title=label)  # rv
 
     def _get_supercells(self, dim, debug=False):
         """
@@ -203,8 +198,8 @@ class Interface(object):
         alp = {}
         str_number = lambda x: x.number
 
-        for p in list(self.phases.keys()):
-            strs = sorted(list(self.phases[p].structures.values()), key=str_number)
+        for p in self.phases.keys():
+            strs = sorted(self.phases[p].structures.values(), key=str_number)
             for i, s in enumerate(strs):
                 for j in range(self.phases[p].trans.nlayers):
                     # lattice, atoms, trans, dim, label
@@ -270,7 +265,7 @@ class Interface(object):
 
     def to_cif(self):
         """ write supercells to *supercell.label.cif* in cwd """
-        for sc in list(self.supercells.values()):
+        for sc in self.supercells.values():
             sc.write(''.join((sc.title, '.cif')), 'cif')
         return True
 

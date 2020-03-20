@@ -8,7 +8,15 @@ disorered PDF data.
 
 @author: Peter C Metz
 """
+from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
 # standard
+from future import standard_library
+standard_library.install_aliases()
+from builtins import map
+from builtins import str
+from past.utils import old_div
 from copy import copy, deepcopy
 import os
 import re
@@ -16,17 +24,17 @@ import time
 from time import strftime
 
 # 3rd party
-import cPickle
+import pickle
 import lmfit
 from matplotlib import pyplot as plt
 import numpy as np
 # import dill
 
 # local
-from interface import Interface
-import utilities as u
-from utilities import MergeParams, UpdateMethods
-from utilities import warn_windows
+from .interface import Interface
+from . import utilities as u
+from .utilities import MergeParams, UpdateMethods
+from .utilities import warn_windows
 
 # diffpy-cmi
 try:
@@ -81,7 +89,7 @@ def load(filename, path=None):
     fpath = os.path.join(*[k for k in [path, filename] if k is not None])
 
     with open(fpath, 'rb') as f:
-        obj = cPickle.load(f)
+        obj = pickle.load(f)
 
     return obj
 
@@ -109,7 +117,7 @@ class PdfData(UpdateMethods, MergeParams):
             theorem and the atomic pair distribution function.\" *Phys. Rev. B*
             84, 134105 (2011).
         """
-        return np.pi / self.qmax
+        return old_div(np.pi, self.qmax)
 
     def _data(self):
         """
@@ -140,8 +148,7 @@ class PdfData(UpdateMethods, MergeParams):
             elif data is None:
                 pass
             else:
-                raise(Exception('Data must be entered as filepath or\
-                                (filepath, column) or np.array'))
+                raise Exception
 
     def __init__(self, name=None, data=None, qmax=None, qmin=None,
                  qbroad=None, qdamp=None, scale=None, rmin=None, rmax=None,
@@ -255,7 +262,7 @@ class PdfModel(UpdateMethods, MergeParams):
         self.update('rcut', 0.0)
         self.update('stepcut', 0.0)
         # catch not implemented
-        for p in self.params.values():
+        for p in list(self.params.values()):
             not_implemented(p)
 
         # not parameters
@@ -366,7 +373,7 @@ class PdfPhase(UpdateMethods, MergeParams):
         self.update('stepcut', 0.0)
         self.add_phase(phase)
         # catch not implemented
-        for p in self.params.values():
+        for p in list(self.params.values()):
             not_implemented(p)
 
         # not params
@@ -398,7 +405,7 @@ class PdfPhase(UpdateMethods, MergeParams):
         rv.update(structures)  # dict of diffpy.Structure instances
 
         # make pdf_model instances
-        for k, v in rv.items():
+        for k, v in list(rv.items()):
             rv.update({k: PdfModel(structure=v,
                                    name=k,
                                    scale=probabilities[k],
@@ -414,7 +421,7 @@ class PdfPhase(UpdateMethods, MergeParams):
                       )
 
         #  FIXME  for debugging
-        if name_check(rv.keys()) is False:
+        if name_check(list(rv.keys())) is False:
             raise Exception('check out naming conventions for phase->model')
 
         self.models.update(rv)
@@ -460,9 +467,9 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
             # merge up data parameters
             self.lower_to_upper('data', specifier='params')
         # verbose
-        print '\n data initialized:'
-        for d in self.data.keys():
-            print '      %s' % d
+        print('\n data initialized:')
+        for d in list(self.data.keys()):
+            print('      %s' % d)
 
         return True
 
@@ -484,9 +491,9 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
             # merge up phase parameters
             self.lower_to_upper('phases', specifier='params')
         # verbose
-        print '\n phases initialized:'
-        for s in self.phases.keys():    
-            print '      %s' % s
+        print('\n phases initialized:')
+        for s in list(self.phases.keys()):    
+            print('      %s' % s)
 
         return True
 
@@ -547,13 +554,13 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
         path = os.path.join(*[k for k in [os.getcwd(), subdir, '%s.dat' % filename] if k is not None])
 
         with open(path, 'w+b') as f:
-            cPickle.dump(self, f, -1)
+            pickle.dump(self, f, -1)
 
         return True
 
     def reset(self):
         """ use self.original to reset refined parameters to previous values """
-        for k in self.original.keys():
+        for k in list(self.original.keys()):
             self.params[k].value = self.original[k]
 
     def revert(self):
@@ -627,7 +634,7 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
                 cfg.update({k: getattr(data, k)})
 
         # some None|inf replacement
-        for k, v in cfg.items():
+        for k, v in list(cfg.items()):
             #  FIXME  print k, v, type(k), type(v)
             if not u.isfinite(v):
                 cfg.update({k: 0})
@@ -703,12 +710,12 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
         # setup
         # initialize data entry
         try:
-            self.gr[data.name].keys()
+            list(self.gr[data.name].keys())
         except KeyError:
             self.gr.update({data.name: {}})
         # initialize phase entry
         try:
-            self.gr[data.name][phase.name].keys()
+            list(self.gr[data.name][phase.name].keys())
         except KeyError:
             self.gr[data.name].update({phase.name: {}})
         # get computable models
@@ -719,7 +726,7 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
         N = 0  # FIXME this just results in a scale parameter multiplied by N
 
         # crunch G(r) * model_scale
-        for m_key, mod in phase.models.items():
+        for m_key, mod in list(phase.models.items()):
             gr = self.calculator(mod, data)  # calc gr
             #  FIXME  print data.name, phase.name, m_key
             self.gr[data.name][phase.name].update({m_key: gr})
@@ -727,7 +734,7 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
             N += 1
 
         # normalize and scale and reshape
-        rv = rv / N * phase.scale.value  # <--- phase weight
+        rv = old_div(rv, N) * phase.scale.value  # <--- phase weight
         rv = np.array((gr[:, 0], rv)).T
         return rv.astype(float)
 
@@ -755,7 +762,7 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
         """
         # setup
         try:
-            self.GR[data.name].keys()
+            list(self.GR[data.name].keys())
         except KeyError:
             self.GR.update({data.name: {}})
         # FIXME  rv = np.zeros((np.ceil((data.rmax - data.rmin) / data.rstep).astype(int),), dtype=float)
@@ -763,7 +770,7 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
         M = 0
 
         # main loop
-        for p_key, phase in phases.items():
+        for p_key, phase in list(phases.items()):
             if phase.use is True:   # option to turn off phases
                 # get model composite
                 if recalc is True:  # speed up by skipping g(r) calc if no var change
@@ -772,7 +779,7 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
 
                 # apply shape function  FIXME this is explicit and restrictive
                 gr = self.GR[data.name][p_key]
-                for env in [k for k in phase.params.keys() if any(
+                for env in [k for k in list(phase.params.keys()) if any(
                         k.endswith(j) for j in ['spdiameter', 'sthick'])]:
                     if env == 'spdiameter' and u.isfinite(phase.spdiameter.value):
                         # FIXME  print 'applying spdiameter'
@@ -819,7 +826,7 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
                 del array[-1]
 
         if self.dim_check(calc_data, exp_data) is False:
-            print 'len(calc_data)[%s] != len(exp_data)[%s]' % (len(calc_data), len(exp_data))
+            print('len(calc_data)[%s] != len(exp_data)[%s]' % (len(calc_data), len(exp_data)))
 
         return np.array(exp_data, dtype='float64'), np.array(calc_data, dtype='float64')
 
@@ -883,7 +890,7 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
         report parameters with attribute vary == True
          FIXME  moved to utilities
         """
-        for p in self.params.values():
+        for p in list(self.params.values()):
             if p.expr is not None and p.vary is True:
                 p.vary = False
         return u.report_refined(self.params, tabulate)
@@ -914,7 +921,7 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
             bool: True
         """
         # update parameter values
-        for k in params.keys():
+        for k in list(params.keys()):
             if params[k].value != self.params[k].value:
                 # print 'changing {0}: {1} to {2}'.format(k, self.params[k].value, params[k].value)
                 self.params[k].value = params[k].value
@@ -927,10 +934,10 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
             self.upper_to_lower(key, specifier='params', debug=True)
 
         # push new values down to Phase object
-        for k, v in self.phases.items():
+        for k, v in list(self.phases.items()):
             v.upper_to_lower('phase', specifier='params', debug=True)
             # push values down to Structure and Transition objects
-            for s in v.phase.values():
+            for s in list(v.phase.values()):
                 s.phase_to_trans()
                 s.phase_to_structure()
         return True
@@ -994,7 +1001,7 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
 
         # get phase composites and residuals
         self.res = np.array([])
-        for d_key, dat in self.data.items():
+        for d_key, dat in list(self.data.items()):
             if dat.use is True:
                 self.phase_composite(self.phases, dat, recalc)  # get new G(r)
                 self.residual_method(dat)  # get residual array
@@ -1043,7 +1050,7 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
 
         # ocassionally announce redchi
         # if iter % 10 == 0:
-        print 'rwp(%0d): %.4E' % (iter, rwp)
+        print('rwp(%0d): %.4E' % (iter, rwp))
 
         # acccept kwarg to toggle residual plotting on (expensive, timewise)
         try:
@@ -1060,8 +1067,8 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
     def preview(self):
         """ sneak peak of fit result for single data set """
         self.generic_update(self.params)
-        self.phase_composite(self.phases, self.data.values()[0])
-        self.plot_min_result(self.data.values()[0])
+        self.phase_composite(self.phases, list(self.data.values())[0])
+        self.plot_min_result(list(self.data.values())[0])
         return
 
     def lsq_minimize(self, subdir=None, plot_resid=False,
@@ -1119,14 +1126,14 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
         self.final = u.report_refined(self.result.params)  # final values
         self.report = lmfit.fit_report(self.result, min_correl=0.5)  # fit report
         self.filter_report(variable=True, constrained=False)  # contracted version
-        for k, v in self.result.params.items():  # copy stderr to top level
+        for k, v in list(self.result.params.items()):  # copy stderr to top level
             self.params[k].stderr = v.stderr
         
         # output cif file for inspection (overwritten each minimization call)
         if dump is True:
-            for pha in self.phases.values():
-                for p in pha.phase.values():
-                    for s in p.structures.keys():
+            for pha in list(self.phases.values()):
+                for p in list(pha.phase.values()):
+                    for s in list(p.structures.keys()):
                         p.pub_cif(s)
 
         return self.rwp()
@@ -1146,13 +1153,13 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
             True
         """
         # check for None in .values
-        for k in self.params.values():
+        for k in list(self.params.values()):
             if any(k.value == s for s in [float('-inf'), float('inf'), None]):
                 k.value = 0.0
                 #  FIXME  print k.name, k.value
 
         # set min/max arbitrarily at +/- 25% if values not supplied
-        for par in self.params.values():
+        for par in list(self.params.values()):
             value = par.value
             # m = [value * 0.75, value * 1.25]
             m = [-adjust * value, adjust * value]
@@ -1262,9 +1269,9 @@ class PdfRefinement(UpdateMethods, MergeParams, object):
 
             # output cif file for inspection (overwritten each minimization call)
             if dump is True:
-                for pha in self.phases.values():
-                    for p in pha.phase.values():
-                        for s in p.structures.keys():
+                for pha in list(self.phases.values()):
+                    for p in list(pha.phase.values()):
+                        for s in list(p.structures.keys()):
                             p.pub_cif(s)
 
     # End of PdfRefinement ##########
