@@ -9,6 +9,7 @@ Transition module contains classes for describing layer transitions.
 from __future__ import absolute_import
 # standard
 from copy import deepcopy
+from collections import OrderedDict as OD
 
 # 3rd party
 import lmfit
@@ -31,6 +32,29 @@ class Transition(object):
         * update_alpij
         * update_vector
     """
+    def __repr__(self):
+        """ """
+        return self.__str__()
+    
+    def __str__(self):
+        """ string representation """
+        fstring = r'{:1.8f} {:6.4f} {:6.4f} {:6.4f} ({:6.4f} {:6.4f} {:6.4f} {:6.4f} {:6.4f} {:6.4f}) {{{:d}-{:d}}}'
+        vals = (              
+                self.alpha.value,
+                self.vector['rx'].value,
+                self.vector['ry'].value,
+                self.vector['rz'].value,
+                self.cij['c11'].value,
+                self.cij['c22'].value,
+                self.cij['c33'].value,
+                self.cij['c12'].value,
+                self.cij['c13'].value,
+                self.cij['c23'].value,
+                self.i,
+                self.j
+                )
+        return fstring.format(*vals)
+
     # ########################## update methods ############################# #
 
     def generic(self, generic, name, min0=0.0, max0=1.0):
@@ -101,10 +125,6 @@ class Transition(object):
         # merge new on old
         self.generic(cij, 'cij', min0=0.0, max0=np.inf)
 
-        if not hasattr(self, 'scaled_cij'):
-            self.scaled_cij = deepcopy(self.cij)
-        self.scale_cij(force=True)
-
     # ###############################  __init__   ########################### #
 
     def __init__(self, i, j, alpij=None, vector=None, cij=None):
@@ -144,49 +164,6 @@ class Transition(object):
             self.update_cij({'c11': 0.0, 'c22': 0.0, 'c33': 0.0, 'c12': 0.0, 'c13': 0.0, 'c23': 0.0})
     ###########################################################################
 
-    def scale_cij(self, force=False):
-        """
-        scale cij by smaller corresponding cii to satisfy requirement that
-        cij <= cii
-
-        Args:
-            force (bool): executes scaling whether or not self.scaled is True
-
-        Returns:
-            bool: True
-        """
-
-        if self.scaled is False or force is True:
-            for k in ['c12', 'c13', 'c23']:
-                k1, k2 = 'c%s%s' % (k[1], k[1]), 'c%s%s' % (k[2], k[2])
-
-                # copy diagonal elements
-                for j in [k1, k2]:
-                    if not self.cij[j] == self.scaled_cij[j]:
-                        self.scaled_cij[j].set(*u.attributegetter('value', 'vary', 'min', 'max')(self.cij[j]))
-
-                # set off-diagonal scaled elements
-                # if self.cij[k].value != 0.0:
-                #
-                try:
-                    if self.cij[k1].value == self.cij[k2].value == 0: # if all 0, leave it alone
-                       pass
-
-                    elif self.cij[k1].value > self.cij[k2]:  # else scale  cij by the smaller of cii or cjj
-                        self.scaled_cij[k].set(value=(self.cij[k].value * self.cij[k2].value), max=self.cij[k2].value)
-
-                    elif self.cij[k2].value > self.cij[k1]:
-                        self.scaled_cij[k].set(value=(self.cij[k].value * self.cij[k1].value), max=self.cij[k1].value)
-
-                except ValueError:
-                    # error if cii == 0
-                    if self.cij[k1].value == 0 or self.cij[k2].value == 0:
-                        self.scaled_cij[k].set(value=0, min=0.0, max=1e-06)
-                    else:
-                        raise Exception
-            self.scaled = True
-
-        return True
 
     # end class transition #
 
@@ -207,6 +184,15 @@ class Transitions(object):
         * update_transitions
         * validate_transitions
     """
+    def __repr__(self):
+        """ """
+        return self.__str__()
+    
+    def __str__(self):
+        """ """
+        for trans in np.ravel(self.transitions):
+            rv.append(str(trans))    
+        return '\n'.join(rv)
 
     def update_transitions(self, transitions):
         """ initialize/update dictionary of transitions"""
@@ -221,7 +207,7 @@ class Transitions(object):
         # elif type(transitions) is np.ndarray:
         #    self.transitions = transitions
 
-        self.validate_transitions(force=True)
+        self.validate_transitions()
 
         return
 
@@ -257,7 +243,7 @@ class Transitions(object):
 
         return
 
-    def validate_transitions(self, force=False):
+    def validate_transitions(self):
         """
         Note:
             Because empty fields are initialized with appropriate values except for probabilities,
@@ -265,26 +251,17 @@ class Transitions(object):
                 1. are row normalized.
                 2. of uniform dimension (N x N)
             These conditions are enforced (transitions are operated on) if not correct
-        Args:
-            force (bool | False): recompute scaled cij whether or not trans.scaled is True
+
         Returns:
             Boolean: True|False
         """
         # check transitions are populated
-        for i in range(self.nlayers):
-            for j in range(self.nlayers):
-                if self.transitions[i, j] is None:
-                    raise Exception('all layer transitions must be populated.')
+        if any(el is None for el in self.transitions.ravel()):
+            raise Exception('all layer transitions must be populated.')
 
         # check normalization
         for i in range(self.nlayers):
             self.row_normal(row=i)
-
-        # check cij scaling
-        for i in range(self.nlayers):
-            for j in range(self.nlayers):
-                if self.transitions[i, j].scaled is False or force is True:
-                    self.transitions[i, j].scale_cij(force=force)
 
         # return True if no problems encountered
         return True
@@ -305,28 +282,11 @@ class Transitions(object):
         Returns:
             list of transitions in DIFFaX format (string lists) (0th element always empty)
         """
-
-        # again, probabilities must be a square matrix
-        if self.validate_transitions(force=True) is True:
-            trans = []
-            for i in range(self.nlayers):
-                for j in range(self.nlayers):
-                    trans.append(
-                        '%10.8F %6.4F %6.4F %6.4F (%6.4F %6.4F %6.4F %6.4F %6.4F %6.4F) {%d-%d}' % (
-                            self.transitions[i, j].alpha.value,
-                            self.transitions[i, j].vector['rx'].value,
-                            self.transitions[i, j].vector['ry'].value,
-                            self.transitions[i, j].vector['rz'].value,
-                            self.transitions[i, j].scaled_cij['c11'].value,
-                            self.transitions[i, j].scaled_cij['c22'].value,
-                            self.transitions[i, j].scaled_cij['c33'].value,
-                            self.transitions[i, j].scaled_cij['c12'].value,
-                            self.transitions[i, j].scaled_cij['c13'].value,
-                            self.transitions[i, j].scaled_cij['c23'].value,
-                            i + 1, j + 1))
-            return trans
-        else:
-            raise Exception('\ntransitions validation has failed\n')
+        assert self.validate_transitions(), '\ntransitions validation has failed\n'
+        rv = []
+        for trans in np.ravel(self.transitions):
+            rv.append(str(trans))
+        return rv
 
     # end class transitions_matrix #
 
