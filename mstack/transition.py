@@ -162,10 +162,8 @@ class Transition(object):
             self.update_cij(cij)
         else:
             self.update_cij({'c11': 0.0, 'c22': 0.0, 'c33': 0.0, 'c12': 0.0, 'c13': 0.0, 'c23': 0.0})
-    ###########################################################################
 
-
-    # end class transition #
+# End Transition #
 
 
 class Transitions(object):
@@ -194,6 +192,8 @@ class Transitions(object):
             rv.append(str(trans))    
         return '\n'.join(rv)
 
+    # ########################## update methods ############################# #
+
     def update_transitions(self, transitions):
         """ initialize/update dictionary of transitions"""
         if not hasattr(self, 'transitions'):
@@ -211,6 +211,8 @@ class Transitions(object):
 
         return
 
+    # ###############################  __init__   ########################### #
+
     def __init__(self, nlayers=None, transitions=None):
         """
         Args:
@@ -223,6 +225,8 @@ class Transitions(object):
             self.update_transitions(transitions)
 
         return
+
+    # ###############################   methods   ########################### #
 
     def row_normal(self, row=0):
         """ row normalize entries in alpij """
@@ -288,7 +292,7 @@ class Transitions(object):
             rv.append(str(trans))
         return rv
 
-    # end class transitions_matrix #
+# End Transitions #
 
 
 # EOF #
